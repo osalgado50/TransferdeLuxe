@@ -20,7 +20,7 @@ _Pendiente._
   agente las respete, hook que registra cada prompt y script que exporta las transcripciones.
 - **09/10/2026**: diseño con la IA (brainstorming guiado, una pregunta cada vez). Se analiza el formulario de la
   web de referencia y se decide: reserva pública + alta manual, PWA para el conductor, asignación manual con
-  sugerencia, lectura de tickets con Claude Haiku 5.5, stack Next.js + Supabase + Vercel + OpenStreetMap.
+  sugerencia, lectura de tickets con Claude Haiku 5.5, stack Next.js + Supabase + OpenStreetMap, desplegado en Hostinger Cloud (Node.js Web App) con dominio propio.
   Resultado: `docs/superpowers/specs/2026-10-09-centro-control-design.md`.
 
 ## 6. Challenges y soluciones

@@ -31,7 +31,8 @@ inventados, sin nombre, marca ni contacto de la empresa real); secretos en `.env
 | App del conductor | PWA (la app nativa Android/iOS queda como evolución futura) |
 | Asignación | Manual con sugerencia (libre, plazas, cercanía); el conductor acepta o rechaza |
 | Tickets de combustible | Foto → **Claude Haiku 5.5** extrae los datos → el conductor revisa. Lector intercambiable |
-| Stack | Next.js (App Router, TypeScript) + Supabase (Postgres, Auth, Realtime, Storage, pg_cron) + Vercel |
+| Stack | Next.js (App Router, TypeScript) + Supabase (Postgres, Auth, Realtime, Storage, pg_cron) |
+| Hosting | **Hostinger Cloud Startup** (Node.js Web App desplegada desde GitHub) con el dominio propio |
 | Mapas | Leaflet + OpenStreetMap; geocodificación con Nominatim + lugares frecuentes predefinidos |
 | Plazo de respuesta | Sí, configurable (por defecto 15 min) |
 | Paso «en camino» | Sí |
@@ -42,7 +43,7 @@ inventados, sin nombre, marca ni contacto de la empresa real); secretos en `.env
 ```
 Navegador (operador)   Móvil (conductor, PWA)   Navegador (cliente)
         │                       │                        │
-        └──────────── Next.js en Vercel ─────────────────┘
+        └────── Next.js en Hostinger (Node.js) ──────────┘
           /central         /conductor            /reservar
           Server Actions / Route Handlers (validación de transiciones,
           sugerencia de conductor, lector de tickets, reserva pública)
@@ -190,7 +191,12 @@ Solo para el rol `conductor`. Manifest + service worker, instalable, diseño de 
 
 ## 12. Despliegue y operación
 
-- Vercel (app) + Supabase (datos, auth, realtime, storage, pg_cron), plan gratuito.
+- **Hostinger Cloud Startup**: la app Next.js como «Node.js Web App» (Node 22), importada desde el repo privado de
+  GitHub, en un subdominio del dominio propio (p. ej. `app.<dominio>`) con SSL. Cada push a `main` redespliega.
+  Hostinger no ofrece tiempo real ni auth gestionada, así que los datos siguen en **Supabase**.
+- Supabase (datos, auth, realtime, storage, pg_cron), plan gratuito.
+- Variables de entorno (claves de Supabase y Anthropic) en el panel de Hostinger, nunca en el repo.
+- Plan B si el build de Next.js choca con los límites del plan: Vercel con el mismo repo y el dominio apuntado.
 - pg_cron cada minuto para los plazos de respuesta; además mantiene actividad para evitar la pausa del plan gratuito.
 - Antes de entregar: comprobar que el proyecto de Supabase está activo y que la app responde; repetir durante la
   evaluación si es posible sin hacer commits.

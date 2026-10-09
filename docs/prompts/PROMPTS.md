@@ -133,3 +133,15 @@ Adelante
 
 ---
 
+## 2026-10-09 23:17 · Claude Code · sesión `b3c0e64f`
+
+cambia en el despliege, tengo Hostinger con el domnio y espacio web.
+
+* ¿Quito el Gmail personal del checklist?
+* ¿Tienes el PDF de las bases?
+
+
+me recuerdas que necesitas?
+
+---
+
