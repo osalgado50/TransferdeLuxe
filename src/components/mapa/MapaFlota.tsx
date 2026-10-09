@@ -1,0 +1,58 @@
+"use client";
+import "leaflet/dist/leaflet.css";
+import { useEffect, useMemo, useState } from "react";
+import L from "leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { estadoEnMapa, type EstadoVehiculoMapa } from "@/lib/dominio/mapa";
+import type { PosicionActual, Servicio, Perfil, Vehiculo } from "@/lib/dominio/tipos";
+
+const COLOR: Record<EstadoVehiculoMapa, string> = { libre: "#16a34a", en_camino: "#7c3aed", con_pasajeros: "#4338ca", sin_senal: "#9ca3af" };
+const TEXTO: Record<EstadoVehiculoMapa, string> = { libre: "Libre", en_camino: "En camino", con_pasajeros: "Con pasajeros", sin_senal: "Sin señal" };
+const ACTIVOS = ["asignado", "aceptado", "en_camino", "recogido"];
+
+function icono(color: string, inicial: string) {
+  return L.divIcon({
+    className: "",
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    html: `<div style="width:30px;height:30px;border-radius:9999px;background:${color};color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:600 13px sans-serif">${inicial}</div>`,
+  });
+}
+const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+
+export default function MapaFlota({ posiciones, servicios, conductores, vehiculos, umbralMin }: {
+  posiciones: PosicionActual[]; servicios: Servicio[]; conductores: Pick<Perfil, "id" | "nombre" | "vehiculo_habitual_id">[];
+  vehiculos: Pick<Vehiculo, "id" | "matricula">[]; umbralMin: number;
+}) {
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setAhora(new Date()), 30_000); return () => clearInterval(t); }, []);
+
+  const marcadores = useMemo(() => posiciones.map((p) => {
+    const c = conductores.find((x) => x.id === p.conductor_id);
+    const mios = servicios.filter((s) => s.conductor_id === p.conductor_id && ACTIVOS.includes(s.estado))
+      .sort((a, b) => a.fecha_hora_recogida.localeCompare(b.fecha_hora_recogida));
+    const actual = mios.find((s) => s.estado === "en_camino" || s.estado === "recogido");
+    const siguiente = mios.find((s) => s !== actual);
+    const estado = estadoEnMapa(p, actual, ahora, umbralMin);
+    const veh = vehiculos.find((v) => v.id === c?.vehiculo_habitual_id);
+    const min = Math.max(0, Math.round((ahora.getTime() - new Date(p.registrado_en).getTime()) / 60_000));
+    return { p, nombre: c?.nombre ?? "Conductor", matricula: veh?.matricula ?? "—", estado, actual, siguiente, min };
+  }), [posiciones, servicios, conductores, vehiculos, ahora, umbralMin]);
+
+  return (
+    <MapContainer center={[41.0763, 1.1416]} zoom={11} className="h-[32rem] w-full rounded-lg">
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+      {marcadores.map((m) => (
+        <Marker key={m.p.conductor_id} position={[m.p.lat, m.p.lng]} icon={icono(COLOR[m.estado], m.nombre.charAt(0).toUpperCase())}>
+          <Popup>
+            <strong>{m.nombre}</strong><br />
+            {m.matricula} · {TEXTO[m.estado]}<br />
+            Actual: {m.actual ? `${m.actual.origen_texto} → ${m.actual.destino_texto}` : "—"}<br />
+            Siguiente: {m.siguiente ? `${hora(m.siguiente.fecha_hora_recogida)} ${m.siguiente.origen_texto}` : "—"}<br />
+            <span>hace {m.min} min</span>
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
