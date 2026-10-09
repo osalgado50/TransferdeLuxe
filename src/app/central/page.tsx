@@ -1,5 +1,6 @@
 import { clienteServidor } from "@/lib/supabase/servidor";
 import PanelEnVivo from "@/components/central/PanelEnVivo";
+import BotonesDemo from "@/components/central/BotonesDemo";
 import type { Servicio } from "@/lib/dominio/tipos";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,10 @@ export default async function PanelCentral() {
   for (const s of [...(ventana.data ?? []), ...(sinVer.data ?? [])] as Servicio[]) porId.set(s.id, s);
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Panel en vivo</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Panel en vivo</h1>
+        {process.env.NEXT_PUBLIC_MODO_DEMO === "true" && <BotonesDemo />}
+      </div>
       <PanelEnVivo
         servicios={[...porId.values()]} posiciones={pos.data ?? []} eventos={eventos.data ?? []}
         conductores={perfiles.data ?? []} vehiculos={vehiculos.data ?? []} umbralMin={ajustes.data?.umbral_sin_senal_min ?? 5}

@@ -1,0 +1,95 @@
+import type { Punto } from "@/lib/dominio/tipos";
+
+/** Recorre la ruta de ida y vuelta, un punto cada `pasoMs`. */
+export function posicionSimulada(ruta: Punto[], ahora: number, pasoMs = 3000): Punto {
+  const n = ruta.length, ciclo = 2 * (n - 1);
+  const i = Math.floor(ahora / pasoMs) % ciclo;
+  return ruta[i < n ? i : ciclo - i];
+}
+
+/** Rutas aproximadas por carreteras públicas del Camp de Tarragona, una por conductor (clave = nombre del perfil). */
+export const RUTAS_DEMO: Record<string, Punto[]> = {
+  // Aeropuerto de Reus -> Salou (T-11 / C-14)
+  "Marc Demo": [
+    { lat: 41.1474, lng: 1.1672 },
+    { lat: 41.1445, lng: 1.1655 },
+    { lat: 41.141, lng: 1.164 },
+    { lat: 41.1375, lng: 1.161 },
+    { lat: 41.134, lng: 1.159 },
+    { lat: 41.13, lng: 1.156 },
+    { lat: 41.126, lng: 1.1535 },
+    { lat: 41.122, lng: 1.151 },
+    { lat: 41.118, lng: 1.149 },
+    { lat: 41.114, lng: 1.147 },
+    { lat: 41.112, lng: 1.146 },
+    { lat: 41.11, lng: 1.145 },
+    { lat: 41.106, lng: 1.143 },
+    { lat: 41.102, lng: 1.142 },
+    { lat: 41.098, lng: 1.141 },
+    { lat: 41.094, lng: 1.1405 },
+    { lat: 41.09, lng: 1.14 },
+    { lat: 41.086, lng: 1.14 },
+    { lat: 41.082, lng: 1.14 },
+    { lat: 41.079, lng: 1.14 },
+    { lat: 41.076, lng: 1.14 },
+  ],
+  // Salou -> Cambrils (N-340 / litoral)
+  "Laia Demo": [
+    { lat: 41.076, lng: 1.14 },
+    { lat: 41.0757, lng: 1.1365 },
+    { lat: 41.0755, lng: 1.133 },
+    { lat: 41.075, lng: 1.1295 },
+    { lat: 41.0745, lng: 1.126 },
+    { lat: 41.074, lng: 1.1225 },
+    { lat: 41.0735, lng: 1.119 },
+    { lat: 41.0727, lng: 1.1155 },
+    { lat: 41.072, lng: 1.112 },
+    { lat: 41.0713, lng: 1.1085 },
+    { lat: 41.0705, lng: 1.105 },
+    { lat: 41.0697, lng: 1.1015 },
+    { lat: 41.069, lng: 1.098 },
+    { lat: 41.0685, lng: 1.0945 },
+    { lat: 41.068, lng: 1.091 },
+    { lat: 41.0678, lng: 1.088 },
+    { lat: 41.0675, lng: 1.085 },
+    { lat: 41.0673, lng: 1.082 },
+    { lat: 41.067, lng: 1.079 },
+    { lat: 41.0669, lng: 1.0765 },
+    { lat: 41.0668, lng: 1.074 },
+    { lat: 41.0668, lng: 1.072 },
+    { lat: 41.0668, lng: 1.07 },
+    { lat: 41.0668, lng: 1.0685 },
+    { lat: 41.0668, lng: 1.067 },
+    { lat: 41.0669, lng: 1.0655 },
+    { lat: 41.0669, lng: 1.064 },
+    { lat: 41.0669, lng: 1.063 },
+    { lat: 41.067, lng: 1.062 },
+    { lat: 41.067, lng: 1.061 },
+    { lat: 41.067, lng: 1.06 },
+  ],
+  // Tarragona -> PortAventura (N-340)
+  "Jordi Demo": [
+    { lat: 41.1189, lng: 1.258 },
+    { lat: 41.117, lng: 1.254 },
+    { lat: 41.115, lng: 1.248 },
+    { lat: 41.113, lng: 1.242 },
+    { lat: 41.111, lng: 1.236 },
+    { lat: 41.109, lng: 1.23 },
+    { lat: 41.107, lng: 1.224 },
+    { lat: 41.105, lng: 1.218 },
+    { lat: 41.103, lng: 1.212 },
+    { lat: 41.101, lng: 1.206 },
+    { lat: 41.099, lng: 1.2 },
+    { lat: 41.097, lng: 1.195 },
+    { lat: 41.095, lng: 1.19 },
+    { lat: 41.0935, lng: 1.185 },
+    { lat: 41.092, lng: 1.18 },
+    { lat: 41.0905, lng: 1.175 },
+    { lat: 41.0895, lng: 1.17 },
+    { lat: 41.0888, lng: 1.166 },
+    { lat: 41.0884, lng: 1.163 },
+    { lat: 41.0882, lng: 1.161 },
+    { lat: 41.0881, lng: 1.1595 },
+    { lat: 41.088, lng: 1.158 },
+  ],
+};
