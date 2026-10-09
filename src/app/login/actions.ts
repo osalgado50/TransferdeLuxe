@@ -1,0 +1,15 @@
+"use server";
+import { redirect } from "next/navigation";
+import { clienteServidor } from "@/lib/supabase/servidor";
+
+export async function entrar(_: unknown, fd: FormData): Promise<{ error?: string }> {
+  const sb = await clienteServidor();
+  const { data, error } = await sb.auth.signInWithPassword({ email: String(fd.get("email")), password: String(fd.get("password")) });
+  if (error || !data.user) return { error: "Email o contraseña incorrectos" };
+  const { data: p } = await sb.from("perfiles").select("rol").eq("id", data.user.id).single();
+  const area = p?.rol === "operador" ? "/central" : "/conductor";
+  const destino = String(fd.get("destino") ?? "");
+  const valido = destino === area || destino.startsWith(area + "/");
+  redirect(valido ? destino : area);
+}
+export async function salir() { const sb = await clienteServidor(); await sb.auth.signOut(); redirect("/login"); }
