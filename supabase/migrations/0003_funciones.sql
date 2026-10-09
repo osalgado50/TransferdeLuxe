@@ -27,4 +27,5 @@ begin
   return n;
 end $$;
 
+select cron.unschedule(jobid) from cron.job where jobname = 'expirar-asignaciones';
 select cron.schedule('expirar-asignaciones', '* * * * *', $$select public.expirar_asignaciones()$$);

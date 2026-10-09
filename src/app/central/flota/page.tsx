@@ -85,7 +85,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           {!demo && <input name="password" type="password" minLength={8} required placeholder="Contraseña (mín. 8)" aria-label="Contraseña nueva" className={`${campo} w-44`} />}
           <button className={boton}>Añadir conductor</button>
         </form>
-        {demo && <p className="text-xs text-slate-500">Modo demo: el conductor nuevo usa la contraseña de demo.</p>}
+        {demo && <p className="text-xs text-slate-500">Modo demo: el conductor nuevo usa la contraseña de demo y su email debe terminar en @transferdeluxe.test.</p>}
       </section>
 
       <section className="space-y-2">

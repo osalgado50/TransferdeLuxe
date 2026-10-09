@@ -71,3 +71,12 @@ test("almacén corrupto o no-array: cola vacía", () => {
   const c = new ColaAcciones({ get: () => '{"a":1}', set: () => {} }, async () => ({ ok: true }));
   expect(c.pendientes()).toEqual([]);
 });
+
+test("fallos de red: cuenta intentos y permite descartar la acción atascada", async () => {
+  const c = new ColaAcciones(memoria(), async () => { throw new Error("offline"); });
+  c.encolar({ idAccion: "1", servicioId: "s", accion: "cargar" });
+  for (let i = 0; i < 3; i++) await c.vaciar();
+  expect(c.pendientes()[0].intentos).toBe(3);
+  c.descartar("1");
+  expect(c.pendientes()).toEqual([]);
+});

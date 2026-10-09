@@ -1,6 +1,6 @@
 // Genera public/demo/ticket-1.jpg y ticket-2.jpg: texto monoespaciado, alto contraste y grande para que el OCR los lea.
 import sharp from "sharp";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 const tickets = [
   { fichero: "ticket-1.jpg", fecha: "08/10/2026", litros: "42,15", precio: "1,459", total: "61,50" },
@@ -20,9 +20,14 @@ function svg(t: (typeof tickets)[number]): string {
 
 async function main() {
 mkdirSync("public/demo", { recursive: true });
+const base64: Record<string, string> = {};
 for (const t of tickets) {
-  await sharp(Buffer.from(svg(t))).flatten({ background: "#fff" }).jpeg({ quality: 92 }).toFile(`public/demo/${t.fichero}`);
+  const buf = await sharp(Buffer.from(svg(t))).flatten({ background: "#fff" }).jpeg({ quality: 92 }).toBuffer();
+  writeFileSync(`public/demo/${t.fichero}`, buf);
+  base64[t.fichero] = buf.toString("base64");
   console.log("generado", t.fichero);
 }
+// Módulo con las fotos embebidas: el reset de la demo no depende del directorio de trabajo ni del build standalone.
+writeFileSync("src/lib/demo/fotos.ts", `// Generado por scripts/tickets-demo.ts: no editar a mano.\nexport const FOTOS_BASE64: Record<string, string> = ${JSON.stringify(base64, null, 2)};\n`);
 }
 main();

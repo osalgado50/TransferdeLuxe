@@ -16,10 +16,13 @@ function Tarjeta({ s }: { s: TarjetaRuta }) {
   const movible = MOVIBLES.includes(s.estado);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: s.id, disabled: !movible });
   return (
-    <div ref={setNodeRef} {...attributes} {...(movible ? listeners : {})}
+    <div ref={setNodeRef}
       style={transform ? { transform: `translate(${transform.x}px,${transform.y}px)` } : undefined}
-      className={`rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm ${movible ? "cursor-grab touch-none" : "opacity-70"} ${isDragging ? "z-10 shadow-lg" : ""}`}>
-      <div className="flex items-center justify-between gap-2"><strong>{hora.format(new Date(s.fecha_hora_recogida))}</strong><EstadoBadge estado={s.estado} /></div>
+      className={`rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm ${movible ? "" : "opacity-70"} ${isDragging ? "z-10 shadow-lg" : ""}`}>
+      <div className="flex items-center justify-between gap-2">
+        {movible && <button type="button" aria-label="Arrastrar servicio" {...attributes} {...listeners} className="-m-1 cursor-grab touch-none select-none p-1 text-slate-500">⋮⋮</button>}
+        <strong>{hora.format(new Date(s.fecha_hora_recogida))}</strong><EstadoBadge estado={s.estado} />
+      </div>
       <p className="mt-1 text-slate-300">{s.origen_texto} → {s.destino_texto}</p>
       <p className="text-xs text-slate-400">{s.pasajeros} pax</p>
     </div>

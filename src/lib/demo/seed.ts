@@ -1,6 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { FOTOS_BASE64 } from "./fotos";
 import { diaMadrid, duracionEstimadaMin } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
 import { RUTAS_DEMO } from "./rutas";
@@ -21,6 +20,16 @@ async function usuariosDemoExistentes(sb: SupabaseClient): Promise<Map<string, s
   }
 }
 
+async function todosLosUsuarios(sb: SupabaseClient): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
+  for (let pagina = 1; ; pagina++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page: pagina, perPage: 200 });
+    if (error) throw new Error(`Demo (listUsers): ${error.message}`);
+    for (const u of data.users) ids.set(u.email ?? u.id, u.id);
+    if (data.users.length < 200) return ids;
+  }
+}
+
 async function limpiar(sb: SupabaseClient, viejos: Map<string, string>): Promise<void> {
   for (const t of ["eventos_servicio", "acciones_procesadas", "servicios", "tickets_combustible", "posiciones", "posicion_actual", "perfiles"]) {
     const col = t === "posicion_actual" ? "conductor_id" : "id";
@@ -28,7 +37,10 @@ async function limpiar(sb: SupabaseClient, viejos: Map<string, string>): Promise
   }
   // Los usuarios demo vigentes se conservan (mismo id: no se cierran sesiones); solo se borran los sobrantes.
   const vigentes = new Set(USUARIOS_DEMO.map((u) => u.email));
-  for (const [email, id] of viejos) {
+  // Todos los usuarios de este proyecto son de demo: también se borran los creados desde la UI con otro dominio.
+  const todos = new Map(viejos);
+  for (const [email, id] of await todosLosUsuarios(sb)) todos.set(email, id);
+  for (const [email, id] of todos) {
     const { data: fotos } = await sb.storage.from("tickets").list(id);
     if (fotos?.length) await sb.storage.from("tickets").remove(fotos.map((f) => `${id}/${f.name}`));
     if (vigentes.has(email)) continue;
@@ -52,8 +64,12 @@ const redondea = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 
 /** Idempotente: borra los datos de demo y los vuelve a crear con fechas relativas a `hoy`. */
 export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Date = new Date()): Promise<void> {
-  // Se leen las fotos antes de borrar nada: si falta un fichero, falla sin tocar los datos.
-  const fotos = await Promise.all(FOTOS_TICKET.map((f) => readFile(path.join(process.cwd(), "public", "demo", f.fichero))));
+  // Fotos embebidas (src/lib/demo/fotos.ts): se comprueban antes de borrar nada.
+  const fotos = FOTOS_TICKET.map((f) => {
+    const b64 = FOTOS_BASE64[f.fichero];
+    if (!b64) throw new Error(`Demo: falta la foto embebida ${f.fichero} (ejecuta scripts/tickets-demo.ts)`);
+    return Buffer.from(b64, "base64");
+  });
   const existentes = await usuariosDemoExistentes(sb);
   await limpiar(sb, existentes);
 

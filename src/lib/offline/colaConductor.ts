@@ -32,6 +32,7 @@ export function colaDe(conductorId: string): Compartida {
 export async function drenar(conductorId: string) {
   const c = colaDe(conductorId);
   const r = await c.cola.vaciar();
-  c.oyentes.forEach((f) => f());
+  // Solo se avisa si algo cambió o sigue atascado: así no se refresca la página cada 20 s sin motivo.
+  if (r.enviadas || r.errores.length || c.cola.pendientes().length) c.oyentes.forEach((f) => f());
   return r;
 }

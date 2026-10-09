@@ -17,6 +17,7 @@ export function useTiempoReal<T extends object>(
     let conectadoAntes = false;
     let caido = false;
     let cancelado = false;
+    let activo = true; // un CLOSED tardío de un canal viejo no debe marcar el nuevo como caído
     let canal: ReturnType<typeof sb.channel> | null = null;
     // Las políticas RLS exigen "authenticated": el socket debe llevar el JWT de la sesión antes de suscribirse.
     void sb.auth.getSession().then(({ data }) => {
@@ -31,6 +32,7 @@ export function useTiempoReal<T extends object>(
           return i === -1 ? [...act, nueva] : act.map((f, j) => (j === i ? nueva : f));
         });
       }).subscribe((estado) => {
+        if (!activo) return;
         if (estado === "SUBSCRIBED") {
           cb.current?.(true);
           if (conectadoAntes && caido) router.refresh(); // recupera lo perdido durante la caída
@@ -44,7 +46,7 @@ export function useTiempoReal<T extends object>(
     const { data: sus } = sb.auth.onAuthStateChange((ev, session) => {
       if (session && (ev === "TOKEN_REFRESHED" || ev === "SIGNED_IN")) sb.realtime.setAuth(session.access_token);
     });
-    return () => { cancelado = true; sus.subscription.unsubscribe(); if (canal) void sb.removeChannel(canal); };
+    return () => { cancelado = true; activo = false; sus.subscription.unsubscribe(); if (canal) void sb.removeChannel(canal); };
   }, [tabla, clave, router]);
   return filas;
 }

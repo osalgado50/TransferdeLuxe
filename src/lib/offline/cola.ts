@@ -1,4 +1,4 @@
-export interface AccionPendiente { idAccion: string; servicioId: string; accion: "salir" | "cargar" | "descargar"; creadaEn: number }
+export interface AccionPendiente { idAccion: string; servicioId: string; accion: "salir" | "cargar" | "descargar"; creadaEn: number; intentos?: number }
 type Almacen = { get(): string | null; set(v: string): void };
 /** Resultado de red: ok=false es un rechazo de negocio (se descarta); lanzar es fallo de red/sesión (se conserva). */
 type Enviar = (a: AccionPendiente) => Promise<{ ok: boolean; error?: string }>;
@@ -20,6 +20,11 @@ export class ColaAcciones {
   }
   private guardar(l: AccionPendiente[]) { this.almacen.set(JSON.stringify(l)); }
   encolar(a: Omit<AccionPendiente, "creadaEn">) { this.guardar([...this.pendientes(), { ...a, creadaEn: Date.now() }]); }
+  /** Descarta una acción atascada (p. ej. se queda a la cabeza reintentándose sin éxito). */
+  descartar(idAccion: string) { this.quitar(idAccion); }
+  private falloRed(idAccion: string) {
+    this.guardar(this.pendientes().map((x) => (x.idAccion === idAccion ? { ...x, intentos: (x.intentos ?? 0) + 1 } : x)));
+  }
   private quitar(idAccion: string) { this.guardar(this.pendientes().filter((x) => x.idAccion !== idAccion)); }
 
   vaciar(): Promise<Resultado> {
@@ -33,8 +38,8 @@ export class ColaAcciones {
       const a = this.pendientes()[0]; // se relee cada vez: lo encolado durante el envío no se pierde
       if (!a) break;
       let r: { ok: boolean; error?: string };
-      try { r = await this.enviar(a); } catch { break; }
-      if (!r || typeof r.ok !== "boolean") break; // respuesta inesperada (p. ej. redirección): conservar
+      try { r = await this.enviar(a); } catch { this.falloRed(a.idAccion); break; }
+      if (!r || typeof r.ok !== "boolean") { this.falloRed(a.idAccion); break; } // respuesta inesperada (p. ej. redirección): conservar
       this.quitar(a.idAccion);
       if (r.ok) enviadas++;
       else { const e = r.error ?? "Error"; errores.push(e); this.alRechazar?.(a, e); }

@@ -17,6 +17,7 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
   servidor.current = estadoInicial;
   const mias = () => cola.pendientes().filter((p) => p.servicioId === servicioId);
   const pendientes = mias().length;
+  const atascada = mias().find((p) => (p.intentos ?? 0) >= 3);
   const errores = rechazos.get(servicioId) ?? [];
 
   // El estado del servidor manda: si no hay nada pendiente, seguirlo siempre.
@@ -53,10 +54,22 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
     setEstado(SIGUIENTE[accion]); // optimista
     void drenar(conductorId);
   };
+  const descartar = () => {
+    if (!atascada) return;
+    cola.descartar(atascada.idAccion);
+    setEstado(servidor.current);
+    forzar((n) => n + 1);
+    router.refresh();
+  };
   return (
     <div className="space-y-2">
       {paso && <button onClick={pulsar} disabled={pendientes > 0} className="min-h-16 w-full rounded-xl bg-amber-400 text-lg font-bold text-slate-950 disabled:opacity-50">{paso.etiqueta}</button>}
       {pendientes > 0 && <p className="text-sm text-amber-300">⏳ pendiente de enviar ({pendientes})</p>}
+      {atascada && (
+        <button onClick={descartar} className="min-h-12 w-full rounded-xl border border-red-400 text-sm font-semibold text-red-300">
+          Descartar (no se pudo enviar tras {atascada.intentos} intentos)
+        </button>
+      )}
       {errores.map((e, i) => <p key={i} className="text-sm text-red-400">{e}</p>)}
     </div>
   );
