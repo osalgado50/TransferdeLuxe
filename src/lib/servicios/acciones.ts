@@ -7,6 +7,7 @@ export interface RepoServicios {
   insertarEvento(e: { servicio_id: string; tipo: string; actor_id: string | null; motivo?: string | null }): Promise<void>;
   registrarAccion(idAccion: string): Promise<boolean>;
   yaProcesada(idAccion: string): Promise<boolean>;
+  liberarAccion(idAccion: string): Promise<void>;
 }
 export interface PeticionAccion {
   idAccion: string; servicioId: string; accion: Accion; actor: { id: string; rol: Rol };
@@ -35,20 +36,49 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   if (p.accion === "rechazar") {
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
   }
-  if (!(await repo.actualizar(s.id, cambios, s.estado))) return { ok: false, error: "El servicio cambió mientras tanto; recarga" };
-  await repo.insertarEvento({ servicio_id: s.id, tipo: t.evento, actor_id: p.actor.id, motivo: p.motivo ?? null });
+  try {
+    if (!(await repo.actualizar(s.id, cambios, s.estado))) {
+      await repo.liberarAccion(p.idAccion);
+      return { ok: false, error: "El servicio cambió mientras tanto; recarga" };
+    }
+    await repo.insertarEvento({ servicio_id: s.id, tipo: t.evento, actor_id: p.actor.id, motivo: p.motivo ?? null });
+  } catch (e) {
+    try { await repo.liberarAccion(p.idAccion); } catch { /* best effort */ }
+    throw e;
+  }
   return { ok: true, estado: t.nuevo };
 }
 
 export function repoSupabase(sb: import("@supabase/supabase-js").SupabaseClient): RepoServicios {
   return {
-    async obtener(id) { const { data } = await sb.from("servicios").select("*").eq("id", id).single(); return data as Servicio | null; },
+    async obtener(id) {
+      const { data, error } = await sb.from("servicios").select("*").eq("id", id).single();
+      if (error && error.code !== "PGRST116") throw new Error(error.message);
+      return (data as Servicio | null) ?? null;
+    },
     async actualizar(id, cambios, esperado) {
-      const { data } = await sb.from("servicios").update(cambios).eq("id", id).eq("estado", esperado).select("id");
+      const { data, error } = await sb.from("servicios").update(cambios).eq("id", id).eq("estado", esperado).select("id");
+      if (error) throw new Error(error.message);
       return (data?.length ?? 0) > 0;
     },
-    async insertarEvento(e) { await sb.from("eventos_servicio").insert(e); },
-    async registrarAccion(id) { const { error } = await sb.from("acciones_procesadas").insert({ id }); return !error; },
-    async yaProcesada(id) { const { data } = await sb.from("acciones_procesadas").select("id").eq("id", id).maybeSingle(); return !!data; },
+    async insertarEvento(e) {
+      const { error } = await sb.from("eventos_servicio").insert(e);
+      if (error) throw new Error(error.message);
+    },
+    async registrarAccion(id) {
+      const { error } = await sb.from("acciones_procesadas").insert({ id });
+      if (!error) return true;
+      if (error.code === "23505") return false;
+      throw new Error(error.message);
+    },
+    async yaProcesada(id) {
+      const { data, error } = await sb.from("acciones_procesadas").select("id").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      return !!data;
+    },
+    async liberarAccion(id) {
+      const { error } = await sb.from("acciones_procesadas").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+    },
   };
 }

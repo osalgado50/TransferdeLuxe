@@ -9,10 +9,10 @@ const repo: RepoServicios = {
   async insertarEvento(e) { eventos.push(e); },
   async registrarAccion(id) { if (acciones.has(id)) return false; acciones.add(id); return true; },
   async yaProcesada(id) { return acciones.has(id); },
+  async liberarAccion(id) { acciones.delete(id); },
 };
 const op = { id: "op", rol: "operador" as const };
 const c1 = { id: "c1", rol: "conductor" as const };
-const c2 = { id: "c2", rol: "conductor" as const };
 
 beforeEach(() => {
   db = { s1: { id: "s1", estado: "pendiente", conductor_id: null } as Servicio };
@@ -62,4 +62,19 @@ test("asignar sin conductor es error", async () => {
   expect((await ejecutarAccion(repo, { idAccion: "q", servicioId: "s1", accion: "asignar", actor: op })).ok).toBe(false);
 });
 
-void c2;
+test("actualizar devuelve false: la idAccion se libera y el reintento se aplica", async () => {
+  db.s1 = { ...db.s1, estado: "asignado", conductor_id: "c1" };
+  const p = { idAccion: "w", servicioId: "s1", accion: "aceptar" as const, actor: c1 };
+  const falla: RepoServicios = { ...repo, async actualizar() { return false; } };
+  expect((await ejecutarAccion(falla, p)).ok).toBe(false);
+  expect(await ejecutarAccion(repo, p)).toEqual({ ok: true, estado: "aceptado" });
+});
+
+test("actualizar lanza: se relanza y la idAccion se libera", async () => {
+  db.s1 = { ...db.s1, estado: "asignado", conductor_id: "c1" };
+  const p = { idAccion: "t", servicioId: "s1", accion: "aceptar" as const, actor: c1 };
+  const rompe: RepoServicios = { ...repo, async actualizar() { throw new Error("boom"); } };
+  await expect(ejecutarAccion(rompe, p)).rejects.toThrow("boom");
+  expect(acciones.has("t")).toBe(false);
+  expect(await ejecutarAccion(repo, p)).toEqual({ ok: true, estado: "aceptado" });
+});
