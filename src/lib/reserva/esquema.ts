@@ -25,7 +25,15 @@ export const esquemaReserva = z.object({
   vuelta_destino_texto: opcional, vuelta_destino_lat: coord.optional(), vuelta_destino_lng: coord.optional(),
   vuelta_fecha: opcional, vuelta_hora: opcional, vuelta_numero_vuelo: opcional,
 }).superRefine((r, ctx) => {
+  const valida = (f: string | null | undefined, h: string | null | undefined) => {
+    const d = f ? new Date(`${f}T00:00:00Z`) : null;
+    return !!d && !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === f && !!h && /^([01]\d|2[0-3]):[0-5]\d$/.test(h);
+  };
+  if (!valida(r.fecha, "00:00")) ctx.addIssue({ code: "custom", path: ["fecha"], message: "Fecha no válida" });
+  if (!valida("2000-01-01", r.hora)) ctx.addIssue({ code: "custom", path: ["hora"], message: "Hora no válida" });
   if (!r.con_vuelta) return;
+  if (r.vuelta_fecha && !valida(r.vuelta_fecha, "00:00")) ctx.addIssue({ code: "custom", path: ["vuelta_fecha"], message: "Fecha no válida" });
+  if (r.vuelta_hora && !valida("2000-01-01", r.vuelta_hora)) ctx.addIssue({ code: "custom", path: ["vuelta_hora"], message: "Hora no válida" });
   for (const k of ["vuelta_origen_texto", "vuelta_destino_texto", "vuelta_fecha", "vuelta_hora"] as const)
     if (!r[k]) ctx.addIssue({ code: "custom", path: [k], message: "Obligatorio si hay vuelta" });
 });
@@ -69,11 +77,20 @@ export async function crearServicios(sb: import("@supabase/supabase-js").Supabas
     .insert(nuevos.map((n) => ({ ...n, plazo_respuesta_min: aj?.plazo_respuesta_min ?? 15, incidencia_vista: false, ultima_incidencia: "nuevo" })))
     .select("id");
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear");
+  // PostgREST devuelve las filas insertadas en el mismo orden que el array enviado.
   const ids = data.map((d) => d.id as string);
-  if (ids.length === 2) {
-    await sb.from("servicios").update({ servicio_vuelta_id: ids[1] }).eq("id", ids[0]);
-    await sb.from("servicios").update({ servicio_vuelta_id: ids[0] }).eq("id", ids[1]);
+  try {
+    if (ids.length === 2) {
+      const a = await sb.from("servicios").update({ servicio_vuelta_id: ids[1] }).eq("id", ids[0]);
+      if (a.error) throw new Error(a.error.message);
+      const b = await sb.from("servicios").update({ servicio_vuelta_id: ids[0] }).eq("id", ids[1]);
+      if (b.error) throw new Error(b.error.message);
+    }
+    const ev = await sb.from("eventos_servicio").insert(ids.map((id) => ({ servicio_id: id, tipo: "creado" })));
+    if (ev.error) throw new Error(ev.error.message);
+  } catch (e) {
+    try { await sb.from("servicios").delete().in("id", ids); } catch { /* mejor esfuerzo */ }
+    throw e;
   }
-  await sb.from("eventos_servicio").insert(ids.map((id) => ({ servicio_id: id, tipo: "creado" })));
   return ids;
 }

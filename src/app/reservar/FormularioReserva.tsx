@@ -14,11 +14,14 @@ const VEHICULOS = [
 const cls = "mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:border-amber-400 focus:outline-none";
 const seccion = "rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-4";
 
+function ErrorCampo({ e, k }: { e?: Record<string, string[]>; k: string }) {
+  return e?.[k]?.[0] ? <p className="mt-1 text-sm text-red-400">{e[k][0]}</p> : null;
+}
+
 export default function FormularioReserva({ accion = reservar, modo = "publico" }: Props) {
   const [estado, enviar, pendiente] = useActionState<EstadoReserva, FormData>(accion, {});
   const [conVuelta, setConVuelta] = useState(false);
   const err = (k: string) => estado.errores?.[k]?.[0];
-  const Error = ({ k }: { k: string }) => (err(k) ? <p className="mt-1 text-sm text-red-400">{err(k)}</p> : null);
 
   if (estado.ok) {
     return (
@@ -38,22 +41,22 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
         <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")} />
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">Fecha de recogida
-            <input type="date" name="fecha" required className={cls} /><Error k="fecha" /></label>
+            <input type="date" name="fecha" required className={cls} /><ErrorCampo e={estado.errores} k="fecha" /></label>
           <label className="block text-sm font-medium">Hora de recogida
-            <input type="time" name="hora" required className={cls} /><Error k="hora" /></label>
+            <input type="time" name="hora" required className={cls} /><ErrorCampo e={estado.errores} k="hora" /></label>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">Pasajeros
             <select name="pasajeros" defaultValue="2" className={cls}>{numeros(1, 19).map((n) => <option key={n} value={n}>{n}</option>)}</select>
-            <Error k="pasajeros" /></label>
+            <ErrorCampo e={estado.errores} k="pasajeros" /></label>
           <label className="block text-sm font-medium">Maletas
             <select name="maletas" defaultValue="0" className={cls}>{numeros(0, 19).map((n) => <option key={n} value={n}>{n}</option>)}</select>
-            <Error k="maletas" /></label>
+            <ErrorCampo e={estado.errores} k="maletas" /></label>
         </div>
         <label className="block text-sm font-medium">Tipo de vehículo
           <select name="tipo_vehiculo_pedido" defaultValue="sedan" className={cls}>
             {VEHICULOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-          </select><Error k="tipo_vehiculo_pedido" /></label>
+          </select><ErrorCampo e={estado.errores} k="tipo_vehiculo_pedido" /></label>
         <label className="block text-sm font-medium">Número de vuelo
           <input type="text" name="numero_vuelo" className={cls} /></label>
         <label className="flex items-center gap-2 text-sm font-medium">
@@ -69,9 +72,9 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
           <CampoDireccion name="vuelta_destino" etiqueta="Destino de la vuelta" requerido error={err("vuelta_destino_texto")} />
           <div className="grid grid-cols-2 gap-4">
             <label className="block text-sm font-medium">Fecha de la vuelta
-              <input type="date" name="vuelta_fecha" required className={cls} /><Error k="vuelta_fecha" /></label>
+              <input type="date" name="vuelta_fecha" required className={cls} /><ErrorCampo e={estado.errores} k="vuelta_fecha" /></label>
             <label className="block text-sm font-medium">Hora de la vuelta
-              <input type="time" name="vuelta_hora" required className={cls} /><Error k="vuelta_hora" /></label>
+              <input type="time" name="vuelta_hora" required className={cls} /><ErrorCampo e={estado.errores} k="vuelta_hora" /></label>
           </div>
           <label className="block text-sm font-medium">Número de vuelo de la vuelta
             <input type="text" name="vuelta_numero_vuelo" className={cls} /></label>
@@ -82,13 +85,13 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
         <h2 className="text-lg font-semibold text-amber-400">Tus datos</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-medium">Nombre
-            <input type="text" name="cliente_nombre" required className={cls} /><Error k="cliente_nombre" /></label>
+            <input type="text" name="cliente_nombre" required className={cls} /><ErrorCampo e={estado.errores} k="cliente_nombre" /></label>
           <label className="block text-sm font-medium">Apellidos
             <input type="text" name="cliente_apellidos" className={cls} /></label>
           <label className="block text-sm font-medium">Email
-            <input type="email" name="cliente_email" required className={cls} /><Error k="cliente_email" /></label>
+            <input type="email" name="cliente_email" required className={cls} /><ErrorCampo e={estado.errores} k="cliente_email" /></label>
           <label className="block text-sm font-medium">Teléfono
-            <input type="tel" name="cliente_telefono" required className={cls} /><Error k="cliente_telefono" /></label>
+            <input type="tel" name="cliente_telefono" required className={cls} /><ErrorCampo e={estado.errores} k="cliente_telefono" /></label>
         </div>
         <label className="block text-sm font-medium">Información adicional
           <textarea name="notas" rows={3} className={cls} /></label>
@@ -100,7 +103,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
             <input type="checkbox" name="acepta_privacidad" required className="mt-0.5 size-4 accent-amber-400" />
             He leído y acepto la política de privacidad
           </label>
-          <Error k="acepta_privacidad" />
+          <ErrorCampo e={estado.errores} k="acepta_privacidad" />
           <input type="text" name="web" className="hidden" tabIndex={-1} autoComplete="off" />
         </div>
       )}

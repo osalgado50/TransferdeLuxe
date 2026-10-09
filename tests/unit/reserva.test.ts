@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { esquemaReserva, serviciosDesdeReserva } from "@/lib/reserva/esquema";
+import { esquemaReserva, serviciosDesdeReserva, crearServicios } from "@/lib/reserva/esquema";
 
 const base = {
   origen_texto: "Aeropuerto de Reus", origen_lat: "41.1474", origen_lng: "1.1672",
@@ -32,4 +32,54 @@ test("más de 8 pasajeros → subcontratar", () => {
 test("sin privacidad o con campo trampa relleno → inválida", () => {
   expect(esquemaReserva.safeParse({ ...base, acepta_privacidad: undefined }).success).toBe(false);
   expect(esquemaReserva.safeParse({ ...base, web: "http://spam" }).success).toBe(false);
+});
+
+test("fechas y horas imposibles → error en el campo correcto", () => {
+  const campo = (o: object) => {
+    const r = esquemaReserva.safeParse({ ...base, ...o });
+    return r.success ? [] : Object.keys(r.error.flatten().fieldErrors);
+  };
+  expect(campo({ fecha: "2026-13-45" })).toContain("fecha");
+  expect(campo({ hora: "25:99" })).toContain("hora");
+  const v = { con_vuelta: "on", vuelta_origen_texto: "Salou", vuelta_destino_texto: "Reus", vuelta_hora: "18:00" };
+  expect(campo({ ...v, vuelta_fecha: "abc" })).toContain("vuelta_fecha");
+});
+
+function falso(errorEn?: string) {
+  const llamadas: { op: string; tabla: string; arg?: unknown; id?: unknown }[] = [];
+  const sb = {
+    from(tabla: string) {
+      const q: Record<string, unknown> = {};
+      let op = "";
+      let arg: unknown;
+      const fin = (extra?: { id?: unknown }) => {
+        llamadas.push({ op, tabla, arg, ...extra });
+        return Promise.resolve({ data: null, error: errorEn === op + ":" + tabla ? { message: "boom" } : null });
+      };
+      q.select = () => (op === "insert" ? Promise.resolve({ data: [{ id: "A" }, { id: "B" }], error: null }) : { single: () => Promise.resolve({ data: { plazo_respuesta_min: 15 }, error: null }) });
+      q.insert = (a: unknown) => { op = "insert"; arg = a; return tabla === "servicios" ? q : fin(); };
+      q.update = (a: unknown) => { op = "update"; arg = a; return { eq: (_: string, id: unknown) => fin({ id }) }; };
+      q.delete = () => { op = "delete"; return { in: (_: string, ids: unknown) => { arg = ids; return fin(); } }; };
+      return q;
+    },
+  };
+  return { sb: sb as never, llamadas };
+}
+
+const nuevo = (esquemaReserva.parse(base), serviciosDesdeReserva(esquemaReserva.parse(base), "web")[0]);
+
+test("crearServicios enlaza ida y vuelta de forma cruzada", async () => {
+  const { sb, llamadas } = falso();
+  expect(await crearServicios(sb, [nuevo, nuevo])).toEqual(["A", "B"]);
+  const up = llamadas.filter((l) => l.op === "update");
+  expect(up).toEqual([
+    expect.objectContaining({ arg: { servicio_vuelta_id: "B" }, id: "A" }),
+    expect.objectContaining({ arg: { servicio_vuelta_id: "A" }, id: "B" }),
+  ]);
+});
+
+test("error al enlazar se propaga y borra lo insertado", async () => {
+  const { sb, llamadas } = falso("update:servicios");
+  await expect(crearServicios(sb, [nuevo, nuevo])).rejects.toThrow("boom");
+  expect(llamadas.find((l) => l.op === "delete")?.arg).toEqual(["A", "B"]);
 });
