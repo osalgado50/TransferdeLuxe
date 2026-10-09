@@ -16,7 +16,13 @@ export function useTiempoReal<T extends object>(
     const sb = clienteNavegador();
     let conectadoAntes = false;
     let caido = false;
-    const canal = sb.channel(`rt-${tabla}-${crypto.randomUUID()}`)
+    let cancelado = false;
+    let canal: ReturnType<typeof sb.channel> | null = null;
+    // Las políticas RLS exigen "authenticated": el socket debe llevar el JWT de la sesión antes de suscribirse.
+    void sb.auth.getSession().then(({ data }) => {
+      if (cancelado) return;
+      if (data.session) sb.realtime.setAuth(data.session.access_token);
+      canal = sb.channel(`rt-${tabla}-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: tabla }, (p) => {
         setFilas((act) => {
           if (p.eventType === "DELETE") return act.filter((f) => f[clave] !== (p.old as T)[clave]);
@@ -33,7 +39,8 @@ export function useTiempoReal<T extends object>(
           caido = true; cb.current?.(false);
         }
       });
-    return () => { sb.removeChannel(canal); };
+    });
+    return () => { cancelado = true; if (canal) void sb.removeChannel(canal); };
   }, [tabla, clave, router]);
   return filas;
 }

@@ -11,25 +11,27 @@ function ok<T>(r: { data?: T; error: { message: string } | null }, ctx: string):
   return r.data as T;
 }
 
-async function usuariosDemoExistentes(sb: SupabaseClient): Promise<string[]> {
-  const ids: string[] = [];
+async function usuariosDemoExistentes(sb: SupabaseClient): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
   for (let pagina = 1; ; pagina++) {
     const { data, error } = await sb.auth.admin.listUsers({ page: pagina, perPage: 200 });
     if (error) throw new Error(`Demo (listUsers): ${error.message}`);
-    for (const u of data.users) if (u.email?.endsWith(DOMINIO_DEMO)) ids.push(u.id);
+    for (const u of data.users) if (u.email?.endsWith(DOMINIO_DEMO)) ids.set(u.email, u.id);
     if (data.users.length < 200) return ids;
   }
 }
 
-async function limpiar(sb: SupabaseClient): Promise<void> {
-  const viejos = await usuariosDemoExistentes(sb);
+async function limpiar(sb: SupabaseClient, viejos: Map<string, string>): Promise<void> {
   for (const t of ["eventos_servicio", "acciones_procesadas", "servicios", "tickets_combustible", "posiciones", "posicion_actual", "perfiles"]) {
     const col = t === "posicion_actual" ? "conductor_id" : "id";
     ok(await sb.from(t).delete().not(col, "is", null), `borrar ${t}`);
   }
-  for (const id of viejos) {
+  // Los usuarios demo vigentes se conservan (mismo id: no se cierran sesiones); solo se borran los sobrantes.
+  const vigentes = new Set(USUARIOS_DEMO.map((u) => u.email));
+  for (const [email, id] of viejos) {
     const { data: fotos } = await sb.storage.from("tickets").list(id);
     if (fotos?.length) await sb.storage.from("tickets").remove(fotos.map((f) => `${id}/${f.name}`));
+    if (vigentes.has(email)) continue;
     const { error } = await sb.auth.admin.deleteUser(id);
     if (error) throw new Error(`Demo (deleteUser): ${error.message}`);
   }
@@ -41,7 +43,10 @@ const redondea = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 
 /** Idempotente: borra los datos de demo y los vuelve a crear con fechas relativas a `hoy`. */
 export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Date = new Date()): Promise<void> {
-  await limpiar(sb);
+  // Se leen las fotos antes de borrar nada: si falta un fichero, falla sin tocar los datos.
+  const fotos = await Promise.all(FOTOS_TICKET.map((f) => readFile(path.join(process.cwd(), "public", "demo", f.fichero))));
+  const existentes = await usuariosDemoExistentes(sb);
+  await limpiar(sb, existentes);
 
   const vehiculos = ok(await sb.from("vehiculos").insert(
     VEHICULOS_DEMO.map((v) => ({ matricula: v.matricula, modelo: v.modelo, plazas: v.plazas, km_actuales: v.km })),
@@ -50,11 +55,18 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
 
   const perfiles: { id: string; nombre: string; rol: string; vehiculo: string | null }[] = [];
   for (const u of USUARIOS_DEMO) {
-    const { data, error } = await sb.auth.admin.createUser({ email: u.email, password, email_confirm: true });
-    if (error || !data.user) throw new Error(`Demo (createUser ${u.nombre}): ${error?.message}`);
+    let id = existentes.get(u.email);
+    if (id) {
+      const { error } = await sb.auth.admin.updateUserById(id, { password, email_confirm: true });
+      if (error) throw new Error(`Demo (updateUser ${u.nombre}): ${error.message}`);
+    } else {
+      const { data, error } = await sb.auth.admin.createUser({ email: u.email, password, email_confirm: true });
+      if (error || !data.user) throw new Error(`Demo (createUser ${u.nombre}): ${error?.message}`);
+      id = data.user.id;
+    }
     const vehiculoId = u.vehiculo ? vehPorMatricula.get(u.vehiculo)! : null;
-    ok(await sb.from("perfiles").insert({ id: data.user.id, rol: u.rol, nombre: u.nombre, telefono: u.telefono, vehiculo_habitual_id: vehiculoId }), `perfil ${u.nombre}`);
-    perfiles.push({ id: data.user.id, nombre: u.nombre, rol: u.rol, vehiculo: vehiculoId });
+    ok(await sb.from("perfiles").insert({ id, rol: u.rol, nombre: u.nombre, telefono: u.telefono, vehiculo_habitual_id: vehiculoId }), `perfil ${u.nombre}`);
+    perfiles.push({ id, nombre: u.nombre, rol: u.rol, vehiculo: vehiculoId });
   }
   const operador = perfiles.find((p) => p.rol === "operador")!;
   const conductores = perfiles.filter((p) => p.rol === "conductor");
@@ -79,6 +91,7 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
       conductor_id: c?.id ?? null, vehiculo_id: c?.vehiculo ?? null, estado: s.estado,
       asignado_en: conAsignacion ? (s.estado === "asignado" ? ahora : new Date(hoy.getTime() - 3600e3).toISOString()) : null,
       duracion_estimada_min: duracionEstimadaMin({ lat: o.lat, lng: o.lng }, { lat: d.lat, lng: d.lng }),
+      plazo_respuesta_min: s.estado === "asignado" ? 100000 : 15, // que el cron no expire las asignaciones de demo
       subcontratar: s.subcontratar ?? false,
       ultima_incidencia: s.rechazo ? `rechazado: ${s.rechazo}` : null,
       incidencia_vista: s.rechazo ? false : true,
@@ -97,14 +110,17 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
     en_camino: ["creado", "asignado", "aceptado", "en_camino"], recogido: ["creado", "asignado", "aceptado", "en_camino", "recogido"],
     completado: ["creado", "asignado", "aceptado", "en_camino", "recogido", "completado"],
   };
-  const eventos: { servicio_id: string; tipo: string; actor_id: string; motivo?: string }[] = [];
+  const eventos: { servicio_id: string; tipo: string; actor_id: string; creado_en: string; motivo?: string }[] = [];
   SERVICIOS_DEMO.forEach((s, i) => {
-    const cond = s.conductor != null ? conductores[s.conductor] : null;
+    // El conductor que rechazó (el servicio vuelve a pendiente sin conductor) es el actor del evento.
+    const cond = s.conductor != null ? conductores[s.conductor] : s.rechazo ? conductores[i % 3] : null;
+    const inicio = new Date(hoy.getTime() - (s.dia === -1 ? 20 : 4) * 3600e3 - i * 60e3);
     const tipos = s.rechazo ? ["creado", "asignado", "rechazado"] : secuencia[s.estado] ?? ["creado"];
-    for (const t of tipos) {
+    for (const [k, t] of tipos.entries()) {
       const delOperador = t === "creado" || t === "asignado";
       eventos.push({
         servicio_id: filas[i].id, tipo: t, actor_id: delOperador || !cond ? operador.id : cond.id,
+        creado_en: new Date(inicio.getTime() + k * 7 * 60e3).toISOString(),
         ...(t === "rechazado" ? { motivo: s.rechazo } : {}),
       });
     }
@@ -129,8 +145,7 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
   }
   for (const [i, f] of FOTOS_TICKET.entries()) {
     const ruta = `${tickets[i].conductor_id}/${f.fichero}`;
-    const buf = await readFile(path.join(process.cwd(), "public", "demo", f.fichero));
-    const { error } = await sb.storage.from("tickets").upload(ruta, buf, { contentType: "image/jpeg", upsert: true });
+    const { error } = await sb.storage.from("tickets").upload(ruta, fotos[i], { contentType: "image/jpeg", upsert: true });
     if (error) throw new Error(`Demo (foto ${f.fichero}): ${error.message}`);
     tickets[i].foto_path = ruta;
   }
@@ -142,7 +157,7 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
   // Posiciones iniciales cerca de Salou para que el mapa no esté vacío
   const inicio = conductores.map((c) => {
     const ruta = RUTAS_DEMO[c.nombre];
-    const p = c.nombre === "Laia Demo" ? ruta[0] : ruta[ruta.length - 1]; // todos junto a Salou
+    const p = ruta[c.nombre === "Marc Demo" ? 12 : c.nombre === "Laia Demo" ? 0 : ruta.length - 1]; // cerca de Salou, sin solaparse
     return { conductor_id: c.id, lat: p.lat, lng: p.lng, velocidad: 0, en_servicio: true, registrado_en: ahora };
   });
   ok(await sb.from("posicion_actual").insert(inicio), "posicion_actual");

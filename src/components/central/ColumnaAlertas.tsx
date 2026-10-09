@@ -4,7 +4,7 @@ import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
 import DialogoAsignar from "@/components/central/DialogoAsignar";
 import type { Servicio } from "@/lib/dominio/tipos";
 
-export interface EventoAlerta { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string }
+export interface EventoAlerta { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string; actor_id?: string | null }
 
 let audioCtx: AudioContext | null = null;
 function ctxAudio() {
@@ -36,7 +36,7 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
   if (inc.startsWith("rechazado")) {
     const ev = eventos.filter((e) => e.servicio_id === s.id && e.tipo === "rechazado").sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
     const motivo = ev?.motivo ?? inc.replace(/^rechazado:\s*/, "");
-    return ["Rechazado", `Rechazado por ${nombreConductor(s.conductor_id)}: ${motivo}`] as const;
+    return ["Rechazado", `Rechazado por ${nombreConductor(ev?.actor_id ?? s.conductor_id)}: ${motivo}`] as const;
   }
   if (inc === "expirado") return ["Sin respuesta", "Sin respuesta (plazo vencido)"] as const;
   if (inc === "nuevo") return ["Reserva nueva", "Reserva nueva"] as const;

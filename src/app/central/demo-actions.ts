@@ -21,8 +21,7 @@ export async function simularPaso(): Promise<void> {
     if (!ruta) continue;
     const p = posicionSimulada(ruta, ahora);
     const r1 = await sb.from("posiciones").insert({ conductor_id: c.id, lat: p.lat, lng: p.lng, velocidad: 40, registrado_en: ts });
-    const r2 = await sb.from("posicion_actual").upsert({ conductor_id: c.id, lat: p.lat, lng: p.lng, velocidad: 40, en_servicio: true, registrado_en: ts });
-    if (r1.error || r2.error) throw new Error((r1.error ?? r2.error)!.message);
+    if (r1.error) throw new Error(r1.error.message); // el trigger actualiza posicion_actual
   }
 }
 
