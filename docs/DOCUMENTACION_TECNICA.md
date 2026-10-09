@@ -27,6 +27,11 @@ _Pendiente._
   distancias, duración estimada y sugerencia de conductor, cálculos de gasto y consumo de combustible, y lector
   de tickets (interfaz `LectorTicket` + implementación con Claude Haiku 5.5, validación con zod y comprobación
   de coherencia litros x precio = importe).
+- **10/10/2026**: fase 4, centro de control. La IA construye la central: listado de servicios con filtros, ficha
+  del servicio y alta manual; asignación con sugerencia de conductor (disponibilidad, plazas, vehículo en taller);
+  panel en vivo con Supabase Realtime (posiciones, estados e incidencias); hoja de ruta diaria con reasignación
+  por arrastre; y gestión de flota, conductores y ajustes (plazo de respuesta y umbral sin señal), con validación
+  zod en las acciones de servidor.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -37,6 +42,10 @@ _Pendiente._
   el hackathon (la app se usa abierta durante el servicio) y se añade un simulador de ruta para la demo.
 - **Pedidos de más de 8 pasajeros**: la flota propia es de 7–8 plazas; se marcan como «subcontratar».
 - **Lector de tickets sin APIs de pago**: se sustituyó la lectura con Claude Haiku por OCR local gratuito (Tesseract.js en el navegador + reglas de extracción en `lector/extraer.ts`), porque el responsable no admite conexiones a APIs de pago. Claude Haiku queda como alternativa desactivada.
+- **Realtime no entregaba eventos**: el canal se suscribía antes de que el JWT del usuario llegara al socket, así
+  que las políticas RLS descartaban los eventos. Solución: `getSession` + `realtime.setAuth` antes de suscribir.
+- **Service worker de otro proyecto en localhost**: servía bundles viejos y el panel parecía no actualizarse.
+  Solución: dar de baja el service worker y limpiar la caché del origen en desarrollo.
 
 ## 7. Capturas
 Ver `docs/capturas/`.
