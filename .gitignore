@@ -23,3 +23,10 @@ __pycache__/
 
 # Bases del concurso (documento de Big School, solo referencia local)
 docs/Bases-*.pdf
+
+# Scaffold / tests
+.tmp-app/
+test-results/
+playwright-report/
+.superpowers/
+next-env.d.ts

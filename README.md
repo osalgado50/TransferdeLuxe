@@ -9,3 +9,12 @@ desarrollado al 100 % con vibe coding usando **Claude Code**.
 - `docs/prompts/PROMPTS.md`: registro automático de cada prompt.
 - `docs/prompts/transcripciones/`: transcripciones exportadas de las sesiones de Claude Code.
 - `docs/DOCUMENTACION_TECNICA.md`: borrador de la documentación técnica.
+
+## Puesta en marcha
+
+```bash
+cp .env.example .env.local   # rellenar con tus claves (nunca se suben a git)
+npm i
+npm run seed
+npm run dev
+```
