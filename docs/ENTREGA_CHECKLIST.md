@@ -24,3 +24,10 @@
 - [ ] `.env` fuera del repo (`git log -p | grep -i key` limpio)
 - [ ] Mínimo 3 funcionalidades principales funcionando en producción
 - [ ] Tras enviar: **NO tocar** el repo, los Docs ni la carpeta de Drive
+
+## Enlaces (creados el 09/10/2026; todavía SIN compartir)
+- Carpeta Drive (cuenta swatdjs@gmail.com): https://drive.google.com/drive/folders/1oqMbKt10XVC0Z_JMvuYLVFqUAfb0MYWQ
+- Doc técnico: https://docs.google.com/document/d/1A6zqLfzsIXsSu6ttfADWpVvzx7JFqvA2W3fxh5KMf9o/edit
+- Doc de prompts: https://docs.google.com/document/d/1QxtpA9rqS2ZgTRGjzdWs-jSxXKbWTD-87fOPjV2JPw8/edit
+- Repo (privado): https://github.com/osalgado50/TransferdeLuxe → antes de entregar: `gh api -X PUT repos/osalgado50/TransferdeLuxe/collaborators/<usuario>` o invitar a automatizaciones@thebigschool.com desde Settings → Collaborators
+- App desplegada: pendiente
