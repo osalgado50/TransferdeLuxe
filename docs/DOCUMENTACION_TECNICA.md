@@ -22,6 +22,11 @@ _Pendiente._
   web de referencia y se decide: reserva pública + alta manual, PWA para el conductor, asignación manual con
   sugerencia, lectura de tickets con Claude Haiku 5.5, stack Next.js + Supabase + OpenStreetMap, desplegado en Hostinger Cloud (Node.js Web App) con dominio propio.
   Resultado: `docs/superpowers/specs/2026-10-09-centro-control-design.md`.
+- **09/10/2026**: fase 1, lógica de dominio con TDD (test que falla, implementación mínima, test en verde).
+  La IA escribe primero los tests y después el código de: máquina de estados del servicio con permisos por rol,
+  distancias, duración estimada y sugerencia de conductor, cálculos de gasto y consumo de combustible, y lector
+  de tickets (interfaz `LectorTicket` + implementación con Claude Haiku 5.5, validación con zod y comprobación
+  de coherencia litros x precio = importe).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
