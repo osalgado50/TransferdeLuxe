@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clienteAdmin } from "@/lib/supabase/admin";
+import { ipCliente } from "@/lib/ip";
 import { permitir } from "@/lib/limite";
 
 type Lugar = { etiqueta: string; lat: number; lng: number; frecuente: boolean };
@@ -7,7 +8,7 @@ type Lugar = { etiqueta: string; lat: number; lng: number; frecuente: boolean };
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
   if (q.length < 3) return NextResponse.json([]);
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "local";
+  const ip = ipCliente(req.headers);
   let frecuentes: Lugar[] = [];
   try {
     const { data: lugares } = await clienteAdmin().from("lugares_frecuentes").select("nombre, lat, lng").ilike("nombre", `%${q}%`).limit(5);

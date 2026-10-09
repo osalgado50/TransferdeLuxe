@@ -2,12 +2,13 @@
 import { headers } from "next/headers";
 import { esquemaReserva, serviciosDesdeReserva, crearServicios } from "@/lib/reserva/esquema";
 import { clienteAdmin } from "@/lib/supabase/admin";
+import { ipCliente } from "@/lib/ip";
 import { permitir } from "@/lib/limite";
 
 export type EstadoReserva = { ok?: boolean; errores?: Record<string, string[]>; mensaje?: string };
 
 export async function reservar(_: EstadoReserva, fd: FormData): Promise<EstadoReserva> {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0] ?? "local";
+  const ip = ipCliente(await headers());
   if (!permitir(`reserva:${ip}`, 5, 3_600_000)) return { mensaje: "Demasiadas reservas desde esta conexión. Inténtalo más tarde." };
   const r = esquemaReserva.safeParse(Object.fromEntries(fd));
   if (!r.success) return { errores: r.error.flatten().fieldErrors as Record<string, string[]>, mensaje: "Revisa los campos marcados" };

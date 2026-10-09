@@ -6,7 +6,7 @@ const PASS = process.env.DEMO_PASSWORD!;
 
 async function entrar(browser: Browser, email: string) {
   const ctx = await browser.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     locale: "es-ES",
     timezoneId: "Europe/Madrid",
     geolocation: { latitude: 41.0763, longitude: 1.1416 },
@@ -24,13 +24,15 @@ async function entrar(browser: Browser, email: string) {
 test("reserva web → asignar → aceptar → en camino → carga → descarga", async ({ browser, page }) => {
   const cliente = `e2e-${Date.now()}`;
   // El límite de reservas es por IP y en memoria: cada ejecución usa una IP de prueba distinta.
+  // Solo funciona porque en local no hay proxy: ipCliente toma la única entrada de x-forwarded-for, que aquí la fija el cliente.
   await page.setExtraHTTPHeaders({ "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 250) + 1}` });
   await page.goto("/reservar");
   await page.getByLabel("Dirección de recogida").fill("Aeropuerto de Reus");
   await page.getByText("Aeropuerto de Reus").first().click();
   await page.getByLabel("Dirección de destino").fill("PortAventura");
   await page.getByText("PortAventura World").first().click();
-  const manana = new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
+  // «Mañana» en hora de Madrid (no UTC: entre las 00:00 y las 02:00 locales difieren).
+  const manana = new Date(Date.now() + 86400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
   await page.getByLabel("Fecha de recogida").fill(manana);
   await page.getByLabel("Hora de recogida").fill("11:00");
   await page.getByLabel("Pasajeros").selectOption("3");
@@ -47,7 +49,7 @@ test("reserva web → asignar → aceptar → en camino → carga → descarga",
   await alerta.getByRole("button", { name: "Asignar", exact: true }).click();
   await central.getByRole("button", { name: /^Asignar a / }).first().click();
   await expect(central.getByRole("dialog")).toBeHidden();
-  await central.goto("/central/servicios");
+  await central.goto(`/central/servicios?fecha=${manana}`);
   await central.getByRole("row").filter({ hasText: cliente }).getByRole("link", { name: /Ver/ }).click();
   await central.waitForURL(/\/central\/servicios\/[0-9a-f-]{36}$/);
   await expect(central.getByText("Esperando respuesta").first()).toBeVisible();
@@ -68,8 +70,11 @@ test("reserva web → asignar → aceptar → en camino → carga → descarga",
   await expect(dialogo.getByText(/PortAventura/)).toBeVisible();
   await dialogo.getByRole("button", { name: "ACEPTAR" }).click();
   await expect(dialogo).toBeHidden();
-  // La lista «Hoy» solo muestra servicios de hoy; la reserva es de mañana, se abre por su URL.
-  await movil.goto(`/conductor/servicio/${servicioId}`);
+  // La reserva es de mañana: se llega a ella desde «Próximos días».
+  await movil.goto("/conductor");
+  await expect(movil.getByRole("heading", { name: "Próximos días" })).toBeVisible();
+  await movil.locator(`a[href="/conductor/servicio/${servicioId}"]`).click();
+  await movil.waitForURL(`**/conductor/servicio/${servicioId}`);
   for (const paso of ["Salgo hacia la recogida", "CARGA – pasajeros a bordo", "DESCARGA – servicio terminado"]) {
     const boton = movil.getByRole("button", { name: paso });
     await expect(boton).toBeEnabled();
