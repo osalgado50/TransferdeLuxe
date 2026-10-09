@@ -18,9 +18,19 @@ _Pendiente._
 ## 5. Proceso iterativo con la IA
 - **09/10/2026**: preparación del entorno. Repo nuevo, reglas de las bases en `CLAUDE.md` para que el
   agente las respete, hook que registra cada prompt y script que exporta las transcripciones.
+- **09/10/2026**: diseño con la IA (brainstorming guiado, una pregunta cada vez). Se analiza el formulario de la
+  web de referencia y se decide: reserva pública + alta manual, PWA para el conductor, asignación manual con
+  sugerencia, lectura de tickets con Claude Haiku 5.5, stack Next.js + Supabase + Vercel + OpenStreetMap.
+  Resultado: `docs/superpowers/specs/2026-10-09-centro-control-design.md`.
 
 ## 6. Challenges y soluciones
-_Pendiente._
+- **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
+  plano), Mindee, Tabscanner, Azure y Google Document AI. Se elige Claude Haiku 5.5 porque devuelve los datos ya
+  estructurados y aguanta formatos de ticket distintos, a ~0,0003 $ por ticket. El lector queda detrás de una
+  interfaz para poder cambiar de proveedor.
+- **GPS en una PWA**: el navegador no envía la ubicación en segundo plano (sobre todo en iPhone). Se acepta para
+  el hackathon (la app se usa abierta durante el servicio) y se añade un simulador de ruta para la demo.
+- **Pedidos de más de 8 pasajeros**: la flota propia es de 7–8 plazas; se marcan como «subcontratar».
 
 ## 7. Capturas
 Ver `docs/capturas/`.
