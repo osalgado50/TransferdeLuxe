@@ -4,16 +4,71 @@
 > El historial de prompts NO va aquí: va en otro Google Doc.
 
 ## 1. Descripción del proyecto
-_Pendiente._
+TransferdeLuxe es el **centro de control de una empresa de traslados VTC de Salou** (Costa Dorada) con 3 vehículos
+propios (2 de 8 plazas y 1 de 7) y 3 conductores. Hoy los pedidos llegan por un formulario web y por teléfono y se
+reparten a mano. La aplicación cubre todo el ciclo:
+
+1. **Reserva pública** (`/reservar`): el cliente pide su traslado (ida y vuelta opcional) con los mismos campos que
+   el formulario de la web de referencia; las direcciones se autocompletan con lugares frecuentes y OpenStreetMap.
+2. **Centro de control** (`/central`): mapa en tiempo real de la flota, alertas (reservas nuevas, rechazos, plazos
+   vencidos, grupos de más de 8 que hay que subcontratar), asignación con sugerencia de conductor, hoja de ruta por
+   arrastre, flota y ajustes, y panel de gasto en combustible.
+3. **App del conductor** (`/conductor`, PWA instalable): hoja del día y próximos días, GPS, aceptar o rechazar
+   servicios con cuenta atrás, botones de en camino / CARGA / DESCARGA que funcionan sin cobertura, y lectura del
+   ticket de combustible con OCR en el propio móvil.
+
+Todo con datos de demostración inventados (cuentas `@transferdeluxe.test`, matrículas imposibles, clientes ficticios).
+
+**Acceso para el jurado** (se completa al desplegar):
+- URL: _pendiente_
+- Cuentas: `central@transferdeluxe.test` (central) y `conductor1@…`, `conductor2@…`, `conductor3@transferdeluxe.test`
+  (conductores). La contraseña de prueba aparece en la propia pantalla de acceso.
+- Repositorio: https://github.com/osalgado50/TransferdeLuxe
+- Botones de demo en el panel: «Simular ruta» (mueve los coches) y «Restablecer demo» (vuelve al estado inicial).
 
 ## 2. Plataforma utilizada
 Claude Code (agente de codificación en terminal / app de escritorio), modelo Claude Opus 5.5.
 
 ## 3. Arquitectura
-_Pendiente._
+```
+Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
+        │                       │  OCR Tesseract.js         │
+        └────────── Next.js 15 (App Router) en Hostinger ───┘
+           /central            /conductor            /reservar
+           Server Actions y rutas API: validación zod, máquina de estados,
+           sugerencia de conductor, idempotencia, subida de fotos
+                         │
+           Supabase (Postgres + RLS, Auth, Realtime, Storage privado, pg_cron)
+```
+- **Un único proyecto Next.js** (TypeScript, Tailwind 4) con tres zonas por rol. Las escrituras de negocio pasan por
+  Server Actions que validan con la máquina de estados y escriben con la clave de servicio (solo en servidor); las
+  lecturas y el tiempo real usan el cliente con **RLS** (cada conductor solo ve lo suyo).
+- **Dominio puro y testeado** (`src/lib/dominio`): estados del servicio, sugerencia de conductor (solapes, plazas,
+  taller, cercanía por GPS o por el servicio anterior), geografía, combustible (gasto y L/100 km), plazos.
+- **Tiempo real**: Supabase Realtime sobre `servicios`, `eventos_servicio` y `posicion_actual`, con reconexión y
+  recarga si se pierde la conexión.
+- **Plazo de respuesta**: `pg_cron` cada minuto devuelve a la central los servicios no aceptados a tiempo.
+- **Sin cobertura**: cola local por conductor; cada pulsación lleva un `idAccion` y el servidor ignora duplicados.
+- **Tickets**: OCR gratuito en el navegador (Tesseract.js) + reglas de extracción; la foto va a un bucket privado.
+- **Mapas**: Leaflet + OpenStreetMap; geocodificación con Nominatim y lugares frecuentes.
+- **Calidad**: 70 tests unitarios (Vitest) y 2 tests de punta a punta (Playwright) del flujo completo y del rechazo.
+- Documentos de diseño: `docs/superpowers/specs/` (especificación) y `docs/superpowers/plans/` (plan de 22 tareas).
 
 ## 4. Casos de uso
-_Pendiente._
+1. **Reserva web con vuelta**: el cliente reserva Aeropuerto de Reus → PortAventura y la vuelta; se crean dos
+   servicios enlazados y salta una alerta en la central.
+2. **Alta telefónica**: el operador crea el servicio desde «Nuevo servicio».
+3. **Asignar con sugerencia**: la central ve los conductores ordenados (libre, plazas, distancia) y asigna el
+   recomendado; el conductor recibe la tarjeta con sonido y cuenta atrás.
+4. **Rechazo**: el conductor rechaza por «Avería»; el servicio vuelve a pendiente y la central ve «Rechazado por
+   Laia Demo: Avería» para reasignarlo.
+5. **Plazo vencido**: si nadie responde en 15 min (configurable), vuelve solo a la central con alerta.
+6. **Ejecución del servicio**: en camino → CARGA → DESCARGA; si no hay cobertura, se envía al recuperarla.
+7. **Seguimiento en vivo**: la central ve los coches moverse y su estado (libre, en camino, con pasajeros, sin señal).
+8. **Grupo grande**: una reserva de 12 personas se marca para subcontratar un autobús.
+9. **Ticket de combustible**: foto → datos leídos en el móvil → revisión → la central ve gasto y consumo por vehículo.
+10. **Planificación del día**: hoja de ruta por conductor, reasignando servicios por arrastre.
+11. **Taller**: un vehículo en taller hace que su conductor deje de sugerirse.
 
 ## 5. Proceso iterativo con la IA
 - **09/10/2026**: preparación del entorno. Repo nuevo, reglas de las bases en `CLAUDE.md` para que el
@@ -27,6 +82,10 @@ _Pendiente._
   distancias, duración estimada y sugerencia de conductor, cálculos de gasto y consumo de combustible, y lector
   de tickets (interfaz `LectorTicket` + implementación con Claude Haiku 5.5, validación con zod y comprobación
   de coherencia litros x precio = importe).
+- **09–10/10/2026**: fases 2 y 3. Base de datos en Supabase (tablas, RLS, `pg_cron`), login por rol, acciones de
+  servicio validadas e idempotentes y página pública de reserva con ida/vuelta, geocodificación y anti-spam.
+- **10/10/2026**: cambio de requisito del responsable: **nada de APIs de pago**. El lector de tickets pasa de
+  Claude Haiku a OCR local con Tesseract.js (nueva tarea 6b) sin tocar el resto gracias a la interfaz `LectorTicket`.
 - **10/10/2026**: fase 4, centro de control. La IA construye la central: listado de servicios con filtros, ficha
   del servicio y alta manual; asignación con sugerencia de conductor (disponibilidad, plazas, vehículo en taller);
   panel en vivo con Supabase Realtime (posiciones, estados e incidencias); hoja de ruta diaria con reasignación
@@ -37,6 +96,13 @@ _Pendiente._
   (en camino, carga y descarga) con cola de acciones para tramos sin cobertura, el ticket de combustible leído con
   OCR local en el navegador y, al final, el historial de 7 días del conductor y el panel de combustible de la
   central (KPI, gráfico de gasto por mes y tabla con miniaturas firmadas).
+
+- **10/10/2026**: forma de trabajo. Cada tarea del plan la implementa un subagente de Claude Code y la revisa otro
+  subagente (cumplimiento de la especificación y calidad); los fallos vuelven al implementador en rondas de
+  corrección hasta quedar limpios. El agente principal prueba además cada pantalla en el navegador con datos de demo.
+  Al final, una revisión completa con el modelo más capaz detecta riesgos para la semana de evaluación (datos de demo
+  que envejecen, pausa de Supabase, borrado de usuarios de prueba) y se corrigen: reinicio diario de la demo por
+  `/api/demo/reset` con secreto, fotos de demo embebidas y migraciones idempotentes.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -59,5 +125,12 @@ _Pendiente._
 - **Validación de rutas de fotos**: el ticket recibía `foto_path` del cliente. Se valida que la ruta pertenezca
   al conductor y al bucket privado `tickets`; las miniaturas de la central usan URL firmadas de 1 hora.
 
+- **La demo envejece durante la evaluación**: los datos se crean relativos a «hoy», así que se añade un reinicio
+  diario automático protegido con secreto, que además mantiene activo el plan gratuito de Supabase.
+- **Revisiones que encontraban fallos reales**: carreras en la cola offline, pulsaciones duplicadas, fechas
+  imposibles, enlaces ida/vuelta sin comprobar errores, rutas de foto de otro conductor, límite de reservas por IP
+  falsificable… Todos se corrigieron con tests que los reproducen.
+
 ## 7. Capturas
-Ver `docs/capturas/`.
+Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
+Pendientes: capturas de la app del conductor en el móvil.
