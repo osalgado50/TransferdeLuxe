@@ -14,7 +14,8 @@ export class ClaudeHaikuLector implements LectorTicket {
   async leer(img: ImagenTicket): Promise<DatosTicket> {
     const r = await this.cliente.messages.create({
       model: MODELO_LECTOR,
-      max_tokens: 400,
+      max_tokens: 2000,
+      output_config: { effort: "low" },
       messages: [{ role: "user", content: [
         { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
         { type: "text", text: INSTRUCCIONES },
