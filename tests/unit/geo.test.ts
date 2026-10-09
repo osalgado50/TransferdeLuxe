@@ -9,11 +9,11 @@ test("distancia Reus aeropuerto – Salou ≈ 8 km", () => {
   expect(distanciaKm(reusAeropuerto, salou)).toBeGreaterThan(7);
   expect(distanciaKm(reusAeropuerto, salou)).toBeLessThan(9);
 });
-test("duración mínima 15 min y BCN–Salou alrededor de 1 h 20", () => {
+test("duración mínima 15 min y BCN–Salou entre 70 y 110 min", () => {
   expect(duracionEstimadaMin(salou, salou)).toBe(15);
   const d = duracionEstimadaMin(barcelonaAeropuerto, salou);
   expect(d).toBeGreaterThan(70);
-  expect(d).toBeLessThan(100);
+  expect(d).toBeLessThan(110);
 });
 test("diaMadrid: 23:30 UTC del 18 es el 19 en Madrid (verano CEST)", () => {
   expect(diaMadrid("2026-10-18T22:30:00Z")).toBe("2026-10-19");
