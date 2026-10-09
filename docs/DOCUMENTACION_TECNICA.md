@@ -32,6 +32,11 @@ _Pendiente._
   panel en vivo con Supabase Realtime (posiciones, estados e incidencias); hoja de ruta diaria con reasignación
   por arrastre; y gestión de flota, conductores y ajustes (plazo de respuesta y umbral sin señal), con validación
   zod en las acciones de servidor.
+- **10/10/2026**: fase 5, app del conductor. La IA construye la PWA (instalable, service worker y navegación
+  móvil), el GPS con envío de posición, aceptar/rechazar un servicio con plazo de respuesta, el servicio en curso
+  (en camino, carga y descarga) con cola de acciones para tramos sin cobertura, el ticket de combustible leído con
+  OCR local en el navegador y, al final, el historial de 7 días del conductor y el panel de combustible de la
+  central (KPI, gráfico de gasto por mes y tabla con miniaturas firmadas).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -46,6 +51,13 @@ _Pendiente._
   que las políticas RLS descartaban los eventos. Solución: `getSession` + `realtime.setAuth` antes de suscribir.
 - **Service worker de otro proyecto en localhost**: servía bundles viejos y el panel parecía no actualizarse.
   Solución: dar de baja el service worker y limpiar la caché del origen en desarrollo.
+- **Cola sin cobertura con carreras e idempotencia**: las acciones guardadas offline podían duplicarse o
+  pisarse al reintentar. Solución: cola por conductor, clave de asignación normalizada, acciones idempotentes
+  (tabla `acciones_procesadas`), reversión local si el servidor rechaza y drenaje global al volver la conexión.
+- **Tarjeta a pantalla completa que podía bloquear al conductor**: la tarjeta de servicio nuevo tapaba toda la
+  app si algo fallaba. Se rediseñó para poder cerrarse y responder siempre, sin dejar la interfaz inutilizable.
+- **Validación de rutas de fotos**: el ticket recibía `foto_path` del cliente. Se valida que la ruta pertenezca
+  al conductor y al bucket privado `tickets`; las miniaturas de la central usan URL firmadas de 1 hora.
 
 ## 7. Capturas
 Ver `docs/capturas/`.
