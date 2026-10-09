@@ -277,3 +277,16 @@ region Paris? No hay Madrid?
 
 ---
 
+## 2026-10-10 00:03 · Claude Code · sesión `b3c0e64f`
+
+ok sigue con Paris
+
+---
+
+## 2026-10-10 00:05 · Claude Code · sesión `b3c0e64f`
+
+En .env.local siguen vacías las tres claves (SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY y DEMO_PASSWORD). Las necesitaré cuando lleguemos a los datos de demo, para poder probar la central con usuarios reales de prueba.
+No puedes ponerlas tu?
+
+---
+
