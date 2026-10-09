@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { clienteNavegador } from "@/lib/supabase/navegador";
 import { useTiempoReal } from "@/lib/supabase/useTiempoReal";
 import { accionConductor } from "@/app/conductor/actions";
-import { segundosRestantes } from "@/lib/dominio/plazo";
+import { segundosRestantes, claveAsignacion } from "@/lib/dominio/plazo";
 import { MOTIVOS_RECHAZO } from "@/lib/dominio/estados";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 
@@ -16,7 +16,7 @@ export type ServicioNuevo = {
 const fechaHora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const p2 = (n: number) => String(n).padStart(2, "0");
 const cuenta = (s: number) => (s > 86400 ? "Sin límite de respuesta" : s > 3600 ? `${Math.floor(s / 3600)}:${p2(Math.floor((s % 3600) / 60))}:${p2(s % 60)}` : `${Math.floor(s / 60)}:${p2(s % 60)}`);
-const clave = (x: { id: string; asignado_en: string | null }) => `${x.id}|${x.asignado_en}`;
+const clave = claveAsignacion;
 
 let audio: AudioContext | null = null;
 function ctx(): AudioContext | null {
