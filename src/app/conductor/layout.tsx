@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata, Viewport } from "next";
 import { exigirRol } from "@/lib/supabase/sesion";
 import InterruptorServicio from "@/components/conductor/InterruptorServicio";
+import BotonSalir from "@/components/conductor/BotonSalir";
 import RegistroSW from "@/components/conductor/RegistroSW";
 
 export const metadata: Metadata = {
@@ -23,8 +24,9 @@ export default async function LayoutConductor({ children }: { children: React.Re
         <InterruptorServicio conductorId={yo.id} />
       </header>
       <main className="p-4">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-slate-800 bg-slate-900">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-slate-800 bg-slate-900">
         {NAV.map(([h, t]) => <Link key={h} href={h} className="flex min-h-14 items-center justify-center text-base font-medium hover:text-amber-300">{t}</Link>)}
+        <BotonSalir conductorId={yo.id} />
       </nav>
     </div>
   );

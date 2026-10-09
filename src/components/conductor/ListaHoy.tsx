@@ -1,5 +1,7 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import EstadoBadge from "@/components/comun/EstadoBadge";
 import { useTiempoReal } from "@/lib/supabase/useTiempoReal";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
@@ -8,6 +10,12 @@ export type ServicioHoy = { id: string; estado: EstadoServicio; conductor_id: st
 const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
 export default function ListaHoy({ iniciales, yo, desde, hasta }: { iniciales: ServicioHoy[]; yo: string; desde: string; hasta: string }) {
+  const router = useRouter();
+  // A medianoche (Madrid) el día cambia: recargar la lista.
+  useEffect(() => {
+    const t = setTimeout(() => router.refresh(), Math.max(1000, Date.parse(hasta) - Date.now() + 1000));
+    return () => clearTimeout(t);
+  }, [hasta, router]);
   const todos = useTiempoReal("servicios", iniciales, "id");
   const mios = todos
     .filter((s) => s.conductor_id === yo && s.estado !== "cancelado" && s.fecha_hora_recogida >= desde && s.fecha_hora_recogida < hasta)
