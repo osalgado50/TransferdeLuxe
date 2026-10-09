@@ -1,0 +1,22 @@
+# Secretos
+.env
+.env.*
+!.env.example
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+.next/
+.vercel/
+.supabase/
+__pycache__/
+*.pyc
+.venv/
+
+# Claude Code (local)
+.claude/settings.local.json
+
+# Sistema
+.DS_Store
+*.log
