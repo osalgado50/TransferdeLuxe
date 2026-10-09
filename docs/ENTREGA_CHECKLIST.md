@@ -40,3 +40,15 @@
 Complejidad y funcionalidad · Innovación y originalidad · Calidad del vibe coding · Experiencia de usuario ·
 Utilidad y aplicabilidad. Proceso: revisión inicial → testing funcional → evaluación técnica → deliberación.
 Bases completas: `docs/Bases-Hackaton-Vibecoding-E7.docx.pdf` (local, no versionado).
+
+## Estado a 10/10/2026 (madrugada)
+- [x] App completa en local: reserva, central (panel en vivo, servicios, asignación, hoja de ruta, flota, combustible),
+      app del conductor (PWA, GPS, aceptar/rechazar, en curso offline, ticket con OCR), datos de demo y reinicio.
+- [x] 70 tests unitarios + 2 E2E en verde; revisión final completa sin hallazgos críticos.
+- [x] Guion del vídeo: `docs/GUION_VIDEO.md`.
+- [ ] Despliegue en Hostinger (Task 22) — necesita al humano: conectar el repo en hPanel, variables de entorno,
+      subdominio y SSL; después URL en Supabase Auth y cron diario de `/api/demo/reset`.
+- [ ] Capturas de la app del conductor en el móvil.
+- [ ] Pasar `DOCUMENTACION_TECNICA.md` al Google Doc técnico y las transcripciones al Doc de prompts.
+- [ ] Grabar el vídeo.
+- [ ] Compartir el repo con automatizaciones@thebigschool.com y permisos de Drive.
