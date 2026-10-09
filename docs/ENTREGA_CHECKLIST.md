@@ -1,9 +1,10 @@
 # Checklist de entrega — Hackathon Vibe Coding E7
 
 ## Plazos (hora peninsular española)
-- [ ] **Inscripción** por el formulario oficial antes del **13/10/2026 a las 23:59** → confirmación por correo en 24 h
+- [x] **Inscripción** hecha y confirmada por correo (09/10/2026)
 - [ ] **Entrega** por el formulario oficial antes del **19/10/2026 a las 23:59** (mejor terminar la tarde del 19)
 - [ ] App en marcha durante la evaluación, **del 20 al 27/10** (sin planes que se duerman ni caduquen)
+- Ganadores: **28/10/2026**. Dudas: Discord `🏆┃hackathon-vibecoding-e7` o BIG Helper @bighelper.ai
 
 ## Carpeta de Google Drive (obligatoria) — permisos «Cualquier persona con el enlace puede ver»
 - [ ] 1 · **Documentación técnica**: UN solo Google Doc (no Word, PDF ni TXT)
@@ -11,6 +12,9 @@
 - [ ] 4 · **Historial de prompts**: otro Google Doc aparte (indica la plataforma de cada prompt)
 - [ ] 5 · **Vídeo demo** ≤ 5 min, subido a la carpeta
 - [ ] Permisos revisados **en la carpeta y en cada archivo**, abriendo cada enlace en una ventana de incógnito
+
+## También en Drive (el correo de confirmación dice «todos en una carpeta de Google Drive»)
+- [ ] Un Doc «Enlaces y acceso» en la carpeta con la URL de la app, las credenciales de prueba y el enlace al repo
 
 ## Fuera de Drive
 - [ ] 2 · **URL de la app desplegada** + credenciales de prueba (nunca reales)
