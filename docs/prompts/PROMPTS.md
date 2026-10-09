@@ -306,3 +306,9 @@ dame el paso a paso para sacar el Service_Role
 
 ---
 
+## 2026-10-10 00:16 · Claude Code · sesión `b3c0e64f`
+
+api ken en .env
+
+---
+

@@ -1,15 +1,22 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { clienteNavegador } from "./navegador";
 
 export function useTiempoReal<T extends object>(
   tabla: "servicios" | "posicion_actual" | "eventos_servicio", iniciales: T[], clave: keyof T,
+  onEstado?: (conectado: boolean) => void,
 ): T[] {
+  const router = useRouter();
   const [filas, setFilas] = useState(iniciales);
+  const cb = useRef(onEstado);
+  useEffect(() => { cb.current = onEstado; });
   useEffect(() => setFilas(iniciales), [iniciales]);
   useEffect(() => {
     const sb = clienteNavegador();
-    const canal = sb.channel(`rt-${tabla}`)
+    let conectadoAntes = false;
+    let caido = false;
+    const canal = sb.channel(`rt-${tabla}-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: tabla }, (p) => {
         setFilas((act) => {
           if (p.eventType === "DELETE") return act.filter((f) => f[clave] !== (p.old as T)[clave]);
@@ -17,8 +24,16 @@ export function useTiempoReal<T extends object>(
           const i = act.findIndex((f) => f[clave] === nueva[clave]);
           return i === -1 ? [...act, nueva] : act.map((f, j) => (j === i ? nueva : f));
         });
-      }).subscribe();
+      }).subscribe((estado) => {
+        if (estado === "SUBSCRIBED") {
+          cb.current?.(true);
+          if (conectadoAntes && caido) router.refresh(); // recupera lo perdido durante la caída
+          conectadoAntes = true; caido = false;
+        } else if (estado === "CHANNEL_ERROR" || estado === "TIMED_OUT" || estado === "CLOSED") {
+          caido = true; cb.current?.(false);
+        }
+      });
     return () => { sb.removeChannel(canal); };
-  }, [tabla, clave]);
+  }, [tabla, clave, router]);
   return filas;
 }

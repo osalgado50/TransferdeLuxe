@@ -6,17 +6,23 @@ import type { Servicio } from "@/lib/dominio/tipos";
 
 export interface EventoAlerta { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string }
 
+let audioCtx: AudioContext | null = null;
+function ctxAudio() {
+  if (audioCtx) return audioCtx;
+  const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (Ctx) audioCtx = new Ctx();
+  return audioCtx;
+}
 function pitido() {
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
+    const ctx = ctxAudio();
+    if (!ctx) return;
+    void ctx.resume();
     const osc = ctx.createOscillator();
     osc.frequency.value = 880;
     osc.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.15);
-    osc.onended = () => { void ctx.close(); };
   } catch { /* audio bloqueado: se ignora */ }
 }
 
@@ -44,6 +50,13 @@ export default function ColumnaAlertas({ servicios, eventos, conductores }: {
   const nombre = (id: string | null) => conductores.find((c) => c.id === id)?.nombre ?? "conductor";
   const [pend, ini] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const activar = () => { try { void ctxAudio()?.resume(); } catch { /* ignorar */ } };
+    window.addEventListener("click", activar, { once: true });
+    window.addEventListener("keydown", activar, { once: true });
+    return () => { window.removeEventListener("click", activar); window.removeEventListener("keydown", activar); };
+  }, []);
 
   const vistas = useRef<Set<string> | null>(null);
   useEffect(() => {
