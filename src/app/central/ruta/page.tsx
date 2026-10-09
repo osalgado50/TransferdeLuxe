@@ -14,7 +14,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
   const desde = madridAUtc(dia, "00:00");
   const hasta = madridAUtc(desplazar(dia, 1), "00:00");
   const sb = await clienteServidor();
-  const [{ data: conductores }, { data: servicios, error }] = await Promise.all([
+  const [{ data: conductores, error: errC }, { data: servicios, error }] = await Promise.all([
     sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor").order("nombre"),
     sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros")
       .gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta).neq("estado", "cancelado").order("fecha_hora_recogida"),
@@ -29,7 +29,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
         <Link href={`/central/ruta?dia=${desplazar(dia, 1)}`} className={enlace} aria-label="Día siguiente">▶</Link>
         <Link href="/central/ruta" className="text-sm text-amber-400 hover:underline">Hoy</Link>
       </div>
-      {error ? <p className="text-red-400">Error al cargar: {error.message}</p>
+      {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
         : <TableroRuta servicios={(servicios ?? []) as TarjetaRuta[]} conductores={conductores ?? []} />}
     </div>
   );

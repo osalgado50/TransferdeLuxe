@@ -1,6 +1,6 @@
 "use client";
-import { useState, useTransition } from "react";
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
+import { useEffect, useState, useTransition } from "react";
+import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
 import EstadoBadge from "@/components/comun/EstadoBadge";
 import { accionCentral } from "@/app/central/actions";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
@@ -41,6 +41,16 @@ export default function TableroRuta({ servicios, conductores }: { servicios: Tar
   const [asignacion, setAsignacion] = useState<Record<string, string | null>>({});
   const [aviso, setAviso] = useState<{ t: string; error: boolean } | null>(null);
   const [, iniciar] = useTransition();
+  const sensores = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+  useEffect(() => { setAsignacion({}); }, [servicios]);
+  useEffect(() => {
+    if (!aviso || aviso.error) return;
+    const t = setTimeout(() => setAviso(null), 4000);
+    return () => clearTimeout(t);
+  }, [aviso]);
   const actual = (s: TarjetaRuta) => (s.id in asignacion ? asignacion[s.id] : s.conductor_id);
 
   function alSoltar(e: DragEndEvent) {
@@ -56,7 +66,7 @@ export default function TableroRuta({ servicios, conductores }: { servicios: Tar
     setAviso(null);
     iniciar(async () => {
       const r = await accionCentral({
-        idAccion: crypto.randomUUID(), servicioId: s.id, accion: s.estado === "pendiente" ? "asignar" : "reasignar",
+        idAccion: crypto.randomUUID(), servicioId: s.id, accion: previo ? "reasignar" : "asignar",
         conductorId: destino, vehiculoId: c.vehiculo_habitual_id ?? undefined,
       });
       if (r.ok) setAviso({ t: `Servicio asignado a ${c.nombre}`, error: false });
@@ -66,7 +76,7 @@ export default function TableroRuta({ servicios, conductores }: { servicios: Tar
 
   const de = (id: string) => servicios.filter((s) => (actual(s) ?? SIN) === id);
   return (
-    <DndContext onDragEnd={alSoltar}>
+    <DndContext sensors={sensores} onDragEnd={alSoltar}>
       {aviso && <p role="status" className={`rounded-lg px-3 py-2 text-sm ${aviso.error ? "bg-red-500/20 text-red-300" : "bg-green-500/20 text-green-300"}`}>{aviso.t}</p>}
       <div className="flex gap-3 overflow-x-auto pb-3">
         <Columna id={SIN} titulo="Sin asignar" items={de(SIN)} />
