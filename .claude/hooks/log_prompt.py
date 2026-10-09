@@ -8,14 +8,17 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 
+MARCAS_NO_HUMANAS = ("<agent-message", "Another Claude session sent a message", "<task-notification", "[SYSTEM NOTIFICATION")
+
+
 def main():
     try:
         data = json.load(sys.stdin)
     except Exception:
         return
     prompt = (data.get("prompt") or "").strip()
-    if not prompt:
-        return
+    if not prompt or any(m in prompt for m in MARCAS_NO_HUMANAS):
+        return  # avisos de subagentes/sistema: no son prompts del usuario
     root = Path(os.environ.get("CLAUDE_PROJECT_DIR") or data.get("cwd") or ".")
     log = root / "docs" / "prompts" / "PROMPTS.md"
     log.parent.mkdir(parents=True, exist_ok=True)
