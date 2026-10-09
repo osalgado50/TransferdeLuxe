@@ -30,7 +30,7 @@ inventados, sin nombre, marca ni contacto de la empresa real); secretos en `.env
 | Entrada de pedidos | Página de reserva pública **y** alta manual desde la central |
 | App del conductor | PWA (la app nativa Android/iOS queda como evolución futura) |
 | Asignación | Manual con sugerencia (libre, plazas, cercanía); el conductor acepta o rechaza |
-| Tickets de combustible | Foto → **Claude Haiku 5.5** extrae los datos → el conductor revisa. Lector intercambiable |
+| Tickets de combustible | Foto → **OCR gratuito en el móvil (Tesseract.js)** + reglas de extracción → el conductor revisa. Sin APIs de pago. Lector intercambiable (Claude Haiku queda como alternativa desactivada) |
 | Stack | Next.js (App Router, TypeScript) + Supabase (Postgres, Auth, Realtime, Storage, pg_cron) |
 | Hosting | **Hostinger Cloud Startup** (Node.js Web App desplegada desde GitHub) con el dominio propio |
 | Mapas | Leaflet + OpenStreetMap; geocodificación con Nominatim + lugares frecuentes predefinidos |
@@ -46,11 +46,11 @@ Navegador (operador)   Móvil (conductor, PWA)   Navegador (cliente)
         └────── Next.js en Hostinger (Node.js) ──────────┘
           /central         /conductor            /reservar
           Server Actions / Route Handlers (validación de transiciones,
-          sugerencia de conductor, lector de tickets, reserva pública)
-                    │                          │
-             Supabase (Postgres + RLS,     API de Anthropic
-             Auth, Realtime, Storage,      (Claude Haiku 5.5,
-             pg_cron)                       solo desde el servidor)
+          sugerencia de conductor, reserva pública)
+                    │
+             Supabase (Postgres + RLS, Auth, Realtime, Storage, pg_cron)
+
+  OCR de tickets: Tesseract.js en el móvil del conductor (sin API externa)
 ```
 
 - **Un solo proyecto Next.js** y un solo despliegue. Las tres zonas se separan por rutas y por rol.
@@ -61,7 +61,8 @@ Navegador (operador)   Móvil (conductor, PWA)   Navegador (cliente)
   - `sugerencia.ts`: ranking de conductores para un servicio.
   - `combustible.ts`: cálculos de consumo y gasto.
 - **Lector de tickets** detrás de una interfaz `LectorTicket` (`leer(imagen) → DatosTicket`), con la
-  implementación `ClaudeHaikuLector`. Cambiar a OCR.space o Mindee = otra implementación, sin tocar el resto.
+  implementación por defecto `TesseractLector` (en el navegador) y `ClaudeHaikuLector` como alternativa
+  desactivada. Cambiar a OCR.space o Mindee = otra implementación, sin tocar el resto.
 
 ## 4. Modelo de datos
 
@@ -162,21 +163,24 @@ Solo para el rol `conductor`. Manifest + service worker, instalable, diseño de 
   conexión; el conductor ve «pendiente de enviar». El servidor ignora duplicados (idempotencia por id de acción).
 - Avisos solo con la app abierta (Realtime). Push con la app cerrada: futuro.
 
-## 9. Lector de tickets (IA)
+## 9. Lector de tickets (OCR en el dispositivo)
 
-- Route handler en servidor: recibe la foto (redimensionada en el móvil a ≤ 1600 px, JPEG), la sube a Supabase
-  Storage (bucket privado) y llama a **Claude Haiku 5.5** con visión, pidiendo JSON estricto:
-  `fecha, gasolinera, litros, precio_litro, importe, tipo_combustible, confianza`.
-- Validación del JSON (esquema con zod) y coherencia (`litros × precio_litro ≈ importe`); si no cuadra, se avisa
-  al conductor para que revise.
-- La clave `ANTHROPIC_API_KEY` solo en servidor. Coste estimado: ~0,0003 $ por ticket.
-- Interfaz `LectorTicket` para sustituirlo por OCR.space o Mindee sin tocar el resto.
+Cambio del 10/10/2026: el responsable pide **ninguna conexión a APIs de pago**. El lector por defecto es
+**Tesseract.js** (OCR de código abierto, idioma español) ejecutado en el navegador del conductor: sin clave, sin
+coste y sin enviar la foto a terceros.
+- En el móvil: foto redimensionada (≤ 1600 px) → Tesseract.js → texto → `extraerDatosTicket(texto)` (reglas:
+  fecha, litros, precio/L, importe TOTAL, tipo de combustible, gasolinera) → formulario prellenado.
+- Coherencia `litros × precio_litro ≈ importe`; si falta uno de los tres se calcula a partir de los otros dos; si no
+  cuadra, aviso al conductor. Siempre puede corregir a mano.
+- El servidor solo recibe la foto (Storage, bucket privado) y los datos revisados.
+- Interfaz `LectorTicket` intacta: `ClaudeHaikuLector` queda en el código como alternativa desactivada (no se usa ni
+  necesita `ANTHROPIC_API_KEY`).
 
 ## 10. Seguridad
 
 - **RLS** en todas las tablas: conductor → solo sus servicios, posiciones y tickets; operador → todo;
   anónimo → solo insertar reservas mediante una función de servidor.
-- Transiciones de estado validadas en servidor; `SUPABASE_SERVICE_ROLE_KEY` y `ANTHROPIC_API_KEY` nunca en el cliente.
+- Transiciones de estado validadas en servidor; `SUPABASE_SERVICE_ROLE_KEY` nunca en el cliente.
 - Fotos de tickets en bucket privado con URLs firmadas.
 - En el repo solo `.env.example`.
 

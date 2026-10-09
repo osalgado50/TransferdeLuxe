@@ -290,3 +290,11 @@ No puedes ponerlas tu?
 
 ---
 
+## 2026-10-10 00:07 · Claude Code · sesión `b3c0e64f`
+
+ANTHROPIC_API_KEY: no tengo acceso a tu cuenta de Anthropic. Se crea en console.anthropic.com → API Keys → Create Key. Te recomiendo ponerle un límite de gasto bajo (por ejemplo 5 $/mes); leer tickets cuesta céntimos.
+
+creo recordar que te pedi nada de conexiones API, busca una alternativa gratis
+
+---
+

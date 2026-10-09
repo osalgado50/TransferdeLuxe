@@ -966,6 +966,199 @@ export { esCoherente } from "./parsear";
 - [ ] **Step 6: Documentación del bloque** — entrada en `docs/DOCUMENTACION_TECNICA.md` → «Proceso iterativo»
   (fase 1: dominio con TDD) y commit.
 
+### Task 6b: Lector de tickets sin API (Tesseract.js + reglas)
+
+Añadida el 10/10/2026: el responsable pide **ninguna conexión a APIs de pago**. El lector por defecto pasa a ser OCR en
+el navegador con Tesseract.js; `ClaudeHaikuLector` (Task 6) queda como alternativa desactivada.
+
+**Files:**
+- Create: `src/lib/lector/extraer.ts`, `src/lib/lector/tesseract.ts`
+- Modify: `src/lib/lector/index.ts` (comentario: el lector por defecto es el del navegador), `package.json`
+- Test: `tests/unit/extraer.test.ts`
+
+**Interfaces:**
+- Consumes: `DatosTicket`, `LectorTicket`, `ImagenTicket` (`lector/tipos.ts`), `esCoherente` (`lector/parsear.ts`).
+- Produces:
+  ```ts
+  function extraerDatosTicket(texto: string): DatosTicket;          // extraer.ts, puro
+  class TesseractLector implements LectorTicket {                  // tesseract.ts, "use client" (solo navegador)
+    leer(img: ImagenTicket): Promise<DatosTicket>;
+  }
+  ```
+
+- [ ] **Step 1: Instalar** `npm install tesseract.js@5`
+
+- [ ] **Step 2: Test que falla** — `tests/unit/extraer.test.ts`
+
+```ts
+import { expect, test } from "vitest";
+import { extraerDatosTicket } from "@/lib/lector/extraer";
+
+const TICKET_A = `ESTACION DEMO COSTA DORADA
+C/ Inventada 1 - 43840 SALOU
+FACTURA SIMPLIFICADA
+Fecha: 12/10/2026 Hora: 08:45
+Surtidor 3 DIESEL A
+Litros 42,15 L
+Precio 1,459 EUR/L
+TOTAL 61,50 EUR
+Tarjeta ****0000`;
+
+const TICKET_B = `GASOLINERA DEMO NORTE
+12-10-26 19:02
+GASOLEO A
+VOLUMEN: 30.00 LTS
+PRECIO/L: 1.500
+SUBTOTAL 45.00
+IMPORTE TOTAL: 45.00 €`;
+
+const TICKET_C = `ESTACION DEMO SUR
+SIN PLOMO 95
+05/10/2026
+IMPORTE 50,00
+LITROS 31,25`;
+
+test("ticket A: todos los campos", () => {
+  expect(extraerDatosTicket(TICKET_A)).toEqual({
+    fecha: "2026-10-12", gasolinera: "ESTACION DEMO COSTA DORADA", litros: 42.15, precio_litro: 1.459,
+    importe: 61.5, tipo_combustible: "Diésel", confianza: "alta",
+  });
+});
+
+test("ticket B: año de dos cifras, puntos decimales, TOTAL frente a SUBTOTAL", () => {
+  expect(extraerDatosTicket(TICKET_B)).toMatchObject({
+    fecha: "2026-10-12", litros: 30, precio_litro: 1.5, importe: 45, tipo_combustible: "Diésel", confianza: "alta",
+  });
+});
+
+test("ticket C: calcula el precio por litro que falta y detecta gasolina 95", () => {
+  expect(extraerDatosTicket(TICKET_C)).toMatchObject({
+    fecha: "2026-10-05", litros: 31.25, precio_litro: 1.6, importe: 50, tipo_combustible: "Gasolina 95", confianza: "alta",
+  });
+});
+
+test("texto ilegible → todo null y confianza baja", () => {
+  expect(extraerDatosTicket("~~ #@! ..")).toEqual({
+    fecha: null, gasolinera: null, litros: null, precio_litro: null, importe: null, tipo_combustible: null, confianza: "baja",
+  });
+});
+
+test("fecha imposible se descarta; sin fecha la confianza baja a media", () => {
+  const d = extraerDatosTicket("ESTACION X\n31/02/2026\nLITROS 10,00\nTOTAL 15,00");
+  expect(d.fecha).toBeNull();
+  expect(d.confianza).toBe("media");
+  expect(d.precio_litro).toBe(1.5);
+});
+```
+
+- [ ] **Step 3: Ejecutar** `npm test -- extraer` → FAIL (módulo no existe).
+
+- [ ] **Step 4: Implementación** — `src/lib/lector/extraer.ts`
+
+```ts
+import type { DatosTicket } from "./tipos";
+import { esCoherente } from "./parsear";
+
+const NUM = String.raw`(\d{1,4}(?:[.,]\d{1,3})?)`;
+const aNumero = (s: string) => Number(s.replace(",", "."));
+const r2 = (n: number) => Math.round(n * 100) / 100;
+const r3 = (n: number) => Math.round(n * 1000) / 1000;
+
+function buscar(texto: string, patrones: RegExp[]): number | null {
+  for (const p of patrones) {
+    const m = texto.match(p);
+    if (m) { const n = aNumero(m[1]); if (Number.isFinite(n) && n > 0) return n; }
+  }
+  return null;
+}
+
+function fecha(texto: string): string | null {
+  const m = texto.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})\b/);
+  if (!m) return null;
+  const d = Number(m[1]), mes = Number(m[2]);
+  const a = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  const iso = `${a}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const f = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(f.getTime()) && f.toISOString().slice(0, 10) === iso ? iso : null;
+}
+
+function tipo(texto: string): string | null {
+  const t = texto.toUpperCase();
+  if (/DIESEL|GAS[OÓ]LEO/.test(t)) return "Diésel";
+  if (/(SIN PLOMO|GASOLINA|SP)\s*98/.test(t)) return "Gasolina 98";
+  if (/(SIN PLOMO|GASOLINA|SP)\s*95|SIN PLOMO|GASOLINA/.test(t)) return "Gasolina 95";
+  return null;
+}
+
+function gasolinera(texto: string): string | null {
+  const linea = texto.split(/\r?\n/).map((l) => l.trim()).find((l) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9 .,&'-]{2,}$/.test(l) && /[A-Z]{3}/.test(l));
+  return linea ?? null;
+}
+
+export function extraerDatosTicket(texto: string): DatosTicket {
+  const t = texto.replace(/[ \t]+/g, " ");
+  let litros = buscar(t, [
+    new RegExp(String.raw`(?:LITROS|VOLUMEN|LTS?)\s*:?\s*` + NUM, "i"),
+    new RegExp(NUM + String.raw`\s*(?:L|LTS?|LITROS)\b(?!\s*\/)`, "i"),
+  ]);
+  let precio = buscar(t, [
+    new RegExp(String.raw`(?:PRECIO|P\.?\s*UNIT\.?)\s*(?:\/\s*L)?\s*:?\s*` + NUM, "i"),
+    new RegExp(NUM + String.raw`\s*(?:€|EUR)?\s*\/\s*L`, "i"),
+  ]);
+  const importe = buscar(t, [
+    new RegExp(String.raw`(?<!SUB)TOTAL\s*:?\s*` + NUM, "i"),
+    new RegExp(String.raw`IMPORTE\s*:?\s*` + NUM, "i"),
+  ]);
+  if (litros != null) litros = r2(litros);
+  if (precio == null && litros && importe) precio = r3(importe / litros);
+  if (litros == null && precio && importe) litros = r2(importe / precio);
+
+  const datos: DatosTicket = {
+    fecha: fecha(t), gasolinera: gasolinera(texto), litros, precio_litro: precio,
+    importe: importe != null ? r2(importe) : null, tipo_combustible: tipo(t), confianza: "baja",
+  };
+  if (datos.litros && datos.importe && esCoherente(datos)) datos.confianza = datos.fecha ? "alta" : "media";
+  return datos;
+}
+```
+
+Nota: los patrones son el punto de partida; si algún test no pasa, ajustar las expresiones regulares (no los valores
+esperados) y documentar el ajuste en el informe.
+
+- [ ] **Step 5: Ejecutar** `npm test -- extraer` → PASS.
+
+- [ ] **Step 6: Lector del navegador** — `src/lib/lector/tesseract.ts`
+
+```ts
+"use client";
+import type { DatosTicket, ImagenTicket, LectorTicket } from "./tipos";
+import { extraerDatosTicket } from "./extraer";
+
+// OCR de código abierto en el navegador: sin API, sin clave, sin coste. Los datos de idioma se descargan una vez
+// (CDN pública de tesseract.js) y el navegador los cachea.
+export class TesseractLector implements LectorTicket {
+  async leer(img: ImagenTicket): Promise<DatosTicket> {
+    const { createWorker } = await import("tesseract.js");
+    const worker = await createWorker("spa");
+    try {
+      const { data } = await worker.recognize(`data:${img.mediaType};base64,${img.base64}`);
+      return extraerDatosTicket(data.text);
+    } finally {
+      await worker.terminate();
+    }
+  }
+}
+```
+
+En `src/lib/lector/index.ts` añadir el comentario: «Lector por defecto: `TesseractLector` en el navegador
+(`lector/tesseract.ts`). `ClaudeHaikuLector` queda como alternativa desactivada (requeriría `ANTHROPIC_API_KEY`).»
+Quitar `ANTHROPIC_API_KEY` de `.env.example`.
+
+- [ ] **Step 7: Verificar** `npm test`, `npx tsc --noEmit`, `npm run build` → OK.
+- [ ] **Step 8: Commit** `git add -A && git commit -m "Lector de tickets sin API: OCR Tesseract.js en el navegador y reglas de extracción"`
+- [ ] **Step 9: Documentación** — en `docs/DOCUMENTACION_TECNICA.md` → «Challenges y soluciones», añadir que se
+  sustituyó la lectura con Claude Haiku por OCR local gratuito para no depender de APIs de pago, y el porqué.
+
 ---
 
 ## Fase 2 · Supabase, auth y acciones de servicio
@@ -2012,6 +2205,12 @@ Ejecutar → PASS.
 - [ ] **Step 6: Commit** `git add -A && git commit -m "Conductor: en camino, carga y descarga con cola sin cobertura"`
 
 ### Task 18: Ticket de combustible con IA
+
+> **Cambio 10/10/2026 (Task 6b):** la lectura se hace **en el navegador** con `TesseractLector`. La ruta
+> `/api/tickets/leer` ya no llama a ningún modelo: queda como `POST /api/tickets/foto` que solo valida y sube la foto
+> y devuelve `{ fotoPath }`. `CapturaTicket` hace: redimensionar → `new TesseractLector().leer(...)` (spinner
+> «Leyendo ticket…») en paralelo con la subida de la foto → formulario prellenado + `esCoherente`. Donde abajo pone
+> `obtenerLector()` / IA, aplicar esto. Las etiquetas de la UI dicen «🔎 leído automáticamente», no «IA».
 
 **Files:**
 - Create: `src/app/api/tickets/leer/route.ts`, `src/app/conductor/ticket/page.tsx`, `src/components/conductor/CapturaTicket.tsx`,
