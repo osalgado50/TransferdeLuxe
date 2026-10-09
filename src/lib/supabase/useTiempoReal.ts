@@ -40,7 +40,11 @@ export function useTiempoReal<T extends object>(
         }
       });
     });
-    return () => { cancelado = true; if (canal) void sb.removeChannel(canal); };
+    // Los conductores dejan la app abierta horas: al renovarse el token el socket debe recibir el nuevo JWT.
+    const { data: sus } = sb.auth.onAuthStateChange((ev, session) => {
+      if (session && (ev === "TOKEN_REFRESHED" || ev === "SIGNED_IN")) sb.realtime.setAuth(session.access_token);
+    });
+    return () => { cancelado = true; sus.subscription.unsubscribe(); if (canal) void sb.removeChannel(canal); };
   }, [tabla, clave, router]);
   return filas;
 }

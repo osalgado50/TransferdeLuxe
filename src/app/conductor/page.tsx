@@ -1,0 +1,24 @@
+import { exigirRol } from "@/lib/supabase/sesion";
+import { clienteServidor } from "@/lib/supabase/servidor";
+import { diaMadrid } from "@/lib/dominio/geo";
+import { madridAUtc } from "@/lib/reserva/esquema";
+import ListaHoy, { type ServicioHoy } from "@/components/conductor/ListaHoy";
+
+export default async function Hoy() {
+  const yo = await exigirRol("conductor");
+  const dia = diaMadrid(new Date());
+  const desde = madridAUtc(dia, "00:00");
+  const hasta = madridAUtc(new Date(Date.parse(`${dia}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10), "00:00");
+  const sb = await clienteServidor();
+  const { data, error } = await sb.from("servicios")
+    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas")
+    .eq("conductor_id", yo.id).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta)
+    .neq("estado", "cancelado").order("fecha_hora_recogida");
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold text-amber-400">Hoy</h1>
+      {error ? <p className="text-red-400">Error al cargar: {error.message}</p>
+        : <ListaHoy iniciales={(data ?? []) as ServicioHoy[]} yo={yo.id} desde={desde} hasta={hasta} />}
+    </div>
+  );
+}
