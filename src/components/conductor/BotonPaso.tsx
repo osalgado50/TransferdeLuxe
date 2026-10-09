@@ -1,41 +1,37 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { accionConductor } from "@/app/conductor/actions";
-import { ColaAcciones, type AccionPendiente } from "@/lib/offline/cola";
+import { useRouter } from "next/navigation";
+import { colaDe, drenar } from "@/lib/offline/colaConductor";
 import { ACCION_SIGUIENTE_CONDUCTOR } from "@/lib/dominio/estados";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 
-const CLAVE = "tdl-cola";
-const almacen = {
-  get: () => { try { return localStorage.getItem(CLAVE); } catch { return null; } },
-  set: (v: string) => { try { localStorage.setItem(CLAVE, v); } catch { /* sin almacenamiento */ } },
-};
 const SIGUIENTE: Record<"salir" | "cargar" | "descargar", EstadoServicio> = { salir: "en_camino", cargar: "recogido", descargar: "completado" };
 
-export default function BotonPaso({ servicioId, estadoInicial, siguienteId }: { servicioId: string; estadoInicial: EstadoServicio; siguienteId: string | null }) {
+export default function BotonPaso({ servicioId, conductorId, estadoInicial, siguienteId }: { servicioId: string; conductorId: string; estadoInicial: EstadoServicio; siguienteId: string | null }) {
+  const router = useRouter();
+  const { cola, rechazos, oyentes } = colaDe(conductorId);
   const [estado, setEstado] = useState<EstadoServicio>(estadoInicial);
-  const [pendientes, setPendientes] = useState(0);
-  const [errores, setErrores] = useState<string[]>([]);
-  const cola = useMemo(() => new ColaAcciones(almacen, async (a: AccionPendiente) => {
-    const r = await accionConductor({ idAccion: a.idAccion, servicioId: a.servicioId, accion: a.accion });
-    return r.ok ? { ok: true } : { ok: false, error: r.error };
-  }), []);
+  const [, forzar] = useState(0);
+  const servidor = useRef(estadoInicial);
+  servidor.current = estadoInicial;
+  const mias = () => cola.pendientes().filter((p) => p.servicioId === servicioId);
+  const pendientes = mias().length;
+  const errores = rechazos.get(servicioId) ?? [];
 
-  const vaciar = useCallback(async () => {
-    const r = await cola.vaciar();
-    setPendientes(cola.pendientes().length);
-    if (r.errores.length) setErrores((e) => [...e, ...r.errores]);
-  }, [cola]);
-
+  // El estado del servidor manda: si no hay nada pendiente, seguirlo siempre.
+  useEffect(() => { if (cola.pendientes().every((p) => p.servicioId !== servicioId)) setEstado(estadoInicial); }, [estadoInicial, cola, servicioId]);
   useEffect(() => {
-    setPendientes(cola.pendientes().length);
-    void vaciar();
-    const alVolver = () => void vaciar();
-    window.addEventListener("online", alVolver);
-    const t = setInterval(() => void vaciar(), 20000);
-    return () => { window.removeEventListener("online", alVolver); clearInterval(t); };
-  }, [cola, vaciar]);
+    const f = () => {
+      forzar((n) => n + 1);
+      if (cola.pendientes().every((p) => p.servicioId !== servicioId)) {
+        if (rechazos.has(servicioId)) setEstado(servidor.current); // rechazado: deshacer lo optimista
+        router.refresh(); // sincroniza con el servidor
+      }
+    };
+    oyentes.add(f);
+    return () => { oyentes.delete(f); };
+  }, [oyentes, cola, rechazos, servicioId, router]);
 
   if (estado === "completado") {
     return (
@@ -50,17 +46,16 @@ export default function BotonPaso({ servicioId, estadoInicial, siguienteId }: { 
   }
   const paso = ACCION_SIGUIENTE_CONDUCTOR[estado];
   const pulsar = () => {
-    if (!paso) return;
+    if (!paso || mias().length > 0) return; // un toque a la vez: evita saltarse un paso
     const accion = paso.accion as "salir" | "cargar" | "descargar";
+    rechazos.delete(servicioId);
     cola.encolar({ idAccion: crypto.randomUUID(), servicioId, accion });
     setEstado(SIGUIENTE[accion]); // optimista
-    setErrores([]);
-    setPendientes(cola.pendientes().length);
-    void vaciar();
+    void drenar(conductorId);
   };
   return (
     <div className="space-y-2">
-      {paso && <button onClick={pulsar} className="min-h-16 w-full rounded-xl bg-amber-400 text-lg font-bold text-slate-950">{paso.etiqueta}</button>}
+      {paso && <button onClick={pulsar} disabled={pendientes > 0} className="min-h-16 w-full rounded-xl bg-amber-400 text-lg font-bold text-slate-950 disabled:opacity-50">{paso.etiqueta}</button>}
       {pendientes > 0 && <p className="text-sm text-amber-300">⏳ pendiente de enviar ({pendientes})</p>}
       {errores.map((e, i) => <p key={i} className="text-sm text-red-400">{e}</p>)}
     </div>

@@ -29,3 +29,45 @@ test("rechazada por el servidor: se descarta y se informa", async () => {
   expect(await c.vaciar()).toEqual({ enviadas: 0, errores: ["Este servicio ya no está asignado a ti"] });
   expect(c.pendientes()).toEqual([]);
 });
+
+test("encolar durante vaciar no pierde la acción nueva", async () => {
+  const enviadas: string[] = [];
+  let c!: ColaAcciones;
+  c = new ColaAcciones(memoria(), async (a) => {
+    if (a.idAccion === "1") c.encolar({ idAccion: "2", servicioId: "s", accion: "cargar" });
+    await Promise.resolve(); enviadas.push(a.idAccion); return { ok: true };
+  });
+  c.encolar({ idAccion: "1", servicioId: "s", accion: "salir" });
+  expect(await c.vaciar()).toEqual({ enviadas: 2, errores: [] });
+  expect(enviadas).toEqual(["1", "2"]);
+  expect(c.pendientes()).toEqual([]);
+});
+
+test("vaciar concurrente envía cada acción una sola vez", async () => {
+  const enviadas: string[] = [];
+  const c = new ColaAcciones(memoria(), async (a) => { await new Promise((r) => setTimeout(r, 5)); enviadas.push(a.idAccion); return { ok: true }; });
+  c.encolar({ idAccion: "1", servicioId: "s", accion: "salir" });
+  c.encolar({ idAccion: "2", servicioId: "s", accion: "cargar" });
+  await Promise.all([c.vaciar(), c.vaciar(), c.vaciar()]);
+  expect(enviadas).toEqual(["1", "2"]);
+});
+
+test("sesión caducada (lanza) o respuesta rara: se conserva; rechazo de negocio: se descarta y avisa", async () => {
+  let modo: "lanza" | "rara" | "rechazo" = "lanza";
+  const avisos: string[] = [];
+  const c = new ColaAcciones(memoria(), async () => {
+    if (modo === "lanza") throw new Error("NEXT_REDIRECT");
+    if (modo === "rara") return undefined as never;
+    return { ok: false, error: "No permitido" };
+  }, (a, e) => avisos.push(`${a.servicioId}:${e}`));
+  c.encolar({ idAccion: "1", servicioId: "s", accion: "salir" });
+  await c.vaciar(); expect(c.pendientes()).toHaveLength(1);
+  modo = "rara"; await c.vaciar(); expect(c.pendientes()).toHaveLength(1);
+  modo = "rechazo"; await c.vaciar();
+  expect(c.pendientes()).toEqual([]); expect(avisos).toEqual(["s:No permitido"]);
+});
+
+test("almacén corrupto o no-array: cola vacía", () => {
+  const c = new ColaAcciones({ get: () => '{"a":1}', set: () => {} }, async () => ({ ok: true }));
+  expect(c.pendientes()).toEqual([]);
+});

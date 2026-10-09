@@ -6,6 +6,7 @@ import BotonSalir from "@/components/conductor/BotonSalir";
 import TarjetaServicioNuevo, { type ServicioNuevo } from "@/components/conductor/TarjetaServicioNuevo";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import RegistroSW from "@/components/conductor/RegistroSW";
+import DrenajeCola from "@/components/conductor/DrenajeCola";
 
 export const metadata: Metadata = {
   title: "TransferdeLuxe Conductor",
@@ -25,6 +26,7 @@ export default async function LayoutConductor({ children }: { children: React.Re
   return (
     <div className="min-h-screen bg-slate-950 pb-24 text-slate-200">
       <RegistroSW />
+      <DrenajeCola conductorId={yo.id} />
       <TarjetaServicioNuevo iniciales={(nuevos ?? []) as ServicioNuevo[]} yo={yo.id} />
       <header className="sticky top-0 z-20 flex items-start justify-between gap-3 border-b border-slate-800 bg-slate-900 px-4 py-3">
         <div className="pt-2"><p className="text-xs text-slate-400">Conductor</p><p className="text-lg font-semibold text-amber-400">{yo.nombre}</p></div>

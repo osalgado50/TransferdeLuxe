@@ -49,7 +49,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
         {meta && <a className="rounded-xl border border-slate-600 py-3" href={`https://waze.com/ul?ll=${meta.lat},${meta.lng}&navigate=yes`} target="_blank" rel="noreferrer">Waze</a>}
         <a className="col-span-2 rounded-xl border border-slate-600 py-3" href={`tel:${s.cliente_telefono}`}>Llamar al cliente</a>
       </div>
-      <BotonPaso servicioId={s.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
+      <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
     </div>
   );
 }
