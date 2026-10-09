@@ -18,3 +18,11 @@ npm i
 npm run seed
 npm run dev
 ```
+
+## Tests E2E
+
+```bash
+npm run test:e2e   # resiembra la demo (globalSetup) y ejecuta Playwright; reutiliza el servidor en :3000 si ya corre
+```
+
+Requiere `.env.local` con `DEMO_PASSWORD`. Cubre el flujo reserva → asignación → aceptación → carga → descarga y el rechazo con alerta en la central.
