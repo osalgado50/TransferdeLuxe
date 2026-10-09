@@ -36,6 +36,7 @@ _Pendiente._
 - **GPS en una PWA**: el navegador no envía la ubicación en segundo plano (sobre todo en iPhone). Se acepta para
   el hackathon (la app se usa abierta durante el servicio) y se añade un simulador de ruta para la demo.
 - **Pedidos de más de 8 pasajeros**: la flota propia es de 7–8 plazas; se marcan como «subcontratar».
+- **Lector de tickets sin APIs de pago**: se sustituyó la lectura con Claude Haiku por OCR local gratuito (Tesseract.js en el navegador + reglas de extracción en `lector/extraer.ts`), porque el responsable no admite conexiones a APIs de pago. Claude Haiku queda como alternativa desactivada.
 
 ## 7. Capturas
 Ver `docs/capturas/`.

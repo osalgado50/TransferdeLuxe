@@ -298,3 +298,11 @@ creo recordar que te pedi nada de conexiones API, busca una alternativa gratis
 
 ---
 
+## 2026-10-10 00:10 · Claude Code · sesión `b3c0e64f`
+
+SUPABASE_SERVICE_ROLE_KEY en .env.local.
+crea una comando para el terminal para que te pegue el codigo i lo incluyas automaticamente al .env.local 
+dame el paso a paso para sacar el Service_Role
+
+---
+
