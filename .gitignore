@@ -20,3 +20,6 @@ __pycache__/
 # Sistema
 .DS_Store
 *.log
+
+# Bases del concurso (documento de Big School, solo referencia local)
+docs/Bases-*.pdf

@@ -183,7 +183,7 @@ Solo para el rol `conductor`. Manifest + service worker, instalable, diseño de 
 ## 11. Datos de demo
 
 - Cuentas `central@transferdeluxe.test` y `conductor1@…`, `conductor2@…`, `conductor3@transferdeluxe.test`;
-  contraseñas de prueba documentadas en el README y en el Doc «Enlaces y acceso».
+  contraseñas de prueba documentadas en el README y en el Doc técnico.
 - 3 vehículos ficticios (2 × 8 plazas, 1 × 7) con matrículas inventadas; clientes ficticios; servicios repartidos
   en varios días y estados; algunos tickets con imágenes de ejemplo generadas para la demo.
 - Lugares frecuentes reales (aeropuertos, estaciones, PortAventura…): son lugares públicos, no datos personales.

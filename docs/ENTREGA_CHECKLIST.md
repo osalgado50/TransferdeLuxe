@@ -13,8 +13,8 @@
 - [ ] 5 · **Vídeo demo** ≤ 5 min, subido a la carpeta
 - [ ] Permisos revisados **en la carpeta y en cada archivo**, abriendo cada enlace en una ventana de incógnito
 
-## También en Drive (el correo de confirmación dice «todos en una carpeta de Google Drive»)
-- [ ] Un Doc «Enlaces y acceso» en la carpeta con la URL de la app, las credenciales de prueba y el enlace al repo
+- [ ] La URL de la app, las credenciales de prueba y el enlace al repo también dentro del Doc técnico (las bases
+      no admiten documentos distintos a los indicados en la carpeta, así que nada de un Doc extra)
 
 ## Fuera de Drive
 - [ ] 2 · **URL de la app desplegada** + credenciales de prueba (nunca reales)
@@ -30,8 +30,13 @@
 - [ ] Tras enviar: **NO tocar** el repo, los Docs ni la carpeta de Drive
 
 ## Enlaces (creados el 09/10/2026; todavía SIN compartir)
-- Carpeta Drive (cuenta swatdjs@gmail.com): https://drive.google.com/drive/folders/1oqMbKt10XVC0Z_JMvuYLVFqUAfb0MYWQ
+- Carpeta Drive: https://drive.google.com/drive/folders/1oqMbKt10XVC0Z_JMvuYLVFqUAfb0MYWQ
 - Doc técnico: https://docs.google.com/document/d/1A6zqLfzsIXsSu6ttfADWpVvzx7JFqvA2W3fxh5KMf9o/edit
 - Doc de prompts: https://docs.google.com/document/d/1QxtpA9rqS2ZgTRGjzdWs-jSxXKbWTD-87fOPjV2JPw8/edit
 - Repo (privado): https://github.com/osalgado50/TransferdeLuxe → antes de entregar: `gh api -X PUT repos/osalgado50/TransferdeLuxe/collaborators/<usuario>` o invitar a automatizaciones@thebigschool.com desde Settings → Collaborators
 - App desplegada: pendiente
+
+## Criterios del jurado (bases 4.2)
+Complejidad y funcionalidad · Innovación y originalidad · Calidad del vibe coding · Experiencia de usuario ·
+Utilidad y aplicabilidad. Proceso: revisión inicial → testing funcional → evaluación técnica → deliberación.
+Bases completas: `docs/Bases-Hackaton-Vibecoding-E7.docx.pdf` (local, no versionado).
