@@ -1,6 +1,6 @@
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
-import { consumoMedioL100, gastoPorMes, resumenCombustible, type TicketCalculo } from "@/lib/dominio/combustible";
+import { consumoMedioL100, gastoPorMes, resumenCombustible, ticketsParaConsumo, type TicketCalculo } from "@/lib/dominio/combustible";
 import { euros, litros2, fechaCorta, mesLegible } from "@/lib/dominio/formato";
 import GraficoCombustible from "@/components/central/GraficoCombustible";
 
@@ -9,9 +9,15 @@ const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
 
 export default async function Combustible({ searchParams }: { searchParams: Promise<Q> }) {
   await exigirRol("operador");
-  const f = await searchParams;
+  const q = await searchParams;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const f: Q = {
+    vehiculo: q.vehiculo && UUID.test(q.vehiculo) ? q.vehiculo : undefined,
+    conductor: q.conductor && UUID.test(q.conductor) ? q.conductor : undefined,
+    mes: q.mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(q.mes) ? q.mes : undefined,
+  };
   const sb = clienteAdmin();
-  const [{ data: vehiculos }, { data: conductores }, { data: todos, error }] = await Promise.all([
+  const [{ data: vehiculos, error: e1 }, { data: conductores, error: e2 }, { data: todos, error }] = await Promise.all([
     sb.from("vehiculos").select("id,matricula,modelo").order("matricula"),
     sb.from("perfiles").select("id,nombre").eq("rol", "conductor").order("nombre"),
     sb.from("tickets_combustible").select("*").order("fecha", { ascending: false }).order("creado_en", { ascending: false }),
@@ -23,10 +29,14 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
   const res = resumenCombustible(calc);
   const porMes = gastoPorMes(calc);
   const porVeh = new Map<string, TicketCalculo[]>();
-  for (const c of calc) porVeh.set(c.vehiculoId, [...(porVeh.get(c.vehiculoId) ?? []), c]);
+  for (const t of todos ?? []) {
+    if (f.vehiculo && t.vehiculo_id !== f.vehiculo) continue;
+    porVeh.set(t.vehiculo_id, [...(porVeh.get(t.vehiculo_id) ?? []), { vehiculoId: t.vehiculo_id, fecha: t.fecha, litros: Number(t.litros), importe: Number(t.importe), km: t.km }]);
+  }
   const nomVeh = new Map((vehiculos ?? []).map((v) => [v.id, v.matricula]));
   const nomCond = new Map((conductores ?? []).map((c) => [c.id, c.nombre]));
-  const consumos = [...porVeh.entries()].map(([id, ts]) => ({ id, matricula: nomVeh.get(id) ?? "—", l100: consumoMedioL100(ts) }));
+  const vehFiltrados = new Set(calc.map((c) => c.vehiculoId));
+  const consumos = [...porVeh.entries()].filter(([id]) => vehFiltrados.has(id)).map(([id, ts]) => ({ id, matricula: nomVeh.get(id) ?? "—", l100: consumoMedioL100(ticketsParaConsumo(ts, { mes: f.mes })) }));
   const urls = new Map<string, string>();
   await Promise.all(tickets.filter((t) => t.foto_path).map(async (t) => {
     const { data } = await sb.storage.from("tickets").createSignedUrl(t.foto_path!, 3600);
@@ -36,7 +46,7 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-amber-400">Combustible</h1>
-      {error && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">Error: {error.message}</p>}
+      {(error ?? e1 ?? e2) && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">Error: {(error ?? e1 ?? e2)!.message}</p>}
       <form className="flex flex-wrap items-end gap-3">
         <label className="text-sm text-slate-400">Vehículo<br />
           <select name="vehiculo" defaultValue={f.vehiculo ?? ""} className={campo}><option value="">Todos</option>
@@ -78,7 +88,7 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
               <tr key={t.id} className="border-t border-slate-700">
                 <td className="px-2 py-1">{urls.get(t.id)
                   ? <a href={urls.get(t.id)} target="_blank" rel="noreferrer"><img src={urls.get(t.id)} alt="Foto del ticket" className="h-12 w-12 rounded object-cover" /></a>
-                  : <span className="text-slate-500">—</span>}</td>
+                  : <span className="text-slate-500">{t.foto_path ? "foto no disponible" : "—"}</span>}</td>
                 <td className="px-2">{fechaCorta(t.fecha)}</td>
                 <td className="px-2">{nomCond.get(t.conductor_id) ?? "—"}</td>
                 <td className="px-2">{nomVeh.get(t.vehiculo_id) ?? "—"}</td>

@@ -65,3 +65,16 @@ export const FOTOS_TICKET = [
   { fichero: "ticket-1.jpg", fecha: "2026-10-08", litros: 42.15, precio: 1.459, importe: 61.5 },
   { fichero: "ticket-2.jpg", fecha: "2026-10-03", litros: 38.6, precio: 1.469, importe: 56.7 },
 ];
+
+// Tickets demo: por vehículo (índice de VEHICULOS_DEMO) con km crecientes con la fecha, ≤ km actuales del vehículo
+// y ~6,5 L/100 km entre tickets consecutivos. Los dos con foto (ticket-1 y ticket-2) usan los datos impresos en ella.
+export const TICKETS_DEMO: { veh: number; fecha: string; litros: number; precio: number; km: number; foto?: number }[] = [
+  { veh: 0, fecha: "2026-09-05", litros: 45.0, precio: 1.449, km: 119000 },
+  { veh: 0, fecha: "2026-09-24", litros: 33.0, precio: 1.459, km: 119500 },
+  { veh: 0, fecha: "2026-10-08", litros: 42.15, precio: 1.459, km: 120150, foto: 0 },
+  { veh: 1, fecha: "2026-09-02", litros: 40.0, precio: 1.439, km: 97000 },
+  { veh: 1, fecha: "2026-09-18", litros: 39.0, precio: 1.449, km: 97600 },
+  { veh: 1, fecha: "2026-10-03", litros: 38.6, precio: 1.469, km: 98200, foto: 1 },
+  { veh: 2, fecha: "2026-09-12", litros: 41.0, precio: 1.449, km: 75000 },
+  { veh: 2, fecha: "2026-09-29", litros: 45.5, precio: 1.459, km: 75700 },
+];

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { consumoMedioL100, gastoPorMes, resumenCombustible } from "@/lib/dominio/combustible";
+import { ticketsParaConsumo, consumoMedioL100, gastoPorMes, resumenCombustible } from "@/lib/dominio/combustible";
 
 const t = (fecha: string, litros: number, importe: number, km: number) => ({ vehiculoId: "v1", fecha, litros, importe, km });
 
@@ -19,4 +19,10 @@ test("gasto por mes ordenado", () => {
   expect(gastoPorMes([t("2026-10-02", 10, 15, 1), t("2026-09-30", 20, 30, 2), t("2026-10-20", 5, 7.5, 3)])).toEqual([
     { mes: "2026-09", gasto: 30, litros: 20 }, { mes: "2026-10", gasto: 22.5, litros: 15 },
   ]);
+});
+
+test("ticketsParaConsumo: sin mes devuelve todos; con mes corta al final de ese mes", () => {
+  const ts = [t("2026-08-30", 1, 1, 1), t("2026-09-10", 1, 1, 2), t("2026-10-02", 1, 1, 3)];
+  expect(ticketsParaConsumo(ts)).toHaveLength(3);
+  expect(ticketsParaConsumo(ts, { mes: "2026-09" }).map((x) => x.km)).toEqual([1, 2]);
 });

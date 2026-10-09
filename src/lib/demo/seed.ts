@@ -4,7 +4,7 @@ import path from "node:path";
 import { diaMadrid, duracionEstimadaMin } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
 import { RUTAS_DEMO } from "./rutas";
-import { DOMINIO_DEMO, FOTOS_TICKET, LUGARES_DEMO, SERVICIOS_DEMO, USUARIOS_DEMO, VEHICULOS_DEMO } from "./datos";
+import { DOMINIO_DEMO, FOTOS_TICKET, LUGARES_DEMO, SERVICIOS_DEMO, TICKETS_DEMO, USUARIOS_DEMO, VEHICULOS_DEMO } from "./datos";
 
 function ok<T>(r: { data?: T; error: { message: string } | null }, ctx: string): T {
   if (r.error) throw new Error(`Demo (${ctx}): ${r.error.message}`);
@@ -139,32 +139,28 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
   });
   ok(await sb.from("eventos_servicio").insert(eventos), "eventos");
 
-  // Tickets de combustible: 8 en ~2 meses, km crecientes por vehículo
-  const kmPorVehiculo = new Map(VEHICULOS_DEMO.map((v) => [v.matricula, v.km - 6 * 650]));
-  const tickets = [];
-  for (let i = 0; i < 8; i++) {
-    const c = conductores[i % 3];
-    const matricula = USUARIOS_DEMO.find((u) => u.nombre === c.nombre)!.vehiculo!;
-    const km = kmPorVehiculo.get(matricula)! + 650 + (i % 5) * 20;
-    kmPorVehiculo.set(matricula, km);
-    const foto = FOTOS_TICKET[i];
-    const litros = foto?.litros ?? redondea(36 + i * 1.7, 2), precio = foto?.precio ?? redondea(1.449 + (i % 4) * 0.01, 3);
-    tickets.push({
-      conductor_id: c.id, vehiculo_id: c.vehiculo!, fecha: foto?.fecha ?? dia(-(8 + (7 - i) * 7)),
-      gasolinera: "ESTACION DEMO COSTA DORADA", litros, precio_litro: precio, importe: foto?.importe ?? redondea(litros * precio, 2),
-      tipo_combustible: "Diésel", km, foto_path: null as string | null,
-    });
-  }
-  for (const [i, f] of FOTOS_TICKET.entries()) {
+  // Tickets de combustible: km crecientes con la fecha por vehículo (ver TICKETS_DEMO)
+  const tickets = TICKETS_DEMO.map((d) => {
+    const matricula = VEHICULOS_DEMO[d.veh].matricula;
+    const c = conductores.find((x) => USUARIOS_DEMO.find((u) => u.nombre === x.nombre)!.vehiculo === matricula)!;
+    const foto = d.foto === undefined ? null : FOTOS_TICKET[d.foto];
+    const importe = foto?.importe ?? redondea(d.litros * d.precio, 2);
+    const ia = foto ? { fecha: d.fecha, gasolinera: "ESTACION DEMO COSTA DORADA", litros: d.litros, precio_litro: d.precio, importe, tipo_combustible: "Diésel", confianza: "alta" } : null;
+    return {
+      conductor_id: c.id, vehiculo_id: c.vehiculo!, fecha: d.fecha,
+      gasolinera: "ESTACION DEMO COSTA DORADA", litros: d.litros, precio_litro: d.precio, importe,
+      tipo_combustible: "Diésel", km: d.km, foto_path: null as string | null, datos_ia: ia, corregido: false,
+    };
+  });
+  for (const [i, d] of TICKETS_DEMO.entries()) {
+    if (d.foto === undefined) continue;
+    const f = FOTOS_TICKET[d.foto];
     const ruta = `${tickets[i].conductor_id}/${f.fichero}`;
-    const { error } = await sb.storage.from("tickets").upload(ruta, fotos[i], { contentType: "image/jpeg", upsert: true });
+    const { error } = await sb.storage.from("tickets").upload(ruta, fotos[d.foto], { contentType: "image/jpeg", upsert: true });
     if (error) throw new Error(`Demo (foto ${f.fichero}): ${error.message}`);
     tickets[i].foto_path = ruta;
   }
   ok(await sb.from("tickets_combustible").insert(tickets), "tickets");
-  for (const v of VEHICULOS_DEMO) {
-    ok(await sb.from("vehiculos").update({ km_actuales: kmPorVehiculo.get(v.matricula)! }).eq("matricula", v.matricula), "km");
-  }
 
   // Posiciones iniciales cerca de Salou para que el mapa no esté vacío
   const inicio = conductores.map((c) => {

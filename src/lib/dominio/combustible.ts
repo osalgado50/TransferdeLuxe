@@ -23,3 +23,9 @@ export function gastoPorMes(t: TicketCalculo[]) {
   }
   return [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([mes, v]) => ({ mes, gasto: r2(v.gasto), litros: r2(v.litros) }));
 }
+
+/** Tickets para calcular el consumo: todos los del vehículo (sin filtro de conductor ni cota inferior de mes);
+ *  si hay mes, solo hasta el final de ese mes. */
+export function ticketsParaConsumo<T extends { fecha: string }>(todos: T[], { mes }: { mes?: string | null } = {}): T[] {
+  return mes ? todos.filter((t) => t.fecha.slice(0, 7) <= mes) : [...todos];
+}

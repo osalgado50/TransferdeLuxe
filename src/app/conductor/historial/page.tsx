@@ -26,7 +26,7 @@ export default async function Historial() {
         {servicios.length === 0 ? <p className="text-slate-400">Sin servicios en los últimos 7 días.</p> : (
           <ul className="space-y-2">{servicios.map((x) => (
             <li key={x.id} className="rounded-lg border border-slate-700 bg-slate-900 p-3">
-              <p className="text-sm text-slate-400">{hora.format(new Date(x.fecha_hora_recogida))} · <span className="text-amber-300">{x.estado.replace("_", " ")}</span></p>
+              <p className="text-sm text-slate-400">{hora.format(new Date(x.fecha_hora_recogida))} · <span className="text-amber-300">{x.estado.replaceAll("_", " ")}</span></p>
               <p>{x.origen_texto} → {x.destino_texto}</p>
             </li>))}
           </ul>)}
