@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { diaMadrid, duracionEstimadaMin } from "@/lib/dominio/geo";
@@ -39,6 +39,15 @@ async function limpiar(sb: SupabaseClient, viejos: Map<string, string>): Promise
   ok(await sb.from("lugares_frecuentes").delete().not("id", "is", null), "borrar lugares");
 }
 
+async function passwordVigente(email: string, password: string): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return true;
+  const c = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error } = await c.auth.signInWithPassword({ email, password });
+  if (!error) await c.auth.signOut({ scope: "local" });
+  return !error;
+}
+
 const redondea = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 
 /** Idempotente: borra los datos de demo y los vuelve a crear con fechas relativas a `hoy`. */
@@ -57,8 +66,11 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
   for (const u of USUARIOS_DEMO) {
     let id = existentes.get(u.email);
     if (id) {
-      const { error } = await sb.auth.admin.updateUserById(id, { password, email_confirm: true });
-      if (error) throw new Error(`Demo (updateUser ${u.nombre}): ${error.message}`);
+      // No se toca la contraseña (invalidaría las sesiones); solo si ya no coincide con la de demo.
+      if (!(await passwordVigente(u.email, password))) {
+        const { error } = await sb.auth.admin.updateUserById(id, { password, email_confirm: true });
+        if (error) throw new Error(`Demo (updateUser ${u.nombre}): ${error.message}`);
+      }
     } else {
       const { data, error } = await sb.auth.admin.createUser({ email: u.email, password, email_confirm: true });
       if (error || !data.user) throw new Error(`Demo (createUser ${u.nombre}): ${error?.message}`);

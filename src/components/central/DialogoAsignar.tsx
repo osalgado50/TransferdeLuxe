@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { accionCentral, obtenerSugerencias } from "@/app/central/actions";
 
@@ -26,14 +26,20 @@ export default function DialogoAsignar({ servicioId, reasignar = false, onHecho 
       setAbierto(false); onHecho?.(); router.refresh();
     });
   };
+  useEffect(() => {
+    if (!abierto) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(false); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [abierto]);
   const primeraApta = lista?.findIndex((s) => s.apto) ?? -1;
 
   return (
     <>
       <button type="button" data-accion="asignar" onClick={abrir} className="rounded-lg border border-amber-400 px-4 py-2 text-sm text-amber-400">{etiqueta}</button>
       {abierto && (
-        <div role="dialog" aria-modal="true" aria-label={`${etiqueta} conductor`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-neutral-700 bg-neutral-900 p-5">
+        <div role="dialog" aria-modal="true" aria-label={`${etiqueta} conductor`} onClick={() => setAbierto(false)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-4">
+          <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-neutral-700 bg-neutral-900 p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">{etiqueta} conductor</h2>
               <button type="button" onClick={() => setAbierto(false)} className="text-sm text-neutral-400">Cerrar</button>

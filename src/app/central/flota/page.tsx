@@ -3,6 +3,7 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import { guardarVehiculo, guardarConductor, guardarAjustes } from "./actions";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
+const rejilla = "grid grid-cols-[7rem_10rem_4rem_7rem_7rem_6rem] items-center gap-2";
 const boton = "rounded bg-amber-500 px-3 py-1 text-sm font-medium text-slate-900 hover:bg-amber-400";
 
 export default async function Flota({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -27,28 +28,24 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Vehículos</h2>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-slate-400"><tr><th>Matrícula</th><th>Modelo</th><th>Plazas</th><th>Estado</th><th>Km</th><th /></tr></thead>
-            <tbody>
-              {(vehiculos ?? []).map((v) => (
-                <tr key={v.id} className="border-t border-slate-700">
-                  <td colSpan={6}>
-                    <form action={guardarVehiculo} className="flex flex-wrap items-center gap-2 py-1">
-                      <input type="hidden" name="id" value={v.id} />
-                      <input name="matricula" defaultValue={v.matricula} aria-label="Matrícula" className={`${campo} w-28`} />
-                      <input name="modelo" defaultValue={v.modelo} aria-label="Modelo" className={`${campo} w-40`} />
-                      <input name="plazas" type="number" min={1} max={19} defaultValue={v.plazas} aria-label="Plazas" className={`${campo} w-16`} />
-                      <select name="estado" defaultValue={v.estado} aria-label="Estado" className={campo}>
-                        <option value="activo">Activo</option><option value="taller">En taller</option>
-                      </select>
-                      <input name="km_actuales" type="number" min={0} defaultValue={v.km_actuales} aria-label="Km" className={`${campo} w-28`} />
-                      <button className={boton}>Guardar</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="min-w-[640px]">
+            <div className={`${rejilla} text-sm text-slate-400`}>
+              <span>Matrícula</span><span>Modelo</span><span>Plazas</span><span>Estado</span><span>Km</span><span />
+            </div>
+            {(vehiculos ?? []).map((v) => (
+              <form key={v.id} action={guardarVehiculo} className={`${rejilla} border-t border-slate-700 py-1`}>
+                <input type="hidden" name="id" value={v.id} />
+                <input name="matricula" defaultValue={v.matricula} aria-label="Matrícula" className={campo} />
+                <input name="modelo" defaultValue={v.modelo} aria-label="Modelo" className={campo} />
+                <input name="plazas" type="number" min={1} max={19} defaultValue={v.plazas} aria-label="Plazas" className={campo} />
+                <select name="estado" defaultValue={v.estado} aria-label="Estado" className={campo}>
+                  <option value="activo">Activo</option><option value="taller">En taller</option>
+                </select>
+                <input name="km_actuales" type="number" min={0} defaultValue={v.km_actuales} aria-label="Km" className={campo} />
+                <button className={boton}>Guardar</button>
+              </form>
+            ))}
+          </div>
         </div>
         <form action={guardarVehiculo} className="flex flex-wrap items-center gap-2 border-t border-slate-700 pt-2">
           <span className="text-sm text-slate-400">Nuevo:</span>
