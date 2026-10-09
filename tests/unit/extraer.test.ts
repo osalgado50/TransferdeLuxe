@@ -56,3 +56,21 @@ test("fecha imposible se descarta; sin fecha la confianza baja a media", () => {
   expect(d.confianza).toBe("media");
   expect(d.precio_litro).toBe(1.5);
 });
+
+test("regresión: TOTAL EUR, SUB TOTAL, DIÉSEL, TOTAL IVA, tarjeta y hora", () => {
+  const d = extraerDatosTicket(`ESTACION DEMO OESTE
+Fecha: 12/10/2026 Hora: 08:45
+DIÉSEL A
+Litros 42,15 L
+Precio 1,459 EUR/L
+SUB TOTAL 50,83
+TOTAL IVA 10,67
+TOTAL EUR 61,50
+Tarjeta ****1234`);
+  expect(d).toMatchObject({ fecha: "2026-10-12", litros: 42.15, precio_litro: 1.459, importe: 61.5, tipo_combustible: "Diésel", confianza: "alta" });
+});
+
+test("GASOIL y GASÓLEO se detectan como Diésel", () => {
+  expect(extraerDatosTicket("GASOIL\nLITROS 10,00\nTOTAL 15,00").tipo_combustible).toBe("Diésel");
+  expect(extraerDatosTicket("GASÓLEO\nLITROS 10,00\nTOTAL 15,00").tipo_combustible).toBe("Diésel");
+});

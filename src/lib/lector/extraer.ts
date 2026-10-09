@@ -26,7 +26,7 @@ function fecha(texto: string): string | null {
 
 function tipo(texto: string): string | null {
   const t = texto.toUpperCase();
-  if (/DIESEL|GAS[OÓ]LEO/.test(t)) return "Diésel";
+  if (/DIESEL|GASOLEO|GASOIL/.test(t)) return "Diésel";
   if (/(SIN PLOMO|GASOLINA|SP)\s*98/.test(t)) return "Gasolina 98";
   if (/(SIN PLOMO|GASOLINA|SP)\s*95|SIN PLOMO|GASOLINA/.test(t)) return "Gasolina 95";
   return null;
@@ -38,17 +38,17 @@ function gasolinera(texto: string): string | null {
 }
 
 export function extraerDatosTicket(texto: string): DatosTicket {
-  const t = texto.replace(/[ \t]+/g, " ");
+  const t = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ \t]+/g, " ");
   let litros = buscar(t, [
-    new RegExp(String.raw`(?:LITROS|VOLUMEN|LTS?)\s*:?\s*` + NUM, "i"),
-    new RegExp(NUM + String.raw`\s*(?:L|LTS?|LITROS)\b(?!\s*\/)`, "i"),
+    new RegExp(String.raw`(?:LITROS|VOLUMEN|\bLTS?)\s*:?\s*` + NUM, "i"),
+    new RegExp(NUM + String.raw`\s*(?:L|\bLTS?|LITROS)\b(?!\s*\/)`, "i"),
   ]);
   let precio = buscar(t, [
     new RegExp(String.raw`(?:PRECIO|P\.?\s*UNIT\.?)\s*(?:\/\s*L)?\s*:?\s*` + NUM, "i"),
     new RegExp(NUM + String.raw`\s*(?:€|EUR)?\s*\/\s*L`, "i"),
   ]);
   const importe = buscar(t, [
-    new RegExp(String.raw`(?<!SUB)TOTAL\s*:?\s*` + NUM, "i"),
+    new RegExp(String.raw`(?<!SUB\s?)TOTAL\s*:?\s*(?:A PAGAR|\(?EUR\)?|€)?\s*:?\s*` + NUM, "i"),
     new RegExp(String.raw`IMPORTE\s*:?\s*` + NUM, "i"),
   ]);
   if (litros != null) litros = r2(litros);
