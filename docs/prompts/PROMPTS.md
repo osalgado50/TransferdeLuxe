@@ -265,3 +265,15 @@ A
 
 ---
 
+## 2026-10-10 00:01 · Claude Code · sesión `b3c0e64f`
+
+supabase conectada
+
+---
+
+## 2026-10-10 00:02 · Claude Code · sesión `b3c0e64f`
+
+region Paris? No hay Madrid?
+
+---
+
