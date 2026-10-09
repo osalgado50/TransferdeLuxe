@@ -31,3 +31,6 @@ playwright-report/
 .superpowers/
 next-env.d.ts
 *.tsbuildinfo
+
+# Datos de idioma de tesseract.js generados en Node
+*.traineddata

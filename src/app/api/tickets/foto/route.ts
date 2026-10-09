@@ -8,6 +8,7 @@ const TIPOS = ["image/jpeg", "image/png", "image/webp"] as const;
 export async function POST(req: Request) {
   const yo = await perfilActual();
   if (!yo || yo.rol !== "conductor") return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (Number(req.headers.get("content-length") ?? 0) > 6 * 1024 * 1024) return NextResponse.json({ error: "La foto pesa más de 5 MB" }, { status: 413 });
   const foto = (await req.formData()).get("foto");
   if (!(foto instanceof File)) return NextResponse.json({ error: "Falta la foto" }, { status: 400 });
   if (foto.size > 5 * 1024 * 1024) return NextResponse.json({ error: "La foto pesa más de 5 MB" }, { status: 400 });
