@@ -4,8 +4,8 @@ import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, useDragg
 import EstadoBadge from "@/components/comun/EstadoBadge";
 import { accionCentral } from "@/app/central/actions";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
-import { encaja, finDe, fmtDuracion, fmtHora, planDia, razonTransicion, type ServicioPlan, type Transicion } from "@/lib/dominio/planificacion";
-import { sugerirConductores, type Candidato } from "@/lib/dominio/sugerencia";
+import { aPlan, construirCandidatos, deTramo, enAgenda, encaja, finDe, fmtDuracion, fmtHora, planDia, razonTransicion, type Transicion } from "@/lib/dominio/planificacion";
+import { sugerirConductores } from "@/lib/dominio/sugerencia";
 
 export type TarjetaRuta = {
   id: string; estado: EstadoServicio; conductor_id: string | null; fecha_hora_recogida: string; origen_texto: string; destino_texto: string;
@@ -15,15 +15,6 @@ export type TarjetaRuta = {
 type Conductor = { id: string; nombre: string; vehiculo_habitual_id: string | null };
 type Vehiculo = { id: string; plazas: number; maletas: number; estado: "activo" | "taller" };
 type Chip = { conductor: Conductor; texto: string };
-
-export function aPlan(s: TarjetaRuta): ServicioPlan {
-  return {
-    id: s.id, inicio: new Date(s.fecha_hora_recogida), duracionMin: s.duracion_estimada_min,
-    origen: s.origen_lat != null && s.origen_lng != null ? { lat: s.origen_lat, lng: s.origen_lng } : null,
-    destino: s.destino_lat != null && s.destino_lng != null ? { lat: s.destino_lat, lng: s.destino_lng } : null,
-    origenTexto: s.origen_texto, destinoTexto: s.destino_texto,
-  };
-}
 
 const COLOR: Record<Transicion["estado"], string> = {
   ok: "border-green-500/40 bg-green-500/10 text-green-300",
@@ -73,15 +64,16 @@ function Tarjeta({ s, chip, onAsignar }: { s: TarjetaRuta; chip?: Chip | null; o
   );
 }
 
-function Columna({ id, titulo, items, chips, onAsignar }: {
-  id: string; titulo: string; items: TarjetaRuta[]; chips?: Record<string, Chip | null>; onAsignar?: (s: TarjetaRuta, c: Conductor) => void;
+function Columna({ id, titulo, items, chips, traslados, onAsignar }: {
+  id: string; titulo: string; items: TarjetaRuta[]; chips?: Record<string, Chip | null>; traslados?: Record<string, Transicion>;
+  onAsignar?: (s: TarjetaRuta, c: Conductor) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <section ref={setNodeRef} className={`w-64 shrink-0 space-y-2 rounded-xl border p-3 ${isOver ? "border-marca-claro bg-slate-800" : "border-slate-800 bg-slate-950"}`}>
       <h2 className="font-medium text-marca-claro">{titulo} <span className="text-xs text-slate-400">({items.length})</span></h2>
-      {items.map((s, i) => {
-        const t = id !== SIN && i > 0 ? planDia([aPlan(items[i - 1]), aPlan(s)]).transiciones[0] : null;
+      {items.map((s) => {
+        const t = traslados?.[s.id];
         return (
           <div key={s.id} className="space-y-2">
             {t && <Traslado t={t} />}
@@ -94,7 +86,11 @@ function Columna({ id, titulo, items, chips, onAsignar }: {
   );
 }
 
-export default function TableroRuta({ servicios, conductores, vehiculos = [] }: { servicios: TarjetaRuta[]; conductores: Conductor[]; vehiculos?: Vehiculo[] }) {
+export default function TableroRuta({ servicios, conductores, vehiculos = [], contexto = [] }: {
+  servicios: TarjetaRuta[]; conductores: Conductor[]; vehiculos?: Vehiculo[];
+  /** Servicios fuera del día mostrado (víspera 18:00 – día siguiente 06:00): solo cuentan para la viabilidad. */
+  contexto?: TarjetaRuta[];
+}) {
   const [asignacion, setAsignacion] = useState<Record<string, string | null>>({});
   const [pendiente, setPendiente] = useState<{ s: TarjetaRuta; c: Conductor; razon: string } | null>(null);
   const [aviso, setAviso] = useState<{ t: string; error: boolean } | null>(null);
@@ -103,7 +99,7 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [] }: 
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
-  useEffect(() => { setAsignacion({}); }, [servicios]);
+  useEffect(() => { setAsignacion({}); setPendiente(null); }, [servicios]);
   useEffect(() => {
     if (!aviso || aviso.error) return;
     const t = setTimeout(() => setAviso(null), 4000);
@@ -111,7 +107,15 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [] }: 
   }, [aviso]);
   const actual = (s: TarjetaRuta) => (s.id in asignacion ? asignacion[s.id] : s.conductor_id);
 
-  const agendaDe = (conductorId: string) => servicios.filter((x) => actual(x) === conductorId).map(aPlan);
+  // Agenda «viva» (estados activos; una asignación optimista cuenta como «asignado»), incluido el contexto fuera del día.
+  const agenda = [...servicios, ...contexto].flatMap((x) => {
+    const cid = actual(x);
+    const estado = x.id in asignacion ? "asignado" : x.estado;
+    return cid && enAgenda(estado) ? [{ ...x, conductor_id: cid, estado }] : [];
+  });
+  const agendaDe = (conductorId: string) => agenda.filter((x) => x.conductor_id === conductorId).map(aPlan);
+  const traslados: Record<string, Transicion> = {};
+  for (const c of conductores) for (const t of planDia(agendaDe(c.id)).transiciones) traslados[t.siguienteId] = t;
 
   function alSoltar(e: DragEndEvent) {
     if (!e.over) return;
@@ -147,24 +151,13 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [] }: 
   const chips = useMemo(() => {
     const ahora = new Date();
     const res: Record<string, Chip | null> = {};
-    const candidatos: Candidato[] = conductores.map((c) => {
-      const v = vehiculos.find((x) => x.id === c.vehiculo_habitual_id);
-      return {
-        conductorId: c.id, nombre: c.nombre, posicion: null,
-        vehiculo: v ? { id: v.id, plazas: v.plazas, maletas: v.maletas, estado: v.estado } : null,
-        agenda: servicios.filter((x) => actual(x) === c.id).map((x) => {
-          const p = aPlan(x);
-          return { servicioId: p.id, inicio: p.inicio, fin: finDe(p), origen: p.origen, destino: p.destino, origenTexto: p.origenTexto, destinoTexto: p.destinoTexto };
-        }),
-      };
-    });
+    const candidatos = construirCandidatos(conductores, vehiculos, agenda);
     for (const s of servicios.filter((x) => !actual(x) && MOVIBLES.includes(x.estado))) {
       const p = aPlan(s);
       const mejor = sugerirConductores({ ...p, pasajeros: s.pasajeros, maletas: s.maletas }, candidatos, ahora).find((x) => x.apto);
       const c = mejor && conductores.find((x) => x.id === mejor.conductorId);
       if (!mejor || !c) { res[s.id] = null; continue; }
-      const ant = encaja(p, candidatos.find((x) => x.conductorId === c.id)!.agenda.map((a) => ({ id: a.servicioId, inicio: a.inicio,
-        duracionMin: (a.fin.getTime() - a.inicio.getTime()) / 60_000, origen: a.origen ?? null, destino: a.destino, destinoTexto: a.destinoTexto }))).anterior;
+      const ant = encaja(p, candidatos.find((x) => x.conductorId === c.id)!.agenda.map(deTramo)).anterior;
       const detalle = ant
         ? [`termina ${fmtHora(ant.finAnterior)}`, mejor.distanciaKm != null ? `a ${mejor.distanciaKm} km` : null].filter(Boolean).join(" ")
           + (ant.margenMin != null ? ` · margen ${ant.margenMin} min` : "")
@@ -173,14 +166,14 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [] }: 
     }
     return res;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [servicios, conductores, vehiculos, asignacion]);
+  }, [servicios, contexto, conductores, vehiculos, asignacion]);
 
   return (
     <DndContext id="tablero-ruta" sensors={sensores} onDragEnd={alSoltar}>
       {aviso && <p role="status" className={`rounded-lg px-3 py-2 text-sm ${aviso.error ? "bg-red-500/20 text-red-300" : "bg-green-500/20 text-green-300"}`}>{aviso.t}</p>}
       <div className="flex max-w-full gap-3 overflow-x-auto pb-3">
         <Columna id={SIN} titulo="Sin asignar" items={de(SIN)} chips={chips} onAsignar={asignar} />
-        {conductores.map((c) => <Columna key={c.id} id={c.id} titulo={c.nombre} items={de(c.id)} />)}
+        {conductores.map((c) => <Columna key={c.id} id={c.id} titulo={c.nombre} items={de(c.id)} traslados={traslados} />)}
       </div>
       {pendiente && (
         <div role="dialog" aria-modal="true" aria-label="Confirmar asignación" onClick={() => setPendiente(null)}

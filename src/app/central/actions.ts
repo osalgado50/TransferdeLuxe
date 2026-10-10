@@ -5,6 +5,7 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import { ejecutarAccion, repoSupabase, type ResultadoAccion } from "@/lib/servicios/acciones";
 import { esquemaReserva, serviciosDesdeReserva, crearServicios } from "@/lib/reserva/esquema";
 import { sugerirConductores, type Candidato } from "@/lib/dominio/sugerencia";
+import { ESTADOS_AGENDA, construirCandidatos } from "@/lib/dominio/planificacion";
 import type { EstadoReserva } from "@/app/reservar/actions";
 
 export async function accionCentral(p: { idAccion: string; servicioId: string; accion: "asignar" | "reasignar" | "cancelar" | "subcontratar"; conductorId?: string; vehiculoId?: string }): Promise<ResultadoAccion> {
@@ -42,25 +43,12 @@ export async function obtenerSugerencias(servicioId: string) {
     sb.from("perfiles").select("id, nombre, vehiculo_habitual_id").eq("rol", "conductor"),
     sb.from("vehiculos").select("*"),
     sb.from("posicion_actual").select("*"),
-    sb.from("servicios").select("id, conductor_id, fecha_hora_recogida, duracion_estimada_min, origen_lat, origen_lng, destino_lat, destino_lng, origen_texto, destino_texto")
-      .in("estado", ["asignado", "aceptado", "en_camino", "recogido"]).gte("fecha_hora_recogida", desde).lte("fecha_hora_recogida", hasta),
+    sb.from("servicios").select("id, estado, conductor_id, fecha_hora_recogida, duracion_estimada_min, origen_lat, origen_lng, destino_lat, destino_lng, origen_texto, destino_texto")
+      .in("estado", [...ESTADOS_AGENDA]).gte("fecha_hora_recogida", desde).lte("fecha_hora_recogida", hasta),
   ]);
-  const candidatos: Candidato[] = (conductores ?? []).map((c) => {
-    const v = vehiculos?.find((x) => x.id === c.vehiculo_habitual_id) ?? null;
-    const p = posiciones?.find((x) => x.conductor_id === c.id && x.en_servicio);
-    return {
-      conductorId: c.id, nombre: c.nombre,
-      vehiculo: v ? { id: v.id, plazas: v.plazas, maletas: v.maletas, estado: v.estado } : null,
-      posicion: p ? { punto: { lat: p.lat, lng: p.lng }, registradoEn: new Date(p.registrado_en) } : null,
-      agenda: (agenda ?? []).filter((a) => a.conductor_id === c.id).map((a) => {
-        const i = new Date(a.fecha_hora_recogida);
-        return { servicioId: a.id, inicio: i, fin: new Date(i.getTime() + a.duracion_estimada_min * 60_000),
-          destino: a.destino_lat != null ? { lat: a.destino_lat, lng: a.destino_lng } : null,
-          origen: a.origen_lat != null ? { lat: a.origen_lat, lng: a.origen_lng } : null,
-          origenTexto: a.origen_texto, destinoTexto: a.destino_texto };
-      }),
-    };
-  });
+  const gps: Record<string, Candidato["posicion"]> = {};
+  for (const p of posiciones ?? []) if (p.en_servicio) gps[p.conductor_id] = { punto: { lat: p.lat, lng: p.lng }, registradoEn: new Date(p.registrado_en) };
+  const candidatos = construirCandidatos(conductores ?? [], vehiculos ?? [], agenda ?? [], gps);
   const origen = s.origen_lat != null ? { lat: s.origen_lat, lng: s.origen_lng } : null;
   const destino = s.destino_lat != null ? { lat: s.destino_lat, lng: s.destino_lng } : null;
   return sugerirConductores({ id: s.id, inicio, duracionMin: s.duracion_estimada_min, pasajeros: s.pasajeros, maletas: s.maletas, origen,

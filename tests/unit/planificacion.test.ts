@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { tiempoTraslado, planDia, encaja, estadoMargen, fmtDuracion, type ServicioPlan } from "@/lib/dominio/planificacion";
+import { tiempoTraslado, planDia, encaja, estadoMargen, fmtDuracion, fmtHora, aPlan, construirCandidatos, ESTADOS_AGENDA, type ServicioPlan } from "@/lib/dominio/planificacion";
 import { sugerirConductores, type Candidato } from "@/lib/dominio/sugerencia";
 
 const reus = { lat: 41.1474, lng: 1.1672 };
@@ -109,5 +109,71 @@ describe("sugerirConductores con tiempos", () => {
     const r = sugerirConductores(s, [base("x", [{ servicioId: "n", inicio: T("16:50"), fin: T("17:30"), destino: null, origen: bcn, origenTexto: "BCN" }])], ahora);
     expect(r[0].apto).toBe(false);
     expect(r[0].motivos).toContain("No llega a tiempo al siguiente servicio a BCN");
+  });
+});
+
+describe("ronda 1: estados, medianoche, horario de invierno, orden", () => {
+  const fila = (id: string, ini: string, dur: number, o: { lat: number; lng: number } | null, d: { lat: number; lng: number } | null, estado = "asignado", conductor_id: string | null = "c1") => ({
+    id, fecha_hora_recogida: ini, duracion_estimada_min: dur, estado, conductor_id,
+    origen_lat: o?.lat ?? null, origen_lng: o?.lng ?? null, destino_lat: d?.lat ?? null, destino_lng: d?.lng ?? null,
+    origen_texto: "Origen " + id, destino_texto: "Destino " + id,
+  });
+  const conductores = [{ id: "c1", nombre: "Conductora Ficticia", vehiculo_habitual_id: "v1" }];
+  const vehiculos = [{ id: "v1", plazas: 8, maletas: 8, estado: "activo" as const }];
+
+  test("construirCandidatos excluye servicios terminales y sin conductor", () => {
+    const [c] = construirCandidatos(conductores, vehiculos, [
+      fila("a", "2026-10-15T10:00:00+02:00", 60, salou, bcn, "finalizado"),
+      fila("b", "2026-10-15T12:00:00+02:00", 60, salou, bcn, "cancelado"),
+      fila("c", "2026-10-15T14:00:00+02:00", 60, salou, bcn, "en_camino"),
+      fila("d", "2026-10-15T16:00:00+02:00", 60, salou, bcn, "pendiente", null),
+    ]);
+    expect(c.agenda.map((t) => t.servicioId)).toEqual(["c"]);
+    expect(ESTADOS_AGENDA).toEqual(["asignado", "aceptado", "en_camino", "recogido"]);
+    expect(c.agenda[0].destinoTexto).toBe("Destino c");
+  });
+
+  test("un servicio finalizado no ocupa ni impide llegar", () => {
+    const cands = construirCandidatos(conductores, vehiculos, [fila("a", "2026-10-15T15:30:00+02:00", 60, reus, bcn, "finalizado")]);
+    const r = sugerirConductores({ id: "s", inicio: T("16:00"), duracionMin: 30, pasajeros: 2, maletas: 2, origen: salou }, cands, T("08:00"));
+    expect(r[0].apto).toBe(true);
+  });
+
+  test("23:00 que acaba pasada la medianoche y recogida a las 00:45", () => {
+    const noche = fila("n", "2026-10-15T23:00:00+02:00", 90, bcn, salou);
+    const cands = construirCandidatos(conductores, vehiculos, [noche]);
+    const cerca = sugerirConductores({ id: "s", inicio: new Date("2026-10-16T00:45:00+02:00"), duracionMin: 30, pasajeros: 1, maletas: 1, origen: salou }, cands, T("08:00"));
+    expect(cerca[0].apto).toBe(true);
+    expect(cerca[0].viabilidad).toBe("justo");
+    expect(cerca[0].margenMin).toBe(15);
+    const lejos = encaja(aPlan({ ...fila("s", "2026-10-16T00:45:00+02:00", 30, bcn, reus) }), [aPlan(noche)]);
+    expect(lejos.encaja).toBe(false);
+    expect(lejos.razon).toMatch(/^No llega: termina 00:30 en Destino n, necesita 1 h \d+ min → llegaría 0[12]:\d\d y la recogida es a las 00:45$/);
+  });
+
+  test("cambio de hora (25/10/2026): 01:30 CEST + 90 min termina a las 02:00 CET", () => {
+    const a = sv("a", "", 90, salou, salou); a.inicio = new Date("2026-10-25T01:30:00+02:00");
+    const b = sv("b", "", 30, salou, reus); b.inicio = new Date("2026-10-25T02:30:00+01:00");
+    const [t] = planDia([a, b]).transiciones;
+    expect(fmtHora(t.finAnterior)).toBe("02:00");
+    expect(t.margenMin).toBe(30);
+    expect(t.estado).toBe("ok");
+  });
+
+  test("varios solapes en la razón", () => {
+    const r = encaja(sv("x", "10:00", 240, salou, salou), [sv("p", "10:30", 30, salou, salou), sv("q", "12:00", 30, salou, salou)]);
+    expect(r.razon).toBe("Ocupado: se solapa con los servicios de 10:30–11:00, 12:00–12:30");
+  });
+
+  test("orden: ok, después desconocido, después justo", () => {
+    const base = (id: string, agenda: Candidato["agenda"]): Candidato => ({
+      conductorId: id, nombre: id, vehiculo: { id: "v" + id, plazas: 8, maletas: 8, estado: "activo" }, posicion: null, agenda });
+    const s = { id: "s", inicio: T("16:00"), duracionMin: 30, pasajeros: 1, maletas: 1, origen: salou };
+    const r = sugerirConductores(s, [
+      base("justo", [{ servicioId: "j", inicio: T("15:00"), fin: T("15:50"), destino: salou }]),
+      base("desconocido", [{ servicioId: "d", inicio: T("13:00"), fin: T("14:00"), destino: null }]),
+      base("ok", [{ servicioId: "o", inicio: T("13:00"), fin: T("14:00"), destino: tarragona }]),
+    ], T("08:00"));
+    expect(r.map((x) => x.conductorId)).toEqual(["ok", "desconocido", "justo"]);
   });
 });

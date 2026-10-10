@@ -13,13 +13,21 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(f.dia ?? "") ? f.dia! : diaMadrid(new Date());
   const desde = madridAUtc(dia, "00:00");
   const hasta = madridAUtc(desplazar(dia, 1), "00:00");
+  // Margen para la viabilidad (no se pinta): de las 18:00 de la víspera a las 06:00 del día siguiente.
+  const desdeCtx = madridAUtc(desplazar(dia, -1), "18:00");
+  const hastaCtx = madridAUtc(desplazar(dia, 1), "06:00");
   const sb = await clienteServidor();
   const [{ data: conductores, error: errC }, { data: servicios, error }, { data: vehiculos }] = await Promise.all([
     sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor").order("nombre"),
     sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng")
-      .gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta).neq("estado", "cancelado").order("fecha_hora_recogida"),
+      .gte("fecha_hora_recogida", desdeCtx).lt("fecha_hora_recogida", hastaCtx).neq("estado", "cancelado").order("fecha_hora_recogida"),
     sb.from("vehiculos").select("id,plazas,maletas,estado"),
   ]);
+  const todos = (servicios ?? []) as TarjetaRuta[];
+  const t0 = Date.parse(desde), t1 = Date.parse(hasta);
+  const enDia = (x: TarjetaRuta) => { const t = Date.parse(x.fecha_hora_recogida); return t >= t0 && t < t1; };
+  const delDia = todos.filter(enDia);
+  const contexto = todos.filter((x) => !enDia(x));
   const enlace = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-600 px-3 py-1.5 hover:border-marca-claro";
   return (
     <div className="space-y-4">
@@ -31,7 +39,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
         <Link href="/central/ruta" className="inline-flex min-h-11 items-center px-2 text-sm text-marca-claro hover:underline">Hoy</Link>
       </div>
       {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
-        : <TableroRuta servicios={(servicios ?? []) as TarjetaRuta[]} conductores={conductores ?? []} vehiculos={vehiculos ?? []} />}
+        : <TableroRuta servicios={delDia} contexto={contexto} conductores={conductores ?? []} vehiculos={vehiculos ?? []} />}
     </div>
   );
 }

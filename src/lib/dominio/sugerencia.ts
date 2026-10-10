@@ -1,6 +1,6 @@
 import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
-import { encaja, type ServicioPlan, type EstadoTransicion } from "./planificacion";
+import { encaja, deTramo, type EstadoTransicion } from "./planificacion";
 
 export interface ServicioParaSugerir { id: string; inicio: Date; duracionMin: number; pasajeros: number; maletas: number; origen: Punto | null;
   destino?: Punto | null; origenTexto?: string; destinoTexto?: string }
@@ -39,8 +39,7 @@ export function sugerirConductores(s: ServicioParaSugerir, candidatos: Candidato
     let viabilidad: EstadoTransicion = "desconocido";
     if (otros.some((t) => t.inicio < fin && s.inicio < t.fin)) { apto = false; motivos.push("Ocupado a esa hora"); }
     else {
-      const plan: ServicioPlan[] = otros.map((t) => ({ id: t.servicioId, inicio: t.inicio, duracionMin: (t.fin.getTime() - t.inicio.getTime()) / MIN,
-        origen: t.origen ?? null, destino: t.destino, origenTexto: t.origenTexto, destinoTexto: t.destinoTexto }));
+      const plan = otros.map(deTramo);
       const e = encaja({ id: s.id, inicio: s.inicio, duracionMin: s.duracionMin, origen: s.origen, destino: s.destino ?? null,
         origenTexto: s.origenTexto, destinoTexto: s.destinoTexto }, plan);
       const margenes = [e.anterior, e.siguiente].map((t) => t?.margenMin).filter((m): m is number => m != null);
@@ -70,7 +69,8 @@ export function sugerirConductores(s: ServicioParaSugerir, candidatos: Candidato
     return { conductorId: c.conductorId, nombre: c.nombre, apto, motivos, distanciaKm: distancia, margenMin, viabilidad };
   });
 
-  const rango = (x: Sugerencia) => (x.viabilidad === "justo" ? 1 : 0);
+  const RANGO: Partial<Record<EstadoTransicion, number>> = { desconocido: 1, justo: 2 };
+  const rango = (x: Sugerencia) => RANGO[x.viabilidad ?? "ok"] ?? 0;
   return res.sort((a, b) =>
     a.apto !== b.apto ? (a.apto ? -1 : 1)
       : rango(a) !== rango(b) ? rango(a) - rango(b)

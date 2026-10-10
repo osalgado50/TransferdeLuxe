@@ -1,5 +1,17 @@
 import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
+import type { Candidato, TramoAgenda } from "./sugerencia";
+
+/** Estados que ocupan la agenda de un conductor (los terminales no cuentan para encajar ni para traslados). */
+export const ESTADOS_AGENDA = ["asignado", "aceptado", "en_camino", "recogido"] as const;
+export const enAgenda = (estado: string) => (ESTADOS_AGENDA as readonly string[]).includes(estado);
+
+/** Fila de servicio tal como viene de la BD (subconjunto). */
+export interface FilaPlan {
+  id: string; fecha_hora_recogida: string; duracion_estimada_min: number;
+  origen_lat: number | null; origen_lng: number | null; destino_lat: number | null; destino_lng: number | null;
+  origen_texto?: string | null; destino_texto?: string | null;
+}
 
 /** Mismo modelo que duracionEstimadaMin (recta × 1,3 a 70 km/h) pero sin el margen de carga. */
 const FACTOR_CARRETERA = 1.3, VELOCIDAD_MEDIA_KMH = 70;
@@ -19,6 +31,38 @@ export interface Transicion {
   finAnterior: Date; trasladoMin: number | null; llegadaEstimada: Date | null;
   margenMin: number | null; estado: EstadoTransicion;
   desdeTexto?: string; hastaTexto?: string;
+}
+
+export function aPlan(f: FilaPlan): ServicioPlan {
+  return {
+    id: f.id, inicio: new Date(f.fecha_hora_recogida), duracionMin: f.duracion_estimada_min,
+    origen: f.origen_lat != null && f.origen_lng != null ? { lat: f.origen_lat, lng: f.origen_lng } : null,
+    destino: f.destino_lat != null && f.destino_lng != null ? { lat: f.destino_lat, lng: f.destino_lng } : null,
+    origenTexto: f.origen_texto ?? undefined, destinoTexto: f.destino_texto ?? undefined,
+  };
+}
+
+export const aTramo = (p: ServicioPlan): TramoAgenda => ({ servicioId: p.id, inicio: p.inicio, fin: finDe(p),
+  origen: p.origen, destino: p.destino, origenTexto: p.origenTexto, destinoTexto: p.destinoTexto });
+export const deTramo = (t: TramoAgenda): ServicioPlan => ({ id: t.servicioId, inicio: t.inicio,
+  duracionMin: (t.fin.getTime() - t.inicio.getTime()) / MIN, origen: t.origen ?? null, destino: t.destino,
+  origenTexto: t.origenTexto, destinoTexto: t.destinoTexto });
+
+/** Construye los candidatos (vehículo habitual + agenda en estados activos) a partir de filas de BD. */
+export function construirCandidatos(
+  conductores: { id: string; nombre: string; vehiculo_habitual_id: string | null }[],
+  vehiculos: { id: string; plazas: number; maletas: number; estado: "activo" | "taller" }[],
+  agenda: (FilaPlan & { conductor_id: string | null; estado: string })[],
+  posiciones: Record<string, Candidato["posicion"]> = {},
+): Candidato[] {
+  return conductores.map((c) => {
+    const v = vehiculos.find((x) => x.id === c.vehiculo_habitual_id);
+    return {
+      conductorId: c.id, nombre: c.nombre, posicion: posiciones[c.id] ?? null,
+      vehiculo: v ? { id: v.id, plazas: v.plazas, maletas: v.maletas, estado: v.estado } : null,
+      agenda: agenda.filter((a) => a.conductor_id === c.id && enAgenda(a.estado)).map((a) => aTramo(aPlan(a))),
+    };
+  });
 }
 
 /** Minutos de conducción en vacío entre dos puntos; 0 si es el mismo; null si falta alguno. */
@@ -87,16 +131,18 @@ export interface ResultadoEncaje {
 export function encaja(s: ServicioPlan, agenda: ServicioPlan[]): ResultadoEncaje {
   const otros = ordenar(agenda.filter((a) => a.id !== s.id));
   const fin = finDe(s);
-  const solape = otros.find((a) => a.inicio < fin && s.inicio < finDe(a));
-  const previo = otros.filter((a) => a.inicio <= s.inicio && a !== solape).pop() ?? null;
-  const proximo = otros.find((a) => a.inicio > s.inicio && a !== solape) ?? null;
+  const solapes = otros.filter((a) => a.inicio < fin && s.inicio < finDe(a));
+  const libres = otros.filter((a) => !solapes.includes(a));
+  const previo = libres.filter((a) => a.inicio <= s.inicio).pop() ?? null;
+  const proximo = libres.find((a) => a.inicio > s.inicio) ?? null;
   const anterior = previo ? transicion(previo, s) : null;
   const siguiente = proximo ? transicion(s, proximo) : null;
   const ts = [anterior, siguiente].filter((t): t is Transicion => !!t);
   const peor = ts.reduce<Transicion | null>((p, t) => (!p || GRAVEDAD[t.estado] > GRAVEDAD[p.estado] ? t : p), null);
-  if (solape) {
+  if (solapes.length) {
+    const lista = solapes.map((a) => `${fmtHora(a.inicio)}–${fmtHora(finDe(a))}`).join(", ");
     return { encaja: false, solapa: true, peor, anterior, siguiente,
-      razon: `Ocupado: se solapa con el servicio de ${fmtHora(solape.inicio)} a ${fmtHora(finDe(solape))}` };
+      razon: `Ocupado: se solapa con ${solapes.length === 1 ? "el servicio" : "los servicios"} de ${lista}` };
   }
   const ok = !ts.some((t) => t.estado === "no_llega");
   return { encaja: ok, solapa: false, peor, anterior, siguiente, razon: peor && peor.estado !== "ok" ? razonTransicion(peor) : null };
