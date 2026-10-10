@@ -89,6 +89,6 @@ export function BotonPaso({ servicioId, conductorId, estadoServidor, siguienteId
 
 const estilos = StyleSheet.create({
   caja: { gap: 10 },
-  resaltado: { borderWidth: 3, borderColor: "#ffffff" },
+  resaltado: { borderWidth: 3, borderColor: color.texto },
   terminado: { color: "#34d399", fontSize: 22, fontWeight: "800", textAlign: "center" },
 });

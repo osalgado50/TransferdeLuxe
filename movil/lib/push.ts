@@ -6,6 +6,7 @@ import { Alert, Platform } from "react-native";
 import { llamarApi } from "./api";
 
 const CLAVE_TOKEN = "tdl-push-token";
+const CLAVE_EXPLICADO = "tdl-push-explicado";
 export const CANAL_SERVICIOS = "servicios";
 
 // Con la app abierta también se muestra el banner (y suena).
@@ -30,7 +31,11 @@ export async function pedirPermisoNotificaciones(): Promise<boolean> {
   const actual = await Notifications.getPermissionsAsync();
   if (actual.granted) return true;
   if (!actual.canAskAgain) return false;
-  await explicar();
+  // La explicación solo se muestra una vez (luego el SO decide si puede volver a preguntar).
+  if (!(await AsyncStorage.getItem(CLAVE_EXPLICADO).catch(() => null))) {
+    await explicar();
+    await AsyncStorage.setItem(CLAVE_EXPLICADO, "1").catch(() => undefined);
+  }
   return (await Notifications.requestPermissionsAsync()).granted;
 }
 
@@ -62,6 +67,7 @@ export async function darDeBajaPush(): Promise<void> {
 /** Notificación local inmediata (avisos de proximidad). */
 export async function notificarLocal(titulo: string, cuerpo: string): Promise<void> {
   try {
+    await canalAndroid().catch(() => undefined);
     await Notifications.scheduleNotificationAsync({
       content: { title: titulo, body: cuerpo, sound: "default" },
       trigger: Platform.OS === "android" ? { channelId: CANAL_SERVICIOS } : null,

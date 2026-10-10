@@ -1,6 +1,6 @@
 import { distanciaKm } from "@dominio/geo";
 import {
-  claveAvisoNav, debePedirRuta, faseProximidad, REINTENTO_LLEGANDO_MS, restanteEnRuta, textoAvisoProximidad, textoBannerRuta,
+  claveAvisoNav, debePedirRuta, faseProximidad, REINTENTO_LLEGANDO_MS, REPETIR_RUTA_MS, restanteEnRuta, textoAvisoProximidad, textoBannerRuta,
   tiempoRestanteS, type Fase, type Objetivo, type PeticionRuta,
 } from "@dominio/navegacion";
 import type { Punto } from "@dominio/tipos";
@@ -28,12 +28,6 @@ const VERDE = "#22c55e", ROJO = "#ef4444", AZUL = "#3b82f6";
 const lngLat = (p: Punto): [number, number] => [p.lng, p.lat];
 const linea = (coords: [number, number][]) => ({ type: "Feature" as const, properties: {}, geometry: { type: "LineString" as const, coordinates: coords } });
 
-/** Avisos «una sola vez» por servicio + objetivo, persistentes entre aperturas de la pantalla. */
-async function primeraVez(clave: string): Promise<boolean> {
-  try { if (await AsyncStorage.getItem(clave)) return false; await AsyncStorage.setItem(clave, "1"); } catch { /* sin almacenamiento */ }
-  return true;
-}
-
 export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFase }: {
   servicioId: string; objetivo: Objetivo; origenServicio: Punto | null; alCambiarFase?: (f: Fase) => void;
 }) {
@@ -44,8 +38,14 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
   const [fase, setFase] = useState<Fase>("lejos");
   const camara = useRef<CameraRef>(null);
   const pedida = useRef<PeticionRuta | null>(null);
+  const fallo = useRef<{ clave: string; t: number } | null>(null);
+  const ultimoEase = useRef(0);
+  // Avisos ya disparados (en memoria, actualizado antes de cualquier await); AsyncStorage solo como carga inicial.
+  const disparados = useRef<Set<string>>(new Set());
+  const [cargado, setCargado] = useState(false);
   const enviando = useRef(false);
-  const ultimoIntento = useRef(0);
+  const reintento = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const distRef = useRef<number | null>(null);
   const claveObj = `${objetivo.tipo}:${objetivo.punto.lat},${objetivo.punto.lng}`;
 
   // GPS propio de la pantalla (independiente de la tarea en segundo plano y del interruptor «En servicio»).
@@ -72,12 +72,17 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
       if (!r.ok) throw new Error(String(r.status));
       const j = (await r.json()) as Ruta;
       if (pedida.current?.clave === clave) setRuta(j);
-    } catch { pedida.current = null; /* sin red: se reintenta con el siguiente fix */ }
+    } catch {
+      // Sin red: se reintenta pasados ≥ 30 s (no en cada fix).
+      fallo.current = { clave, t: Date.now() };
+      if (pedida.current?.clave === clave) pedida.current = null;
+    }
   }, [objetivo.punto.lat, objetivo.punto.lng]);
   useEffect(() => {
     const origen = pos ?? (objetivo.tipo === "destino" ? origenServicio : null);
     if (!origen) return;
     const ahora = Date.now();
+    if (fallo.current?.clave === claveObj && ahora - fallo.current.t < REPETIR_RUTA_MS) return;
     if (!debePedirRuta(pedida.current, claveObj, !!pos, restante?.desvioM ?? null, ahora)) return;
     if (pedida.current?.clave !== claveObj) setRuta(null);
     pedida.current = { clave: claveObj, t: ahora, conPos: !!pos };
@@ -89,42 +94,68 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
   useEffect(() => { setFase("lejos"); }, [claveObj]);
   useEffect(() => { if (distObj != null) setFase((f) => faseProximidad(distObj, f)); }, [distObj]);
   useEffect(() => { alCambiarFase?.(fase); }, [fase, alCambiarFase]);
+  distRef.current = distObj;
+  const claves = useMemo(() => ({
+    cerca: claveAvisoNav(servicioId, objetivo.tipo, "cerca"),
+    llegado: claveAvisoNav(servicioId, objetivo.tipo, "llegado"),
+    central: claveAvisoNav(servicioId, objetivo.tipo, "central"),
+  }), [servicioId, objetivo.tipo]);
   useEffect(() => {
-    if (fase === "lejos") return;
-    // Aviso «llegando» a la central: solo se marca como enviado si el servidor responde ok; reintento ≥ 15 s.
-    void (async () => {
-      const central = claveAvisoNav(servicioId, objetivo.tipo, "central");
-      if (enviando.current || Date.now() - ultimoIntento.current < REINTENTO_LLEGANDO_MS) return;
-      if (await AsyncStorage.getItem(central).catch(() => null)) return;
-      enviando.current = true; ultimoIntento.current = Date.now();
-      try {
-        const r = await llamarApi("/api/conductor/llegando", { method: "POST", body: { servicioId, objetivo: objetivo.tipo } });
-        if (r.ok) await AsyncStorage.setItem(central, "1").catch(() => undefined);
-      } catch { /* sin red: se reintenta con un fix posterior */ } finally { enviando.current = false; }
-    })();
-    void (async () => {
-      if (!(await primeraVez(claveAvisoNav(servicioId, objetivo.tipo, fase)))) return;
-      void Haptics.notificationAsync(fase === "llegado" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      await notificarLocal(fase === "llegado" ? "Has llegado" : "Estás llegando", textoAvisoProximidad(fase, objetivo.tipo, distObj));
-    })();
-  }, [fase, servicioId, objetivo.tipo, pos]); // eslint-disable-line react-hooks/exhaustive-deps
+    let vivo = true;
+    void AsyncStorage.multiGet(Object.values(claves)).then((pares) => pares, () => [] as [string, string | null][]).then((pares) => {
+      if (!vivo) return;
+      for (const [k, v] of pares) if (v) disparados.current.add(k);
+      setCargado(true);
+    });
+    return () => { vivo = false; };
+  }, [claves]);
+  const marcar = (k: string) => { disparados.current.add(k); void AsyncStorage.setItem(k, "1").catch(() => undefined); };
 
-  // Seguimiento automático hasta que el conductor mueva el mapa.
+  // Aviso «llegando» a la central: solo se marca con respuesta ok; si falla, reintento con temporizador ≥ 15 s.
+  const avisarCentral = useCallback(async () => {
+    reintento.current = null;
+    if (enviando.current || disparados.current.has(claves.central)) return;
+    enviando.current = true;
+    let ok = false;
+    try { ok = (await llamarApi("/api/conductor/llegando", { method: "POST", body: { servicioId, objetivo: objetivo.tipo } })).ok; }
+    catch { /* sin red */ } finally { enviando.current = false; }
+    if (ok) marcar(claves.central);
+    else if (!reintento.current) reintento.current = setTimeout(() => void avisarCentral(), REINTENTO_LLEGANDO_MS);
+  }, [claves, servicioId, objetivo.tipo]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { if (reintento.current) clearTimeout(reintento.current); }, []);
+
   useEffect(() => {
-    if (seguir && pos) camara.current?.easeTo({ center: lngLat(pos), duration: 600 });
+    if (!cargado || fase === "lejos") return;
+    if (!reintento.current) void avisarCentral();
+    const k = claves[fase];
+    if (disparados.current.has(k)) return;
+    marcar(k); // síncrono: no puede dispararse dos veces
+    void Haptics.notificationAsync(fase === "llegado" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    void notificarLocal(fase === "llegado" ? "Has llegado" : "Estás llegando", textoAvisoProximidad(fase, objetivo.tipo, distRef.current));
+  }, [fase, cargado, claves, objetivo.tipo, avisarCentral]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Seguimiento automático hasta que el conductor mueva el mapa (como mucho cada 1,5 s).
+  useEffect(() => {
+    if (!seguir || !pos) return;
+    const ahora = Date.now();
+    if (ahora - ultimoEase.current < 1500) return;
+    ultimoEase.current = ahora;
+    camara.current?.easeTo({ center: lngLat(pos), duration: 600 });
   }, [seguir, pos]);
+  useEffect(() => { if (seguir) ultimoEase.current = 0; }, [seguir]);
 
   const quedaM = restante?.restanteM ?? distObj ?? ruta?.distanciaM ?? null;
   const quedaS = tiempoRestanteS(ruta, quedaM);
   const colorObj = objetivo.tipo === "recogida" ? VERDE : ROJO;
   const inicio = ruta?.coords[0], fin = ruta?.coords[ruta.coords.length - 1];
-  const conectores = {
+  const geoRuta = useMemo(() => (ruta ? linea(ruta.coords.map(([lat, lng]) => [lng, lat])) : null), [ruta]);
+  const conectores = useMemo(() => ({
     type: "FeatureCollection" as const,
     features: [
       ...(pos && inicio ? [linea([lngLat(pos), [inicio[1], inicio[0]]])] : []),
       ...(fin ? [linea([[fin[1], fin[0]], lngLat(objetivo.punto)])] : []),
     ],
-  };
+  }), [pos, inicio, fin, objetivo.punto]);
 
   return (
     <View style={estilos.caja}>
@@ -137,8 +168,8 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
         <MapaLibre style={StyleSheet.absoluteFill} mapStyle={ESTILO} attribution logo={false}
           onRegionWillChange={(e) => { if (e.nativeEvent.userInteraction) setSeguir(false); }}>
           <Camera ref={camara} initialViewState={{ center: lngLat(objetivo.punto), zoom: 14 }} />
-          {ruta && (
-            <GeoJSONSource id="ruta" data={linea(ruta.coords.map(([lat, lng]) => [lng, lat]))}>
+          {geoRuta && (
+            <GeoJSONSource id="ruta" data={geoRuta}>
               <Layer id="ruta-borde" type="line" style={{ lineColor: "#1e3a8a", lineWidth: 8, lineCap: "round", lineJoin: "round" }} />
               <Layer id="ruta-linea" type="line" style={{ lineColor: AZUL, lineWidth: 5, lineCap: "round", lineJoin: "round" }} />
             </GeoJSONSource>
