@@ -24,7 +24,7 @@ Todo con datos de demostración inventados (cuentas `@transferdeluxe.test`, matr
 - Cuentas: `central@transferdeluxe.test` (central) y `conductor1@…`, `conductor2@…`, `conductor3@transferdeluxe.test`
   (conductores). La contraseña de prueba aparece en la propia pantalla de acceso.
 - Repositorio: https://github.com/osalgado50/TransferdeLuxe
-- Botones de demo en el panel: «Simular ruta» (mueve los coches) y «Restablecer demo» (vuelve al estado inicial).
+- Botón de demo en el panel: «Simular ruta» (mueve los coches). Los datos que se crean se conservan.
 
 ## 2. Plataforma utilizada
 Claude Code (agente de codificación en terminal / app de escritorio), modelo Claude Opus 5.5.
@@ -126,6 +126,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **10/10/2026**: vista de calendario en la agenda (`&modo=calendario`) junto a la lista: rejilla horaria día/semana
   (06:00–24:00, madrugada aparte, solapes en columnas) y mes con chips y «+N más». Helpers puros en `calendario.ts`
   con TDD (solapes, hora de Madrid con cambio de hora, meses de 28 a 42 celdas).
+
+- **10/10/2026**: a petición del responsable, se **desactiva el reinicio diario** de la demo y el botón «Restablecer
+  demo»: lo que se crea en la app se conserva. La tarea diaria de GitHub Actions solo hace una petición de lectura
+  para que Supabase no se pause.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto

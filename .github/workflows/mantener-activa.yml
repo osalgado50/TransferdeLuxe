@@ -1,0 +1,20 @@
+name: Mantener activa la base de datos
+
+# Consulta de solo lectura diaria para que el plan gratuito de Supabase no se pause por inactividad.
+# NO borra ni reinicia ningún dato (el reinicio automático de la demo se desactivó a petición del responsable).
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  latido:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Petición de solo lectura a la app
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          codigo=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/api/geocodificar?q=salou")
+          echo "Respuesta: $codigo"
+          test "$codigo" = "200"
