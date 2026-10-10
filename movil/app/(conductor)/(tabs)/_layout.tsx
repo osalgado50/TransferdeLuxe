@@ -2,14 +2,16 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import { Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { InterruptorGps } from "~/components/InterruptorGps";
 import { useSesion } from "~/lib/sesion";
 import { color } from "~/lib/tema";
 
 function Cabecera() {
-  const { perfil, salir, sinConexion, reintentar } = useSesion();
+  const { perfil, sesion, salir, sinConexion, reintentar } = useSesion();
   const { top } = useSafeAreaInsets();
   return (
     <View style={[estilos.cabecera, { paddingTop: top + 8 }]}>
+      <View style={estilos.filaCabecera}>
       <View style={{ flex: 1 }}>
         <Text style={estilos.nombre} numberOfLines={1}>{perfil?.nombre ?? "Conductor"}</Text>
         {sinConexion && <Pressable onPress={reintentar} accessibilityRole="button"><Text style={estilos.sinRed}>Sin conexión · tocar para reintentar</Text></Pressable>}
@@ -18,6 +20,8 @@ function Cabecera() {
         style={({ pressed }) => [estilos.salir, pressed && { borderColor: color.marcaClaro }]}>
         <Text style={estilos.salirTexto}>Salir</Text>
       </Pressable>
+      </View>
+      {sesion && <InterruptorGps key={sesion.user.id} conductorId={sesion.user.id} />}
     </View>
   );
 }
@@ -41,8 +45,9 @@ export default function LayoutPestanas() {
 }
 
 const estilos = StyleSheet.create({
-  cabecera: { paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", gap: 12,
+  cabecera: { paddingHorizontal: 16, paddingBottom: 10, gap: 8,
     backgroundColor: color.fondo, borderBottomWidth: 1, borderBottomColor: "#1e293b" },
+  filaCabecera: { flexDirection: "row", alignItems: "center", gap: 12 },
   nombre: { color: color.marcaClaro, fontSize: 20, fontWeight: "700" },
   sinRed: { color: "#fcd34d", fontSize: 14, marginTop: 2 },
   salir: { minHeight: 44, paddingHorizontal: 16, borderWidth: 1, borderColor: color.borde, borderRadius: 10, justifyContent: "center" },

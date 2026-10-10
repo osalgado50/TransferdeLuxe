@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import type { Perfil } from "@dominio/tipos";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
+import { guardarEnServicio, marcarFueraDeServicio, pararGps } from "./gps";
 import { supabase } from "./supabase";
 
 interface EstadoSesion {
@@ -103,6 +104,10 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   }, []);
 
   const salir = useCallback(async () => {
+    // Primero se para la tarea de ubicación (y se avisa a la central con el token aún válido).
+    const id = (await supabase.auth.getSession()).data.session?.user.id;
+    await pararGps().catch(() => undefined);
+    if (id) { await guardarEnServicio(id, false).catch(() => undefined); await marcarFueraDeServicio(); }
     await supabase.auth.signOut();
     if (vivo.current) { setSesion(null); setPerfil(null); setSinConexion(false); }
   }, []);

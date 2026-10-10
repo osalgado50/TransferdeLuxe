@@ -226,3 +226,17 @@ Navegación del conductor llegando al destino: `docs/capturas/conductor-navegaci
   recuperar la red (NetInfo) y cada 20 s.
 - Challenge: `madridAUtc` reparseaba la salida de `toLocaleString`, que Hermes no admite («Date value out of
   bounds» en el simulador). Se movió a `src/lib/dominio/dias.ts` calculando el desfase con `formatToParts`.
+
+### App nativa N4 — GPS en segundo plano (10/10/2026)
+- `expo-location` + `expo-task-manager`: tarea `tvl-gps-servicio` definida a nivel de módulo (`movil/lib/gpsTarea.ts`,
+  importada desde el layout raíz para que exista también si el SO relanza la app sin interfaz). Toma la última
+  ubicación del lote, envía como mucho cada 12 s, comprueba la sesión (refresco si caduca en < 60 s; sin sesión →
+  para la tarea), inserta en `posiciones` con timeout de 10 s y, si falla, guarda en una cola persistente (máx. 200)
+  que se vacía en el siguiente envío correcto con `registrado_en` = hora real del fix.
+- Interruptor «En servicio / Fuera de servicio» en la cabecera con «📍 última posición enviada hace Xs» (rojo > 60 s),
+  explicación antes del permiso «Siempre» y aviso amarillo + «Abrir Ajustes» si solo hay «Mientras se usa».
+  Apagar o «Salir» paran la tarea y llaman a `/api/conductor/fuera-de-servicio`. Estado persistido por conductor y
+  reanudado al abrir la app.
+- Decisiones puras en `src/lib/dominio/gpsNativo.ts` (tests en `tests/unit/gpsNativo.test.ts`).
+- Challenge: la cola podía pisar la posición actual con fixes viejos → se envían con su hora real y el trigger de
+  `posicion_actual` ya ignora filas más antiguas. El GPS en segundo plano no funciona en Expo Go: requiere development build (N7).

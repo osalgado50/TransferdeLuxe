@@ -2,6 +2,8 @@ import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+// Registra la tarea de GPS en segundo plano al arrancar (también si el SO relanza la app sin interfaz).
+import "~/lib/gpsTarea";
 import { ProveedorSesion, useSesion } from "~/lib/sesion";
 import { color } from "~/lib/tema";
 
