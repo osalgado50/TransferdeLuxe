@@ -16,7 +16,7 @@ export default async function PanelCentral() {
     sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor"),
     sb.from("vehiculos").select("id,matricula"),
     sb.from("ajustes").select("umbral_sin_senal_min").eq("id", 1).maybeSingle(),
-    sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").eq("tipo", "rechazado").order("creado_en", { ascending: false }).limit(100),
+    sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").or(`tipo.eq.rechazado,and(tipo.like.llegando_%,creado_en.gte.${new Date(Date.now() - 20 * 60_000).toISOString()})`).order("creado_en", { ascending: false }).limit(100),
   ]);
   const fallo = [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos].find((r) => r.error);
   if (fallo?.error) throw new Error(`Panel: ${fallo.error.message}`);

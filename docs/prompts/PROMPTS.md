@@ -522,3 +522,15 @@ Abajo donde pones las cuentas demo, pone el texto más grande, que no se ve un c
 
 ---
 
+## 2026-10-10 12:41 · Claude Code · sesión `b3c0e64f`
+
+Oye, sería genial que la aplicación de de los conductores llevara un mapa que vaya mostrando la ruta, como si fuera un Google Maps o algo así. No sé si esto será muy, muy costoso. Si es muy complejo, podemos por lo menos eh, que le dé un aviso al conductor cuando esté cerca del punto de recogida o del punto de entrega. ¿Cómo lo ves?
+
+---
+
+## 2026-10-10 12:42 · Claude Code · sesión `b3c0e64f`
+
+sí, adelante con el mapa y los avisos
+
+---
+

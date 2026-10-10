@@ -75,6 +75,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 13. **Agenda de servicios**: la central abre «Esta semana», navega con ◀ ▶ entre semanas o meses, ve los servicios agrupados por día con los contadores del periodo y filtra por estado, conductor u origen.
 14. **Favoritos**: el operador guarda «Aeropuerto de Reus» o el trayecto Reus → Salou (4 pax, MiniVan) y lo reutiliza en un clic al dar de alta un servicio telefónico.
 15. **Calendario de servicios**: la central alterna «Lista | Calendario», ve los servicios sobre una rejilla horaria (día/semana) o por chips (mes) coloreados por estado, y abre la ficha con un clic.
+16. **Navegación del conductor**: con el servicio aceptado, en camino o con pasajeros, el conductor ve en la app su posición, la ruta por carretera hasta la recogida o el destino y «Hacia la recogida · 4,2 km · 7 min»; a 500 m suena un aviso «Estás llegando…», la central ve «Llegando» y, al llegar (100 m), se resalta el botón CARGA/DESCARGA.
 
 ## 5. Proceso iterativo con la IA
 - **09/10/2026**: preparación del entorno. Repo nuevo, reglas de las bases en `CLAUDE.md` para que el
@@ -130,6 +131,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **10/10/2026**: a petición del responsable, se **desactiva el reinicio diario** de la demo y el botón «Restablecer
   demo»: lo que se crea en la app se conserva. La tarea diaria de GitHub Actions solo hace una petición de lectura
   para que Supabase no se pause.
+- **10/10/2026**: **navegación en la app del conductor**. Proxy `/api/ruta` (OSRM, caché 10 min, límite 30/min por
+  usuario, fallback en línea recta), helpers puros `navegacion.ts` con TDD (objetivo, proximidad con histéresis,
+  formatos es-ES, distancia restante sobre la polilínea), mapa con punto azul + precisión, ruta, «Centrar»,
+  avisos de proximidad (vibración + pitido + banner) y evento `llegando_*` que la central muestra como «Llegando».
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -159,6 +164,16 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   imposibles, enlaces ida/vuelta sin comprobar errores, rutas de foto de otro conductor, límite de reservas por IP
   falsificable… Todos se corrigieron con tests que los reproducen.
 
+- **Rutas sin API de pago**: se usa el servidor demo gratuito de OSRM (`router.project-osrm.org`) a través de un proxy
+  propio con User-Agent, timeout de 8 s, caché y límite por usuario. Si falla o tarda, la API devuelve una ruta en
+  línea recta (×1,3) marcada como «aproximada»; nunca un 500. Para producción real habría que alojar OSRM propio.
+- **Avisos que parpadean en el límite**: con el GPS oscilando en torno a 500 m el aviso entraba y salía. Se añade
+  histéresis (entrar a 500/100 m, salir a 600/150 m) y cada aviso suena una sola vez por objetivo (sessionStorage).
+- **GPS solo con la app abierta**: una web no puede seguir la ubicación en segundo plano; la navegación funciona
+  mientras la pantalla del servicio está abierta. Para probar sin moverse, en desarrollo `?simular=lat,lng` fija
+  una posición (y no envía el aviso a la central para no tocar datos reales).
+
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
 Pendientes: capturas de la app del conductor en el móvil.
+Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.

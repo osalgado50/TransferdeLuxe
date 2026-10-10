@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { colaDe, drenar } from "@/lib/offline/colaConductor";
 import { ACCION_SIGUIENTE_CONDUCTOR } from "@/lib/dominio/estados";
+import { EVENTO_RESALTAR } from "@/lib/dominio/navegacion";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 
 const SIGUIENTE: Record<"salir" | "cargar" | "descargar", EstadoServicio> = { salir: "en_camino", cargar: "recogido", descargar: "completado" };
@@ -13,6 +14,12 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
   const { cola, rechazos, oyentes } = colaDe(conductorId);
   const [estado, setEstado] = useState<EstadoServicio>(estadoInicial);
   const [, forzar] = useState(0);
+  const [resaltar, setResaltar] = useState(false);
+  useEffect(() => {
+    const h = (e: Event) => setResaltar(!!(e as CustomEvent<{ activo: boolean }>).detail?.activo);
+    window.addEventListener(EVENTO_RESALTAR, h);
+    return () => window.removeEventListener(EVENTO_RESALTAR, h);
+  }, []);
   const servidor = useRef(estadoInicial);
   servidor.current = estadoInicial;
   const mias = () => cola.pendientes().filter((p) => p.servicioId === servicioId);
@@ -63,7 +70,7 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
   };
   return (
     <div className="space-y-2">
-      {paso && <button onClick={pulsar} disabled={pendientes > 0} className="min-h-16 w-full rounded-xl bg-marca text-lg font-bold text-white disabled:opacity-50">{paso.etiqueta}</button>}
+      {paso && <button onClick={pulsar} disabled={pendientes > 0} data-resaltado={resaltar || undefined} className={`min-h-16 w-full rounded-xl bg-marca text-lg font-bold text-white disabled:opacity-50 ${resaltar ? "animate-pulse ring-4 ring-green-400 ring-offset-2 ring-offset-slate-950" : ""}`}>{paso.etiqueta}</button>}
       {pendientes > 0 && <p className="text-sm text-amber-300">⏳ pendiente de enviar ({pendientes})</p>}
       {atascada && (
         <button onClick={descartar} className="min-h-12 w-full rounded-xl border border-red-400 text-sm font-semibold text-red-300">

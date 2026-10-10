@@ -6,6 +6,8 @@ import { madridAUtc } from "@/lib/reserva/esquema";
 import EstadoBadge from "@/components/comun/EstadoBadge";
 import MapaTrayecto from "@/components/mapa/MapaTrayectoCarga";
 import BotonPaso from "@/components/conductor/BotonPaso";
+import NavegacionConductor from "@/components/conductor/NavegacionConductor";
+import { objetivoActual } from "@/lib/dominio/navegacion";
 import type { EstadoServicio, Punto } from "@/lib/dominio/tipos";
 
 const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
@@ -30,6 +32,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
   const destino = pt(s.destino_lat, s.destino_lng);
   const recogido = s.estado === "recogido" || s.estado === "completado";
   const meta = recogido ? destino : origen;
+  const objetivo = objetivoActual(s.estado as EstadoServicio, s);
   const nombre = `${s.cliente_nombre} ${s.cliente_apellidos ?? ""}`.trim();
 
   return (
@@ -43,11 +46,13 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
         <p><span className="text-slate-400">Destino:</span> {s.destino_texto}</p>
         <p><span className="text-slate-400">Cliente:</span> {nombre} · {s.pasajeros} pax · {s.maletas} maletas</p>
       </div>
-      <MapaTrayecto origen={origen} destino={destino} />
+      {objetivo
+        ? <NavegacionConductor key={`${s.id}-${objetivo.tipo}`} servicioId={s.id} objetivo={objetivo} origenServicio={origen} />
+        : <MapaTrayecto origen={origen} destino={destino} />}
       <div className="grid grid-cols-2 gap-3 text-center font-semibold">
-        {meta && <a className="rounded-xl border border-slate-600 py-3" href={`https://www.google.com/maps/dir/?api=1&destination=${meta.lat},${meta.lng}`} target="_blank" rel="noreferrer">Google Maps</a>}
-        {meta && <a className="rounded-xl border border-slate-600 py-3" href={`https://waze.com/ul?ll=${meta.lat},${meta.lng}&navigate=yes`} target="_blank" rel="noreferrer">Waze</a>}
-        <a className="col-span-2 rounded-xl border border-slate-600 py-3" href={`tel:${s.cliente_telefono}`}>Llamar al cliente</a>
+        {meta && <a className="flex min-h-12 items-center justify-center rounded-xl border border-slate-600 py-3" href={`https://www.google.com/maps/dir/?api=1&destination=${meta.lat},${meta.lng}`} target="_blank" rel="noreferrer">Abrir en Google Maps</a>}
+        {meta && <a className="flex min-h-12 items-center justify-center rounded-xl border border-slate-600 py-3" href={`https://waze.com/ul?ll=${meta.lat},${meta.lng}&navigate=yes`} target="_blank" rel="noreferrer">Abrir en Waze</a>}
+        <a className="col-span-2 flex min-h-12 items-center justify-center rounded-xl border border-slate-600 py-3" href={`tel:${s.cliente_telefono}`}>Llamar al cliente</a>
       </div>
       <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
     </div>

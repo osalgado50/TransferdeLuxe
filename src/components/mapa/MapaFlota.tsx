@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { llegandoReciente } from "@/lib/dominio/navegacion";
 import { estadoEnMapa, type EstadoVehiculoMapa } from "@/lib/dominio/mapa";
 import type { PosicionActual, Servicio, Perfil, Vehiculo } from "@/lib/dominio/tipos";
 
@@ -20,9 +21,10 @@ function icono(color: string, inicial: string) {
 }
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 
-export default function MapaFlota({ posiciones, servicios, conductores, vehiculos, umbralMin }: {
+export default function MapaFlota({ posiciones, servicios, conductores, vehiculos, umbralMin, eventos = [] }: {
   posiciones: PosicionActual[]; servicios: Servicio[]; conductores: Pick<Perfil, "id" | "nombre" | "vehiculo_habitual_id">[];
   vehiculos: Pick<Vehiculo, "id" | "matricula">[]; umbralMin: number;
+  eventos?: { servicio_id: string; tipo: string; creado_en: string }[];
 }) {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setAhora(new Date()), 30_000); return () => clearInterval(t); }, []);
@@ -36,8 +38,9 @@ export default function MapaFlota({ posiciones, servicios, conductores, vehiculo
     const estado = estadoEnMapa(p, actual, ahora, umbralMin);
     const veh = vehiculos.find((v) => v.id === c?.vehiculo_habitual_id);
     const min = Math.max(0, Math.round((ahora.getTime() - new Date(p.registrado_en).getTime()) / 60_000));
-    return { p, nombre: c?.nombre ?? "Conductor", matricula: veh?.matricula ?? "—", estado, actual, siguiente, min };
-  }), [posiciones, servicios, conductores, vehiculos, ahora, umbralMin]);
+    const llegando = mios.some((s) => llegandoReciente(eventos, s.id, ahora));
+    return { p, llegando, nombre: c?.nombre ?? "Conductor", matricula: veh?.matricula ?? "—", estado, actual, siguiente, min };
+  }), [posiciones, servicios, conductores, vehiculos, ahora, umbralMin, eventos]);
 
   return (
     <MapContainer center={[41.0763, 1.1416]} zoom={11} className="h-[32rem] w-full rounded-lg">
@@ -46,7 +49,7 @@ export default function MapaFlota({ posiciones, servicios, conductores, vehiculo
         <Marker key={m.p.conductor_id} position={[m.p.lat, m.p.lng]} icon={icono(COLOR[m.estado], m.nombre.charAt(0).toUpperCase())}>
           <Popup>
             <strong>{m.nombre}</strong><br />
-            {m.matricula} · {TEXTO[m.estado]}<br />
+            {m.matricula} · {TEXTO[m.estado]}{m.llegando && <> · <strong style={{ color: "#16a34a" }}>Llegando</strong></>}<br />
             Actual: {m.actual ? `${m.actual.origen_texto} → ${m.actual.destino_texto}` : "—"}<br />
             Siguiente: {m.siguiente ? `${hora(m.siguiente.fecha_hora_recogida)} ${m.siguiente.origen_texto}` : "—"}<br />
             <span>hace {m.min} min</span>

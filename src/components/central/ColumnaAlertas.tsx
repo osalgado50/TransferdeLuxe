@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
+import { etiquetaEvento, llegandoReciente } from "@/lib/dominio/navegacion";
 import DialogoAsignar from "@/components/central/DialogoAsignar";
 import type { Servicio } from "@/lib/dominio/tipos";
 
@@ -53,6 +54,13 @@ export default function ColumnaAlertas({ servicios, eventos, conductores }: {
   const alertas = useMemo(() => servicios.filter(esAlerta).sort((a, b) => a.fecha_hora_recogida.localeCompare(b.fecha_hora_recogida)), [servicios]);
   const nombre = (id: string | null) => conductores.find((c) => c.id === id)?.nombre ?? "conductor";
   const [pend, ini] = useTransition();
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setAhora(new Date()), 60_000); return () => clearInterval(t); }, []);
+  const llegando = useMemo(() => servicios.flatMap((s) => {
+    if (!llegandoReciente(eventos, s.id, ahora)) return [];
+    const ev = eventos.filter((e) => e.servicio_id === s.id).sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
+    return [{ s, ev }];
+  }), [servicios, eventos, ahora]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,6 +88,14 @@ export default function ColumnaAlertas({ servicios, eventos, conductores }: {
     <section aria-label="Alertas" className="space-y-3">
       <h2 className="text-lg font-semibold">Alertas ({alertas.length})</h2>
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+      {llegando.map(({ s, ev }) => (
+        <article key={`ll-${s.id}`} data-alerta="Llegando" className="rounded-xl border border-green-600 bg-slate-900 p-3">
+          <p className="text-sm font-medium text-green-400">{etiquetaEvento(ev.tipo)} · {nombre(s.conductor_id)}</p>
+          <p className="text-xs text-slate-400">
+            {new Date(ev.creado_en).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })} · {s.cliente_nombre} · {ev.tipo === "llegando_destino" ? s.destino_texto : s.origen_texto}
+          </p>
+        </article>
+      ))}
       {alertas.length === 0 && <p className="text-sm text-slate-400">Sin alertas pendientes.</p>}
       {alertas.map((s) => {
         const [tipo, texto] = textoAlerta(s, eventos, nombre);

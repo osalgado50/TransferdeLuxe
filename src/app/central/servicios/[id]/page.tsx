@@ -4,6 +4,7 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 import EstadoBadge from "@/components/comun/EstadoBadge";
 import MapaTrayecto from "@/components/mapa/MapaTrayectoCarga";
 import AccionesFicha, { MarcarVista } from "@/components/central/AccionesFicha";
+import { etiquetaEvento } from "@/lib/dominio/navegacion";
 import type { Servicio } from "@/lib/dominio/tipos";
 
 const fmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" });
@@ -47,7 +48,7 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
         <ul className="space-y-1 text-sm">
           {(eventos ?? []).map((e) => {
             const actor = (e.actor as unknown as { nombre: string } | null)?.nombre;
-            return <li key={e.id} className="text-slate-300">{fmt.format(new Date(e.creado_en))} · <b>{e.tipo}</b>{actor && ` · ${actor}`}{e.motivo && ` · ${e.motivo}`}</li>;
+            return <li key={e.id} className="text-slate-300">{fmt.format(new Date(e.creado_en))} · <b>{etiquetaEvento(e.tipo)}</b>{actor && ` · ${actor}`}{e.motivo && ` · ${e.motivo}`}</li>;
           })}
           {!eventos?.length && <li className="text-slate-500">Sin eventos.</li>}
         </ul>
