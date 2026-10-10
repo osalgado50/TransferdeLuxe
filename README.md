@@ -1,5 +1,7 @@
 # TransferdeLuxe
 
+**Demo en línea:** https://darkseagreen-gnat-699073.hostingersite.com — cuentas `central@transferdeluxe.test` y `conductor1..3@transferdeluxe.test` (la contraseña de prueba se muestra en la pantalla de acceso).
+
 Proyecto para el **Hackathon de Vibe Coding — Máster en IA de Big School (Edición 7)**,
 desarrollado al 100 % con vibe coding usando **Claude Code**.
 

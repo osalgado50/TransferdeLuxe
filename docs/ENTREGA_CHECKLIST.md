@@ -34,7 +34,7 @@
 - Doc técnico: https://docs.google.com/document/d/1A6zqLfzsIXsSu6ttfADWpVvzx7JFqvA2W3fxh5KMf9o/edit
 - Doc de prompts: https://docs.google.com/document/d/1QxtpA9rqS2ZgTRGjzdWs-jSxXKbWTD-87fOPjV2JPw8/edit
 - Repo (privado): https://github.com/osalgado50/TransferdeLuxe → antes de entregar: `gh api -X PUT repos/osalgado50/TransferdeLuxe/collaborators/<usuario>` o invitar a automatizaciones@thebigschool.com desde Settings → Collaborators
-- App desplegada: pendiente
+- App desplegada: https://darkseagreen-gnat-699073.hostingersite.com
 
 ## Criterios del jurado (bases 4.2)
 Complejidad y funcionalidad · Innovación y originalidad · Calidad del vibe coding · Experiencia de usuario ·
@@ -46,8 +46,8 @@ Bases completas: `docs/Bases-Hackaton-Vibecoding-E7.docx.pdf` (local, no version
       app del conductor (PWA, GPS, aceptar/rechazar, en curso offline, ticket con OCR), datos de demo y reinicio.
 - [x] 70 tests unitarios + 2 E2E en verde; revisión final completa sin hallazgos críticos.
 - [x] Guion del vídeo: `docs/GUION_VIDEO.md`.
-- [ ] Despliegue en Hostinger (Task 22) — necesita al humano: conectar el repo en hPanel, variables de entorno,
-      subdominio y SSL; después URL en Supabase Auth y cron diario de `/api/demo/reset`.
+- [x] Despliegue en Hostinger: https://darkseagreen-gnat-699073.hostingersite.com (E2E en producción 2/2). Reinicio diario por GitHub Actions.
+- [ ] (Opcional) Conectar app.transfersvipluxe.com — el diálogo de Hostinger fallaba; pedir a soporte.
 - [ ] Capturas de la app del conductor en el móvil.
 - [ ] Pasar `DOCUMENTACION_TECNICA.md` al Google Doc técnico y las transcripciones al Doc de prompts.
 - [ ] Grabar el vídeo.

@@ -19,8 +19,8 @@ reparten a mano. La aplicación cubre todo el ciclo:
 
 Todo con datos de demostración inventados (cuentas `@transferdeluxe.test`, matrículas imposibles, clientes ficticios).
 
-**Acceso para el jurado** (se completa al desplegar):
-- URL: _pendiente_
+**Acceso para el jurado**:
+- URL: https://darkseagreen-gnat-699073.hostingersite.com (central: `/central`, conductor en el móvil: `/conductor`, reserva pública: `/reservar`)
 - Cuentas: `central@transferdeluxe.test` (central) y `conductor1@…`, `conductor2@…`, `conductor3@transferdeluxe.test`
   (conductores). La contraseña de prueba aparece en la propia pantalla de acceso.
 - Repositorio: https://github.com/osalgado50/TransferdeLuxe
@@ -51,6 +51,8 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Sin cobertura**: cola local por conductor; cada pulsación lleva un `idAccion` y el servidor ignora duplicados.
 - **Tickets**: OCR gratuito en el navegador (Tesseract.js) + reglas de extracción; la foto va a un bucket privado.
 - **Mapas**: Leaflet + OpenStreetMap; geocodificación con Nominatim y lugares frecuentes.
+- **Despliegue**: Hostinger Cloud Startup (Node.js Web App importada de GitHub, redespliegue en cada push) y
+  GitHub Actions que reinicia la demo cada madrugada (y mantiene activo Supabase).
 - **Calidad**: 70 tests unitarios (Vitest) y 2 tests de punta a punta (Playwright) del flujo completo y del rechazo.
 - Documentos de diseño: `docs/superpowers/specs/` (especificación) y `docs/superpowers/plans/` (plan de 22 tareas).
 
