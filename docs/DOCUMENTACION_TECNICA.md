@@ -208,3 +208,8 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
 Pendientes: capturas de la app del conductor en el móvil.
 Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.
+
+### App nativa N2 — Backend para la app (10/10/2026)
+- Endpoints `POST /api/conductor/{accion,llegando,fuera-de-servicio,push-token}` con `Authorization: Bearer` (validado con `auth.getUser`), zod y límite por usuario; `/api/ruta` acepta también Bearer.
+- Tabla `dispositivos_push` (migración 0008, RLS) y `src/lib/push.ts`: aviso «Servicio nuevo» vía Expo tras asignar/reasignar (con `after()`, nunca rompe la asignación; borra tokens `DeviceNotRegistered`).
+- Challenge: compartir la lógica de «llegando»/«fuera de servicio» entre server actions y API → extraída a `src/lib/servicios/llegando.ts`.

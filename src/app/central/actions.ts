@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { notificarServicioNuevo } from "@/lib/push";
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { ejecutarAccion, repoSupabase, type ResultadoAccion } from "@/lib/servicios/acciones";
@@ -12,6 +14,9 @@ export async function accionCentral(p: { idAccion: string; servicioId: string; a
   const yo = await exigirRol("operador");
   const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...p, actor: { id: yo.id, rol: "operador" } });
   revalidatePath("/central", "layout");
+  if (r.ok && !r.duplicada && (p.accion === "asignar" || p.accion === "reasignar")) {
+    after(() => notificarServicioNuevo(p.servicioId));
+  }
   return r;
 }
 
