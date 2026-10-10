@@ -1,12 +1,17 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import CampoDireccion from "@/components/comun/CampoDireccion";
 import { avisoCapacidad, NOMBRE_TIPO } from "@/lib/dominio/capacidad";
 import type { TipoVehiculo } from "@/lib/dominio/tipos";
+import { trayectoCompleto, type Favorito } from "@/lib/dominio/favoritos";
+import { guardarFavoritoDireccion, guardarFavoritoTrayecto, type ResultadoFavorito } from "@/app/central/favoritos/actions";
 import { reservar, type EstadoReserva } from "./actions";
 
 type Accion = (prev: EstadoReserva, fd: FormData) => Promise<EstadoReserva>;
-type Props = { accion?: Accion; modo?: "publico" | "central" };
+type Props = { accion?: Accion; modo?: "publico" | "central"; favoritos?: Favorito[] };
+type Valor = { texto: string; lat: string; lng: string };
+const VACIO: Valor = { texto: "", lat: "", lng: "" };
+type Relleno = { n: number; texto: string; lat: number | null; lng: number | null };
 
 const VEHICULOS = [
   ["sedan", "Sedán (3 pax)"], ["minivan", "MiniVan (7 pax)"], ["minivan_premium", "MiniVan Premium (8 pax)"],
@@ -20,12 +25,50 @@ function ErrorCampo({ e, k }: { e?: Record<string, string[]>; k: string }) {
   return e?.[k]?.[0] ? <p className="mt-1 text-sm text-red-400">{e[k][0]}</p> : null;
 }
 
-export default function FormularioReserva({ accion = reservar, modo = "publico" }: Props) {
+export default function FormularioReserva({ accion = reservar, modo = "publico", favoritos = [] }: Props) {
   const [estado, enviar, pendiente] = useActionState<EstadoReserva, FormData>(accion, {});
   const [conVuelta, setConVuelta] = useState(false);
   const [pax, setPax] = useState(2);
   const [maletas, setMaletas] = useState(0);
   const [tipo, setTipo] = useState<TipoVehiculo>("sedan");
+  const central = modo === "central";
+  const [origen, setOrigen] = useState<Valor>(VACIO);
+  const [destino, setDestino] = useState<Valor>(VACIO);
+  const [rellenoO, setRellenoO] = useState<Relleno>();
+  const [rellenoD, setRellenoD] = useState<Relleno>();
+  const [avisoFav, setAvisoFav] = useState<ResultadoFavorito & { texto: string }>();
+  const [, empezar] = useTransition();
+  const trayectos = favoritos.filter((f) => f.tipo === "trayecto");
+  const direcciones = favoritos.filter((f) => f.tipo === "direccion");
+
+  function elegirTrayecto(id: string) {
+    const f = trayectos.find((x) => x.id === id);
+    if (!f) return;
+    const n = Date.now();
+    setRellenoO({ n, texto: f.origen_texto, lat: f.origen_lat, lng: f.origen_lng });
+    setRellenoD({ n, texto: f.destino_texto ?? "", lat: f.destino_lat, lng: f.destino_lng });
+    if (f.pasajeros != null) setPax(f.pasajeros);
+    if (f.maletas != null) setMaletas(f.maletas);
+    if (f.tipo_vehiculo_pedido) setTipo(f.tipo_vehiculo_pedido);
+  }
+  function guardar(titulo: string, ejecutar: (nombre: string) => Promise<ResultadoFavorito>) {
+    const nombre = window.prompt(`Nombre corto para el favorito (${titulo})`);
+    if (nombre == null) return;
+    empezar(async () => {
+      const r = await ejecutar(nombre);
+      setAvisoFav({ ...r, texto: r.ok ? "Favorito guardado" : r.error });
+    });
+  }
+  const guardarDireccion = (v: Valor) => guardar("dirección", (nombre) => guardarFavoritoDireccion({ nombre, texto: v.texto, lat: v.lat, lng: v.lng }));
+  const guardarTrayecto = () => guardar("trayecto", (nombre) => guardarFavoritoTrayecto({
+    nombre, origen_texto: origen.texto, origen_lat: origen.lat, origen_lng: origen.lng,
+    destino_texto: destino.texto, destino_lat: destino.lat, destino_lng: destino.lng,
+    pasajeros: pax, maletas, tipo_vehiculo_pedido: tipo,
+  }));
+  const botonFav = (v: Valor) => central ? (
+    <button type="button" disabled={!v.texto.trim()} onClick={() => guardarDireccion(v)}
+      className="rounded border border-slate-600 px-2 py-0.5 text-xs text-amber-300 hover:bg-slate-800 disabled:opacity-40">⭐ Guardar en favoritos</button>
+  ) : undefined;
   const aviso = avisoCapacidad(tipo, pax, maletas);
   const err = (k: string) => estado.errores?.[k]?.[0];
 
@@ -43,8 +86,18 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
     <form action={enviar} className="space-y-6 text-slate-200">
       <section className={seccion}>
         <h2 className="text-lg font-semibold text-marca-claro">Trayecto</h2>
-        <CampoDireccion name="origen" etiqueta="Dirección de recogida" requerido error={err("origen_texto")} />
-        <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")} />
+        {central && trayectos.length > 0 && (
+          <label className="block text-sm font-medium">Trayectos favoritos
+            <select defaultValue="" onChange={(e) => { elegirTrayecto(e.target.value); e.target.value = ""; }} className={cls}>
+              <option value="">Elegir un trayecto favorito…</option>
+              {trayectos.map((f) => <option key={f.id} value={f.id}>⭐ {f.nombre} — {f.origen_texto} → {f.destino_texto}</option>)}
+            </select>
+          </label>
+        )}
+        <CampoDireccion name="origen" etiqueta="Dirección de recogida" requerido error={err("origen_texto")}
+          favoritos={central ? direcciones : undefined} rellenar={rellenoO} onCambio={setOrigen} extra={botonFav(origen)} />
+        <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")}
+          favoritos={central ? direcciones : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav(destino)} />
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">Fecha de recogida
             <input type="date" name="fecha" required className={cls} /><ErrorCampo e={estado.errores} k="fecha" /></label>
@@ -70,6 +123,11 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
           ) : <ErrorCampo e={estado.errores} k="tipo_vehiculo_pedido" />}</label>
         <label className="block text-sm font-medium">Número de vuelo
           <input type="text" name="numero_vuelo" className={cls} /></label>
+        {central && trayectoCompleto({ origen_texto: origen.texto, destino_texto: destino.texto }) && (
+          <button type="button" onClick={guardarTrayecto}
+            className="rounded border border-slate-600 px-3 py-1 text-sm text-amber-300 hover:bg-slate-800">⭐ Guardar trayecto como favorito</button>
+        )}
+        {central && avisoFav && <p role="status" className={`text-sm ${avisoFav.ok ? "text-emerald-300" : "text-red-400"}`}>{avisoFav.texto}</p>}
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" name="con_vuelta" checked={conVuelta} onChange={(e) => setConVuelta(e.target.checked)} className="size-4 accent-marca-claro" />
           Añadir vuelta

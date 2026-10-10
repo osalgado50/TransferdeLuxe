@@ -3,7 +3,7 @@ import { FOTOS_BASE64 } from "./fotos";
 import { diaMadrid, duracionEstimadaMin } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
 import { RUTAS_DEMO } from "./rutas";
-import { DOMINIO_DEMO, FOTOS_TICKET, LUGARES_DEMO, SERVICIOS_DEMO, TICKETS_DEMO, USUARIOS_DEMO, VEHICULOS_DEMO } from "./datos";
+import { DOMINIO_DEMO, FAVORITOS_DEMO, FOTOS_TICKET, LUGARES_DEMO, SERVICIOS_DEMO, TICKETS_DEMO, USUARIOS_DEMO, VEHICULOS_DEMO } from "./datos";
 
 function ok<T>(r: { data?: T; error: { message: string } | null }, ctx: string): T {
   if (r.error) throw new Error(`Demo (${ctx}): ${r.error.message}`);
@@ -49,6 +49,7 @@ async function limpiar(sb: SupabaseClient, viejos: Map<string, string>): Promise
   }
   ok(await sb.from("vehiculos").delete().not("id", "is", null), "borrar vehiculos");
   ok(await sb.from("lugares_frecuentes").delete().not("id", "is", null), "borrar lugares");
+  ok(await sb.from("favoritos").delete().not("id", "is", null), "borrar favoritos");
 }
 
 async function passwordVigente(email: string, password: string): Promise<boolean> {
@@ -101,6 +102,18 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
 
   const lugares = ok(await sb.from("lugares_frecuentes").insert(LUGARES_DEMO).select("nombre,lat,lng"), "lugares") as { nombre: string; lat: number; lng: number }[];
   const lugar = (n: string) => lugares.find((l) => l.nombre === n)!;
+
+  const favoritos = FAVORITOS_DEMO.map((f) => {
+    if (f.tipo === "trayecto") {
+      const o = lugar(f.origen!), d = lugar(f.destino!);
+      return { tipo: f.tipo, nombre: f.nombre, origen_texto: o.nombre, origen_lat: o.lat, origen_lng: o.lng,
+        destino_texto: d.nombre, destino_lat: d.lat, destino_lng: d.lng, pasajeros: f.pax, maletas: f.maletas,
+        tipo_vehiculo_pedido: f.vehiculo, creado_por: operador.id };
+    }
+    const l = f.lugar ? lugar(f.lugar) : null;
+    return { tipo: f.tipo, nombre: f.nombre, origen_texto: l?.nombre ?? f.texto!, origen_lat: l?.lat ?? f.lat, origen_lng: l?.lng ?? f.lng, creado_por: operador.id };
+  });
+  ok(await sb.from("favoritos").insert(favoritos), "favoritos");
 
   // Servicios
   const dia = (d: number) => diaMadrid(new Date(hoy.getTime() + d * 86400e3));

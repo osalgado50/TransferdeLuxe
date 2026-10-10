@@ -29,6 +29,19 @@ export const LUGARES_DEMO = [
   { nombre: "Tarragona – Catedral", tipo: "ciudad", lat: 41.1189, lng: 1.258 },
 ];
 
+// Favoritos del operador (ficticios). Los trayectos usan nombres de LUGARES_DEMO.
+export interface FavoritoDemo {
+  tipo: "direccion" | "trayecto"; nombre: string;
+  lugar?: string; texto?: string; lat?: number; lng?: number; // dirección: lugar de LUGARES_DEMO o texto propio
+  origen?: string; destino?: string; pax?: number; maletas?: number; vehiculo?: TipoVehiculo; // trayecto: nombres de LUGARES_DEMO
+}
+export const FAVORITOS_DEMO: FavoritoDemo[] = [
+  { tipo: "direccion", nombre: "Aeropuerto de Reus", lugar: "Aeropuerto de Reus" },
+  { tipo: "direccion", nombre: "PortAventura World", lugar: "PortAventura World" },
+  { tipo: "direccion", nombre: "Hotel Demo Salou", texto: "Hotel Demo Salou, Passeig Jaume I, Salou (ficticio)", lat: 41.0765, lng: 1.1405 },
+  { tipo: "trayecto", nombre: "Reus → Salou (4 pax)", origen: "Aeropuerto de Reus", destino: "Salou – Plaza Europa", pax: 4, maletas: 4, vehiculo: "minivan" },
+];
+
 export interface ServicioDemo {
   dia: -1 | 0 | 1; hora: string; origen: string; destino: string; pax: number; maletas: number;
   estado: EstadoServicio; conductor: 0 | 1 | 2 | null; tipo?: TipoVehiculo; vuelo?: string; notas?: string;

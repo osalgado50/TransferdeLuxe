@@ -1,6 +1,8 @@
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
+import GestionFavoritos from "@/components/central/GestionFavoritos";
+import type { Favorito } from "@/lib/dominio/favoritos";
 import { guardarVehiculo, guardarConductor, guardarAjustes } from "./actions";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
@@ -11,11 +13,12 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
   await exigirRol("operador");
   const f = await searchParams;
   const sb = clienteAdmin();
-  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }] = await Promise.all([
+  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }, { data: favoritos }] = await Promise.all([
     sb.from("vehiculos").select("*").order("matricula"),
     sb.from("perfiles").select("*").eq("rol", "conductor").order("nombre"),
     sb.from("ajustes").select("*").eq("id", 1).single(),
     sb.auth.admin.listUsers({ perPage: 1000 }),
+    sb.from("favoritos").select("*").order("tipo").order("nombre"),
   ]);
   const emails = new Map((usuarios?.users ?? []).map((u) => [u.id, u.email ?? ""]));
   const demo = process.env.NEXT_PUBLIC_MODO_DEMO === "true";
@@ -88,6 +91,11 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           <button className={boton}>Añadir conductor</button>
         </form>
         {demo && <p className="text-xs text-slate-500">Modo demo: el conductor nuevo usa la contraseña de demo y su email debe terminar en @transferdeluxe.test.</p>}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Favoritos</h2>
+        <GestionFavoritos favoritos={(favoritos ?? []) as Favorito[]} />
       </section>
 
       <section className="space-y-2">
