@@ -40,7 +40,7 @@ export function CuentasDemo({ cuentas, clave }: { cuentas: string[]; clave?: str
   }
   const usar = (email: string) => { rellenar("email", email); if (clave) rellenar("password", clave); document.getElementById(clave ? "password" : "email")?.focus(); };
   const fila = "flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900/70 px-3 py-2";
-  const mono = "min-w-0 break-all font-mono text-base text-slate-100";
+  const mono = "min-w-0 break-all font-mono text-[15px] tracking-tight sm:text-base sm:tracking-normal text-slate-100";
   return (
     <aside className="rounded-2xl border border-slate-700 p-4 text-base text-slate-300">
       <h2 className="mb-3 text-lg font-semibold text-slate-100">Cuentas de demo</h2>
