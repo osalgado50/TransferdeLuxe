@@ -32,25 +32,18 @@ export const esquemaFavoritoTrayecto = z.object({
   tipo_vehiculo_pedido: z.enum(TIPOS_VEHICULO),
 });
 
-export type ValoresTrayecto = {
-  origen_texto: string; origen_lat: string; origen_lng: string;
-  destino_texto: string; destino_lat: string; destino_lng: string;
-  pasajeros: number; maletas: number; tipo_vehiculo_pedido: string;
-};
-
 /** Un trayecto se puede guardar cuando origen y destino tienen texto. */
-export const trayectoCompleto = (v: Pick<ValoresTrayecto, "origen_texto" | "destino_texto">) =>
+export const trayectoCompleto = (v: { origen_texto: string; destino_texto: string }) =>
   v.origen_texto.trim() !== "" && v.destino_texto.trim() !== "";
 
-/** Valores del formulario (strings) → entrada de `guardarFavoritoTrayecto`. */
-export function trayectoDesdeFormulario(nombre: string, v: ValoresTrayecto) {
-  return { nombre, ...v };
+/** Lee texto y coordenadas de un campo de dirección desde los inputs del formulario (lo mismo que enviaría «Reservar»). */
+export function leerDireccionForm(fd: FormData, name: string) {
+  const g = (k: string) => String(fd.get(`${name}_${k}`) ?? "");
+  return { texto: g("texto"), lat: g("lat"), lng: g("lng") };
 }
 
-/** Favorito de dirección → lugar para las sugerencias de CampoDireccion. */
-export function favoritoComoLugar(f: Favorito) {
-  return { etiqueta: f.origen_texto, nombre: f.nombre, lat: f.origen_lat, lng: f.origen_lng };
-}
+export const tieneCoordenadas = (v: { lat: unknown; lng: unknown }) =>
+  v.lat != null && v.lng != null && String(v.lat) !== "" && String(v.lng) !== "" && Number.isFinite(Number(v.lat)) && Number.isFinite(Number(v.lng));
 
 /** Favoritos de dirección que casan con lo escrito (primero los que empiezan por ello). */
 export function filtrarDirecciones(favs: Favorito[], q: string, max = 5) {

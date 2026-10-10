@@ -77,7 +77,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
           {todos.map((l, i) => (
             <li key={`${l.etiqueta}-${i}`}>
               <button type="button" onClick={() => elegir(l)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
-                {l.frecuente ? "⭐ " : ""}{l.nombreFavorito ? `${l.nombreFavorito} — ${l.etiqueta}` : l.etiqueta}
+                {l.nombreFavorito ? "⭐ " : l.frecuente ? "📍 " : ""}{l.nombreFavorito ? `${l.nombreFavorito} — ${l.etiqueta}` : l.etiqueta}
               </button>
             </li>
           ))}

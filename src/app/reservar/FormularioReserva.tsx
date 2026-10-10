@@ -3,12 +3,13 @@ import { useActionState, useState, useTransition } from "react";
 import CampoDireccion from "@/components/comun/CampoDireccion";
 import { avisoCapacidad, NOMBRE_TIPO } from "@/lib/dominio/capacidad";
 import type { TipoVehiculo } from "@/lib/dominio/tipos";
-import { trayectoCompleto, type Favorito } from "@/lib/dominio/favoritos";
+import { leerDireccionForm, tieneCoordenadas, trayectoCompleto, type Favorito } from "@/lib/dominio/favoritos";
 import { guardarFavoritoDireccion, guardarFavoritoTrayecto, type ResultadoFavorito } from "@/app/central/favoritos/actions";
 import { reservar, type EstadoReserva } from "./actions";
 
 type Accion = (prev: EstadoReserva, fd: FormData) => Promise<EstadoReserva>;
 type Props = { accion?: Accion; modo?: "publico" | "central"; favoritos?: Favorito[] };
+type Res = ResultadoFavorito & { aviso?: string };
 type Valor = { texto: string; lat: string; lng: string };
 const VACIO: Valor = { texto: "", lat: "", lng: "" };
 type Relleno = { n: number; texto: string; lat: number | null; lng: number | null };
@@ -36,7 +37,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
   const [destino, setDestino] = useState<Valor>(VACIO);
   const [rellenoO, setRellenoO] = useState<Relleno>();
   const [rellenoD, setRellenoD] = useState<Relleno>();
-  const [avisoFav, setAvisoFav] = useState<ResultadoFavorito & { texto: string }>();
+  const [avisoFav, setAvisoFav] = useState<Res & { texto: string }>();
   const [, empezar] = useTransition();
   const trayectos = favoritos.filter((f) => f.tipo === "trayecto");
   const direcciones = favoritos.filter((f) => f.tipo === "direccion");
@@ -51,22 +52,35 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
     if (f.maletas != null) setMaletas(f.maletas);
     if (f.tipo_vehiculo_pedido) setTipo(f.tipo_vehiculo_pedido);
   }
-  function guardar(titulo: string, ejecutar: (nombre: string) => Promise<ResultadoFavorito>) {
+  function guardar(titulo: string, ejecutar: (nombre: string) => Promise<Res>) {
     const nombre = window.prompt(`Nombre corto para el favorito (${titulo})`);
     if (nombre == null) return;
     empezar(async () => {
       const r = await ejecutar(nombre);
-      setAvisoFav({ ...r, texto: r.ok ? "Favorito guardado" : r.error });
+      setAvisoFav({ ...r, texto: r.ok ? (r.aviso ?? "Favorito guardado") : r.error });
     });
   }
-  const guardarDireccion = (v: Valor) => guardar("dirección", (nombre) => guardarFavoritoDireccion({ nombre, texto: v.texto, lat: v.lat, lng: v.lng }));
-  const guardarTrayecto = () => guardar("trayecto", (nombre) => guardarFavoritoTrayecto({
-    nombre, origen_texto: origen.texto, origen_lat: origen.lat, origen_lng: origen.lng,
-    destino_texto: destino.texto, destino_lat: destino.lat, destino_lng: destino.lng,
-    pasajeros: pax, maletas, tipo_vehiculo_pedido: tipo,
-  }));
-  const botonFav = (v: Valor) => central ? (
-    <button type="button" disabled={!v.texto.trim()} onClick={() => guardarDireccion(v)}
+  // Las coordenadas se leen de los inputs ocultos del formulario en el momento del clic (igual que el envío).
+  const guardarDireccion = (campo: "origen" | "destino", form: HTMLFormElement | null) => {
+    const v = form ? leerDireccionForm(new FormData(form), campo) : (campo === "origen" ? origen : destino);
+    guardar("dirección", async (nombre) => {
+      const r = await guardarFavoritoDireccion({ nombre, texto: v.texto, lat: v.lat, lng: v.lng });
+      return r.ok && !tieneCoordenadas(v) ? { ...r, aviso: "Favorito guardado sin coordenadas (elige una sugerencia para incluirlas)" } : r;
+    });
+  };
+  const guardarTrayecto = (form: HTMLFormElement | null) => {
+    const fd = form ? new FormData(form) : null;
+    const o = fd ? leerDireccionForm(fd, "origen") : origen, d = fd ? leerDireccionForm(fd, "destino") : destino;
+    guardar("trayecto", async (nombre) => {
+      const r = await guardarFavoritoTrayecto({
+        nombre, origen_texto: o.texto, origen_lat: o.lat, origen_lng: o.lng,
+        destino_texto: d.texto, destino_lat: d.lat, destino_lng: d.lng, pasajeros: pax, maletas, tipo_vehiculo_pedido: tipo,
+      });
+      return r.ok && !(tieneCoordenadas(o) && tieneCoordenadas(d)) ? { ...r, aviso: "Trayecto guardado sin coordenadas en algún extremo (elige sugerencias para incluirlas)" } : r;
+    });
+  };
+  const botonFav = (campo: "origen" | "destino", v: Valor) => central ? (
+    <button type="button" disabled={!v.texto.trim()} onClick={(e) => guardarDireccion(campo, e.currentTarget.form)}
       className="rounded border border-slate-600 px-2 py-0.5 text-xs text-amber-300 hover:bg-slate-800 disabled:opacity-40">⭐ Guardar en favoritos</button>
   ) : undefined;
   const aviso = avisoCapacidad(tipo, pax, maletas);
@@ -95,9 +109,9 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
           </label>
         )}
         <CampoDireccion name="origen" etiqueta="Dirección de recogida" requerido error={err("origen_texto")}
-          favoritos={central ? direcciones : undefined} rellenar={rellenoO} onCambio={setOrigen} extra={botonFav(origen)} />
+          favoritos={central ? direcciones : undefined} rellenar={rellenoO} onCambio={setOrigen} extra={botonFav("origen", origen)} />
         <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")}
-          favoritos={central ? direcciones : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav(destino)} />
+          favoritos={central ? direcciones : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav("destino", destino)} />
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">Fecha de recogida
             <input type="date" name="fecha" required className={cls} /><ErrorCampo e={estado.errores} k="fecha" /></label>
@@ -124,7 +138,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
         <label className="block text-sm font-medium">Número de vuelo
           <input type="text" name="numero_vuelo" className={cls} /></label>
         {central && trayectoCompleto({ origen_texto: origen.texto, destino_texto: destino.texto }) && (
-          <button type="button" onClick={guardarTrayecto}
+          <button type="button" onClick={(e) => guardarTrayecto(e.currentTarget.form)}
             className="rounded border border-slate-600 px-3 py-1 text-sm text-amber-300 hover:bg-slate-800">⭐ Guardar trayecto como favorito</button>
         )}
         {central && avisoFav && <p role="status" className={`text-sm ${avisoFav.ok ? "text-emerald-300" : "text-red-400"}`}>{avisoFav.texto}</p>}

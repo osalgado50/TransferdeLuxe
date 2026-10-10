@@ -13,7 +13,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
   await exigirRol("operador");
   const f = await searchParams;
   const sb = clienteAdmin();
-  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }, { data: favoritos }] = await Promise.all([
+  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }, { data: favoritos, error: errFavoritos }] = await Promise.all([
     sb.from("vehiculos").select("*").order("matricula"),
     sb.from("perfiles").select("*").eq("rol", "conductor").order("nombre"),
     sb.from("ajustes").select("*").eq("id", 1).single(),
@@ -95,6 +95,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Favoritos</h2>
+        {errFavoritos && <p role="alert" className="rounded bg-amber-900/50 p-2 text-sm text-amber-200">No se pudieron cargar los favoritos.</p>}
         <GestionFavoritos favoritos={(favoritos ?? []) as Favorito[]} />
       </section>
 

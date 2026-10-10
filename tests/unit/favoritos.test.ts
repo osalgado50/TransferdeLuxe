@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import {
-  esquemaFavoritoDireccion, esquemaFavoritoTrayecto, filtrarDirecciones, normalizarNombre, trayectoCompleto, type Favorito,
+  esquemaFavoritoDireccion, esquemaFavoritoTrayecto, filtrarDirecciones, leerDireccionForm, tieneCoordenadas, normalizarNombre, trayectoCompleto, type Favorito,
 } from "@/lib/dominio/favoritos";
 
 const dir = (nombre: string, texto: string): Favorito => ({
@@ -32,4 +32,14 @@ test("filtrarDirecciones ignora trayectos y prioriza los que empiezan por el tex
   const favs = [dir("Hotel Demo Salou", "Calle Falsa 1, Salou"), dir("Mi hotel", "Av. Demo"), { ...dir("Hotel ruta", "x"), tipo: "trayecto" as const }];
   expect(filtrarDirecciones(favs, "hot").map((f) => f.nombre)).toEqual(["Hotel Demo Salou", "Mi hotel"]);
   expect(filtrarDirecciones(favs, "h")).toEqual([]);
+});
+
+test("leerDireccionForm lee texto y coordenadas de los inputs", () => {
+  const fd = new FormData();
+  fd.set("origen_texto", "Aeropuerto de Reus"); fd.set("origen_lat", "41.1474"); fd.set("origen_lng", "1.1672");
+  const v = leerDireccionForm(fd, "origen");
+  expect(v).toEqual({ texto: "Aeropuerto de Reus", lat: "41.1474", lng: "1.1672" });
+  expect(tieneCoordenadas(v)).toBe(true);
+  expect(esquemaFavoritoDireccion.parse({ nombre: "x", ...v }).lat).toBe(41.1474);
+  expect(tieneCoordenadas(leerDireccionForm(fd, "destino"))).toBe(false);
 });
