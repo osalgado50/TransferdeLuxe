@@ -23,10 +23,10 @@ export default async function Hoy() {
     .not("estado", "in", "(cancelado,completado)").order("fecha_hora_recogida");
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-amber-400">Hoy</h1>
+      <h1 className="text-2xl font-semibold text-marca-claro">Hoy</h1>
       {error ? <p className="text-red-400">Error al cargar: {error.message}</p>
         : <ListaHoy iniciales={(data ?? []) as ServicioHoy[]} yo={yo.id} desde={desde} hasta={hasta} />}
-      <h2 className="pt-4 text-xl font-semibold text-amber-400">Próximos días</h2>
+      <h2 className="pt-4 text-xl font-semibold text-marca-claro">Próximos días</h2>
       {errorProx ? <p className="text-red-400">Error al cargar: {errorProx.message}</p>
         : <ListaProximos iniciales={(prox ?? []) as ServicioHoy[]} yo={yo.id} desde={hasta} hasta={hasta7} />}
     </div>

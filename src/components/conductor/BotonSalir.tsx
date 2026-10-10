@@ -14,5 +14,5 @@ export default function BotonSalir({ conductorId }: { conductorId: string }) {
     try { if (tareas.length) await Promise.all(tareas); else await fueraDeServicio(); } catch { /* salir igualmente */ }
     await salir();
   }
-  return <button type="button" onClick={alSalir} disabled={ocupado} className="min-h-14 w-full text-base font-medium text-slate-300 hover:text-amber-300">Salir</button>;
+  return <button type="button" onClick={alSalir} disabled={ocupado} className="min-h-14 w-full text-base font-medium text-slate-300 hover:text-marca-claro">Salir</button>;
 }

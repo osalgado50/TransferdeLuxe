@@ -30,15 +30,15 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-amber-400">Servicios</h1>
-        <Link href="/central/servicios/nuevo" className="rounded-lg bg-amber-400 px-4 py-2 font-medium text-slate-950 hover:bg-amber-300">Nuevo servicio</Link>
+        <h1 className="text-2xl font-semibold text-marca-claro">Servicios</h1>
+        <Link href="/central/servicios/nuevo" className="rounded-lg bg-marca px-4 py-2 font-medium text-white hover:bg-marca-oscuro">Nuevo servicio</Link>
       </div>
       <form className="flex flex-wrap items-end gap-3 text-sm">
         <label>Fecha<br /><input type="date" name="fecha" defaultValue={fecha} className={cls} /></label>
         <label>Estado<br /><select name="estado" defaultValue={f.estado ?? ""} className={cls}><option value="">Todos</option>{ESTADOS.map((e) => <option key={e}>{e}</option>)}</select></label>
         <label>Conductor<br /><select name="conductor" defaultValue={f.conductor ?? ""} className={cls}><option value="">Todos</option>{(conductores ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label>
         <label>Origen<br /><select name="origen" defaultValue={f.origen ?? ""} className={cls}><option value="">Todos</option><option value="web">Web</option><option value="manual">Manual</option></select></label>
-        <button className="rounded-lg border border-slate-600 px-3 py-1.5 hover:border-amber-400">Filtrar</button>
+        <button className="rounded-lg border border-slate-600 px-3 py-1.5 hover:border-marca-claro">Filtrar</button>
       </form>
       {error ? <p className="text-red-400">Error al cargar: {error.message}</p> : <TablaServicios filas={(data ?? []) as FilaServicio[]} />}
     </div>

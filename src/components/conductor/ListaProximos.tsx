@@ -22,7 +22,7 @@ export default function ListaProximos({ iniciales, yo, desde, hasta }: { inicial
           </div>
           <p className="mt-2 text-base">{s.origen_texto} → {s.destino_texto}</p>
           <p className="text-sm text-slate-400">{s.pasajeros} pax · {s.maletas} maletas</p>
-          <Link href={`/conductor/servicio/${s.id}`} className="mt-3 flex min-h-12 items-center justify-center rounded-xl bg-amber-400 text-lg font-semibold text-slate-950">Abrir</Link>
+          <Link href={`/conductor/servicio/${s.id}`} className="mt-3 flex min-h-12 items-center justify-center rounded-xl bg-marca text-lg font-semibold text-white">Abrir</Link>
         </li>
       ))}
     </ul>

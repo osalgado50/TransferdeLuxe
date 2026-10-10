@@ -35,7 +35,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-amber-400">{hora.format(new Date(s.fecha_hora_recogida))}</h1>
+        <h1 className="text-2xl font-semibold text-marca-claro">{hora.format(new Date(s.fecha_hora_recogida))}</h1>
         <EstadoBadge estado={s.estado as EstadoServicio} />
       </div>
       <div className="space-y-1 rounded-xl border border-slate-700 bg-slate-900 p-4">

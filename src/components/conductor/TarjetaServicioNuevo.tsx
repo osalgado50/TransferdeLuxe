@@ -130,16 +130,16 @@ export default function TarjetaServicioNuevo({ iniciales, yo }: { iniciales: Ser
 
   if (!s) {
     return aviso ? (
-      <div role="alert" className="fixed inset-x-0 top-0 z-[2000] flex items-center justify-between gap-3 bg-amber-400 px-4 py-3 font-semibold text-slate-950">
+      <div role="alert" className="fixed inset-x-0 top-0 z-[2000] flex items-center justify-between gap-3 bg-marca px-4 py-3 font-semibold text-white">
         <span>{aviso}</span>
-        <button onClick={() => setAviso(null)} className="min-h-10 rounded-lg bg-slate-950 px-4 text-amber-400">Entendido</button>
+        <button onClick={() => setAviso(null)} className="min-h-10 rounded-lg bg-slate-950 px-4 text-marca-claro">Entendido</button>
       </div>
     ) : null;
   }
   return (
     <div role="dialog" aria-label="Servicio nuevo" className="fixed inset-0 z-[2000] flex flex-col overflow-y-auto bg-slate-950 p-5 text-slate-100">
-      <p className="text-sm font-semibold uppercase tracking-wide text-amber-400">Servicio nuevo</p>
-      <p className="mt-1 text-5xl font-bold tabular-nums text-amber-400" aria-live="off">{ahora ? cuenta(restante) : "\u00a0"}</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-marca-claro">Servicio nuevo</p>
+      <p className="mt-1 text-5xl font-bold tabular-nums text-marca-claro" aria-live="off">{ahora ? cuenta(restante) : "\u00a0"}</p>
       {ahora && restante <= 86400 && <p className="text-xs text-slate-400">para responder</p>}
       <p className="mt-5 text-3xl font-bold">{fechaHora.format(new Date(s.fecha_hora_recogida))}</p>
       <p className="mt-2 text-xl">{s.origen_texto} → {s.destino_texto}</p>
@@ -158,7 +158,7 @@ export default function TarjetaServicioNuevo({ iniciales, yo }: { iniciales: Ser
             <p className="font-semibold">Motivo del rechazo</p>
             {MOTIVOS_RECHAZO.map((m) => (
               <button key={m} disabled={enviando} onClick={() => (m === "Otro" ? setOtro(true) : void enviar("rechazar", m))}
-                className={`min-h-14 w-full rounded-xl border text-lg ${m === "Otro" && otro ? "border-amber-400 text-amber-300" : "border-slate-600"} disabled:opacity-60`}>{m}</button>
+                className={`min-h-14 w-full rounded-xl border text-lg ${m === "Otro" && otro ? "border-marca-claro text-marca-claro" : "border-slate-600"} disabled:opacity-60`}>{m}</button>
             ))}
             {otro && (
               <>

@@ -32,8 +32,8 @@ function Tarjeta({ s }: { s: TarjetaRuta }) {
 function Columna({ id, titulo, items }: { id: string; titulo: string; items: TarjetaRuta[] }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <section ref={setNodeRef} className={`w-64 shrink-0 space-y-2 rounded-xl border p-3 ${isOver ? "border-amber-400 bg-slate-800" : "border-slate-800 bg-slate-950"}`}>
-      <h2 className="font-medium text-amber-400">{titulo} <span className="text-xs text-slate-400">({items.length})</span></h2>
+    <section ref={setNodeRef} className={`w-64 shrink-0 space-y-2 rounded-xl border p-3 ${isOver ? "border-marca-claro bg-slate-800" : "border-slate-800 bg-slate-950"}`}>
+      <h2 className="font-medium text-marca-claro">{titulo} <span className="text-xs text-slate-400">({items.length})</span></h2>
       {items.map((s) => <Tarjeta key={s.id} s={s} />)}
       {!items.length && <p className="text-xs text-slate-500">Sin servicios</p>}
     </section>

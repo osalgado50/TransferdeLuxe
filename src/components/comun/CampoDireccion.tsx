@@ -40,7 +40,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
           type="text" name={`${name}_texto`} value={texto} required={requerido} autoComplete="off"
           onChange={(e) => { setTexto(e.target.value); setLat(""); setLng(""); elegido.current = null; }}
           onFocus={() => lugares.length && setAbierto(true)}
-          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:border-amber-400 focus:outline-none"
+          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:border-marca-claro focus:outline-none"
         />
       </label>
       <input type="hidden" name={`${name}_lat`} value={lat} />

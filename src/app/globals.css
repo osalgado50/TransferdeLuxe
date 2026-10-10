@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@theme {
+  --color-marca: #2a75a8;
+  --color-marca-oscuro: #1d5a85;
+  --color-marca-claro: #5aaee3;
+  --color-marca-fondo: #0b1b2e;
+}

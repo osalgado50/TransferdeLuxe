@@ -23,27 +23,27 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
     <div className="mx-auto max-w-4xl space-y-6">
       {sinVer && <MarcarVista servicioId={s.id} />}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-amber-400">Servicio · {fmt.format(new Date(s.fecha_hora_recogida))}</h1>
+        <h1 className="text-2xl font-semibold text-marca-claro">Servicio · {fmt.format(new Date(s.fecha_hora_recogida))}</h1>
         <EstadoBadge estado={s.estado} />
       </div>
       {s.ultima_incidencia && <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">Incidencia: {s.ultima_incidencia}</p>}
       <AccionesFicha servicioId={s.id} estado={s.estado} />
       <section className="grid gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm sm:grid-cols-2">
-        <div><h2 className="mb-1 font-semibold text-amber-400">Cliente</h2>
+        <div><h2 className="mb-1 font-semibold text-marca-claro">Cliente</h2>
           <p>{s.cliente_nombre} {s.cliente_apellidos}</p><p>{s.cliente_email}</p><p>{s.cliente_telefono}</p></div>
-        <div><h2 className="mb-1 font-semibold text-amber-400">Trayecto</h2>
+        <div><h2 className="mb-1 font-semibold text-marca-claro">Trayecto</h2>
           <p>Recogida: {s.origen_texto}</p><p>Destino: {s.destino_texto}</p>
           <p>{s.pasajeros} pax · {s.maletas} maletas · {s.tipo_vehiculo_pedido}</p>
           {s.numero_vuelo && <p>Vuelo: {s.numero_vuelo}</p>}{s.notas && <p>Notas: {s.notas}</p>}
           <p>Origen: {s.origen_pedido}</p></div>
-        <div><h2 className="mb-1 font-semibold text-amber-400">Asignación</h2>
+        <div><h2 className="mb-1 font-semibold text-marca-claro">Asignación</h2>
           <p>Conductor: <span data-testid="conductor-asignado">{s.conductor?.nombre ?? "Sin asignar"}</span></p>
           {s.vehiculo && <p>Vehículo: {s.vehiculo.modelo} ({s.vehiculo.matricula})</p>}</div>
-        {s.servicio_vuelta_id && <div><Link href={`/central/servicios/${s.servicio_vuelta_id}`} className="text-amber-400 hover:underline">Ver vuelta/ida</Link></div>}
+        {s.servicio_vuelta_id && <div><Link href={`/central/servicios/${s.servicio_vuelta_id}`} className="text-marca-claro hover:underline">Ver vuelta/ida</Link></div>}
       </section>
       <MapaTrayecto origen={punto(s.origen_lat, s.origen_lng)} destino={punto(s.destino_lat, s.destino_lng)} />
       <section>
-        <h2 className="mb-2 font-semibold text-amber-400">Historial</h2>
+        <h2 className="mb-2 font-semibold text-marca-claro">Historial</h2>
         <ul className="space-y-1 text-sm">
           {(eventos ?? []).map((e) => {
             const actor = (e.actor as unknown as { nombre: string } | null)?.nombre;

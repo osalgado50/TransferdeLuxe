@@ -45,7 +45,7 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
   const kpi = "rounded-xl border border-slate-700 bg-slate-900 p-4";
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-amber-400">Combustible</h1>
+      <h1 className="text-2xl font-semibold text-marca-claro">Combustible</h1>
       {(error ?? e1 ?? e2) && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">Error: {(error ?? e1 ?? e2)!.message}</p>}
       <form className="flex flex-wrap items-end gap-3">
         <label className="text-sm text-slate-400">Vehículo<br />
@@ -57,8 +57,8 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
         <label className="text-sm text-slate-400">Mes<br />
           <select name="mes" defaultValue={f.mes ?? ""} className={campo}><option value="">Todos</option>
             {meses.map((m) => <option key={m} value={m}>{mesLegible(m)}</option>)}</select></label>
-        <button className="rounded bg-amber-500 px-3 py-1 text-sm font-medium text-slate-900 hover:bg-amber-400">Filtrar</button>
-        <a href="/central/combustible" className="py-1 text-sm text-slate-400 hover:text-amber-300">Limpiar</a>
+        <button className="rounded bg-marca px-3 py-1 text-sm font-medium text-white hover:bg-marca-oscuro">Filtrar</button>
+        <a href="/central/combustible" className="py-1 text-sm text-slate-400 hover:text-marca-claro">Limpiar</a>
       </form>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">

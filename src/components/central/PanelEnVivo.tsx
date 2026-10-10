@@ -16,7 +16,7 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
   const ev = useTiempoReal<EventoAlerta>("eventos_servicio", eventos, "id");
   return (
     <div className="space-y-4">
-      {!ok && <p role="status" className="text-xs text-amber-300">Reconectando…</p>}
+      {!ok && <p role="status" className="text-xs text-marca-claro">Reconectando…</p>}
       <Contadores servicios={sv} />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} /></div>

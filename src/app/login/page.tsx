@@ -1,3 +1,4 @@
+import LogoTVL from "@/components/comun/LogoTVL";
 import { FormularioLogin } from "./formulario";
 
 const CUENTAS = [
@@ -14,7 +15,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md space-y-6">
-        <h1 className="text-center text-2xl font-semibold text-amber-400">Acceso a TransferdeLuxe</h1>
+        <div className="flex justify-center"><LogoTVL alto={96} prioridad /></div>
+        <h1 className="text-center text-2xl font-semibold text-marca-claro">Acceso a TransferdeLuxe</h1>
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <FormularioLogin destino={destino ?? ""} />
         </div>
@@ -23,7 +25,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <ul className="space-y-1 font-mono text-xs">
             {CUENTAS.map((c) => <li key={c}>{c}</li>)}
           </ul>
-          {clave && <p className="mt-2">Contraseña: <span className="font-mono text-amber-300">{clave}</span></p>}
+          {clave && <p className="mt-2">Contraseña: <span className="font-mono text-marca-claro">{clave}</span></p>}
         </aside>
       </div>
     </main>

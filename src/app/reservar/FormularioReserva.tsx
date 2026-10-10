@@ -11,7 +11,7 @@ const VEHICULOS = [
   ["microbus", "MicroBus (13 pax)"], ["minibus", "MiniBus (19 pax)"],
 ] as const;
 
-const cls = "mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:border-amber-400 focus:outline-none";
+const cls = "mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:border-marca-claro focus:outline-none";
 const seccion = "rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-4";
 
 function ErrorCampo({ e, k }: { e?: Record<string, string[]>; k: string }) {
@@ -25,8 +25,8 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
 
   if (estado.ok) {
     return (
-      <div role="status" className="rounded-xl border border-amber-400 bg-slate-900 p-6 text-center">
-        <p className="text-xl font-semibold text-amber-400">{estado.mensaje}</p>
+      <div role="status" className="rounded-xl border border-marca-claro bg-slate-900 p-6 text-center">
+        <p className="text-xl font-semibold text-marca-claro">{estado.mensaje}</p>
       </div>
     );
   }
@@ -36,7 +36,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
   return (
     <form action={enviar} className="space-y-6 text-slate-200">
       <section className={seccion}>
-        <h2 className="text-lg font-semibold text-amber-400">Trayecto</h2>
+        <h2 className="text-lg font-semibold text-marca-claro">Trayecto</h2>
         <CampoDireccion name="origen" etiqueta="Dirección de recogida" requerido error={err("origen_texto")} />
         <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")} />
         <div className="grid grid-cols-2 gap-4">
@@ -60,14 +60,14 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
         <label className="block text-sm font-medium">Número de vuelo
           <input type="text" name="numero_vuelo" className={cls} /></label>
         <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" name="con_vuelta" checked={conVuelta} onChange={(e) => setConVuelta(e.target.checked)} className="size-4 accent-amber-400" />
+          <input type="checkbox" name="con_vuelta" checked={conVuelta} onChange={(e) => setConVuelta(e.target.checked)} className="size-4 accent-marca-claro" />
           Añadir vuelta
         </label>
       </section>
 
       {conVuelta && (
         <section className={seccion}>
-          <h2 className="text-lg font-semibold text-amber-400">Vuelta</h2>
+          <h2 className="text-lg font-semibold text-marca-claro">Vuelta</h2>
           <CampoDireccion name="vuelta_origen" etiqueta="Recogida de la vuelta" requerido error={err("vuelta_origen_texto")} />
           <CampoDireccion name="vuelta_destino" etiqueta="Destino de la vuelta" requerido error={err("vuelta_destino_texto")} />
           <div className="grid grid-cols-2 gap-4">
@@ -82,7 +82,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
       )}
 
       <section className={seccion}>
-        <h2 className="text-lg font-semibold text-amber-400">Tus datos</h2>
+        <h2 className="text-lg font-semibold text-marca-claro">Tus datos</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-medium">Nombre
             <input type="text" name="cliente_nombre" required className={cls} /><ErrorCampo e={estado.errores} k="cliente_nombre" /></label>
@@ -100,7 +100,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
       {modo === "publico" && (
         <div>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="acepta_privacidad" required className="mt-0.5 size-4 accent-amber-400" />
+            <input type="checkbox" name="acepta_privacidad" required className="mt-0.5 size-4 accent-marca-claro" />
             He leído y acepto la política de privacidad
           </label>
           <ErrorCampo e={estado.errores} k="acepta_privacidad" />
@@ -110,7 +110,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
 
       {estado.mensaje && <p role="alert" className="text-sm text-red-400">{estado.mensaje}</p>}
       <button type="submit" disabled={pendiente}
-        className="w-full rounded-lg bg-amber-400 px-6 py-3 font-semibold text-slate-950 hover:bg-amber-300 disabled:opacity-60">
+        className="w-full rounded-lg bg-marca px-6 py-3 font-semibold text-white hover:bg-marca-oscuro disabled:opacity-60">
         {pendiente ? "Enviando…" : "Reservar"}
       </button>
     </form>

@@ -384,3 +384,9 @@ comprueba
 
 ---
 
+## 2026-10-10 11:06 · Claude Code · sesión `b3c0e64f`
+
+Vamos a hacerlo un poquito más corporativo. Eh, en la página web búscate el logotipo de la empresa e integralo en la central de reservas y apps de movil
+
+---
+

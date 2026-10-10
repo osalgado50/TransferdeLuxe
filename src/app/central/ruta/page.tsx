@@ -19,15 +19,15 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
     sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros")
       .gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta).neq("estado", "cancelado").order("fecha_hora_recogida"),
   ]);
-  const enlace = "rounded-lg border border-slate-600 px-3 py-1.5 hover:border-amber-400";
+  const enlace = "rounded-lg border border-slate-600 px-3 py-1.5 hover:border-marca-claro";
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold text-amber-400">Hoja de ruta</h1>
+        <h1 className="text-2xl font-semibold text-marca-claro">Hoja de ruta</h1>
         <Link href={`/central/ruta?dia=${desplazar(dia, -1)}`} className={enlace} aria-label="Día anterior">◀</Link>
         <span className="font-medium">{dia}</span>
         <Link href={`/central/ruta?dia=${desplazar(dia, 1)}`} className={enlace} aria-label="Día siguiente">▶</Link>
-        <Link href="/central/ruta" className="text-sm text-amber-400 hover:underline">Hoy</Link>
+        <Link href="/central/ruta" className="text-sm text-marca-claro hover:underline">Hoy</Link>
       </div>
       {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
         : <TableroRuta servicios={(servicios ?? []) as TarjetaRuta[]} conductores={conductores ?? []} />}

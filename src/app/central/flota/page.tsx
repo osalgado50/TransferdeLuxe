@@ -4,7 +4,7 @@ import { guardarVehiculo, guardarConductor, guardarAjustes } from "./actions";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
 const rejilla = "grid grid-cols-[7rem_10rem_4rem_7rem_7rem_6rem] items-center gap-2";
-const boton = "rounded bg-amber-500 px-3 py-1 text-sm font-medium text-slate-900 hover:bg-amber-400";
+const boton = "rounded bg-marca px-3 py-1 text-sm font-medium text-white hover:bg-marca-oscuro";
 
 export default async function Flota({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await exigirRol("operador");
@@ -20,7 +20,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
   const demo = process.env.NEXT_PUBLIC_MODO_DEMO === "true";
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-amber-400">Flota y ajustes</h1>
+      <h1 className="text-2xl font-semibold text-marca-claro">Flota y ajustes</h1>
       {f.error && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">{f.error}</p>}
       {f.ok && <p role="status" className="rounded bg-emerald-900/50 p-2 text-emerald-200">Cambios guardados</p>}
       <p className="rounded border border-slate-700 p-2 text-sm text-slate-400">Mantenimiento (aceite, neumáticos, ITV): próximamente</p>

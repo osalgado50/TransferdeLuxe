@@ -36,7 +36,7 @@ export default function DialogoAsignar({ servicioId, reasignar = false, onHecho 
 
   return (
     <>
-      <button type="button" data-accion="asignar" onClick={abrir} className="rounded-lg border border-amber-400 px-4 py-2 text-sm text-amber-400">{etiqueta}</button>
+      <button type="button" data-accion="asignar" onClick={abrir} className="rounded-lg border border-marca-claro px-4 py-2 text-sm text-marca-claro">{etiqueta}</button>
       {abierto && (
         <div role="dialog" aria-modal="true" aria-label={`${etiqueta} conductor`} onClick={() => setAbierto(false)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-4">
           <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-neutral-700 bg-neutral-900 p-5">
@@ -63,7 +63,7 @@ export default function DialogoAsignar({ servicioId, reasignar = false, onHecho 
                   </div>
                   <div className="mt-3">
                     {s.apto ? (
-                      <button type="button" disabled={pend} onClick={() => asignar(s)} className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50">Asignar a {s.nombre}</button>
+                      <button type="button" disabled={pend} onClick={() => asignar(s)} className="rounded-lg bg-marca px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">Asignar a {s.nombre}</button>
                     ) : confirmando === s.conductorId ? (
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-red-300">No es apto. ¿Asignar igualmente?</span>

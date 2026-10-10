@@ -71,13 +71,13 @@ export default function CapturaTicket({ demo }: { demo: boolean }) {
   if (estado.ok) return (
     <div className="rounded-xl bg-emerald-900/40 border border-emerald-700 p-4 space-y-3">
       <p className="text-emerald-300 font-medium">Ticket guardado</p>
-      <a href="/conductor" className="inline-block rounded-lg bg-amber-500 text-black px-4 py-2 font-medium">Volver a Hoy</a>
+      <a href="/conductor" className="inline-block rounded-lg bg-marca text-white px-4 py-2 font-medium">Volver a Hoy</a>
     </div>
   );
 
   if (fase === "inicio") return (
     <div className="space-y-3">
-      <label className="block rounded-2xl bg-amber-500 text-black text-center text-lg font-semibold py-6 cursor-pointer">
+      <label className="block rounded-2xl bg-marca text-white text-center text-lg font-semibold py-6 cursor-pointer">
         📷 Hacer foto del ticket
         <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void procesar(f); e.target.value = ""; }} />
       </label>
@@ -116,7 +116,7 @@ export default function CapturaTicket({ demo }: { demo: boolean }) {
       <label className="block text-sm text-zinc-300">Kilómetros del cuentakilómetros<input name="km" type="number" inputMode="numeric" min={0} required className={campo} /></label>
       {errorFoto && <p className="text-red-400 text-sm">{errorFoto}</p>}
       {estado.error && <p className="text-red-400 text-sm">{estado.error}</p>}
-      <button disabled={pendiente || subiendo} className="w-full rounded-xl bg-amber-500 text-black py-3 font-semibold disabled:opacity-50">
+      <button disabled={pendiente || subiendo} className="w-full rounded-xl bg-marca text-white py-3 font-semibold disabled:opacity-50">
         {subiendo ? "Subiendo foto…" : pendiente ? "Guardando…" : "Guardar ticket"}
       </button>
       <button type="button" onClick={() => setFase("inicio")} className="w-full text-sm text-zinc-400 py-2">Empezar de nuevo</button>

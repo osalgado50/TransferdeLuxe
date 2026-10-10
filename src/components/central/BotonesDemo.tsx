@@ -26,7 +26,7 @@ export default function BotonesDemo() {
   const base = "rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50";
   return (
     <div className="flex flex-wrap items-center gap-2" data-demo>
-      <button type="button" onClick={alternar} disabled={ocupado} className={`${base} border-amber-500 text-amber-300`}>
+      <button type="button" onClick={alternar} disabled={ocupado} className={`${base} border-marca-claro text-marca-claro`}>
         {simulando ? "■ Parar simulación" : "▶ Simular ruta"}
       </button>
       <button type="button" onClick={restablecer} disabled={ocupado} className={`${base} border-slate-600 text-slate-200`}>

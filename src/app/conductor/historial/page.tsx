@@ -19,14 +19,14 @@ export default async function Historial() {
   const servicios = s.data ?? [], tickets = t.data ?? [];
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-amber-400">Historial · últimos 7 días</h1>
+      <h1 className="text-2xl font-semibold text-marca-claro">Historial · últimos 7 días</h1>
       {(s.error || t.error) && <p role="alert" className="text-red-400">Error al cargar: {(s.error ?? t.error)!.message}</p>}
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Servicios</h2>
         {servicios.length === 0 ? <p className="text-slate-400">Sin servicios en los últimos 7 días.</p> : (
           <ul className="space-y-2">{servicios.map((x) => (
             <li key={x.id} className="rounded-lg border border-slate-700 bg-slate-900 p-3">
-              <p className="text-sm text-slate-400">{hora.format(new Date(x.fecha_hora_recogida))} · <span className="text-amber-300">{x.estado.replaceAll("_", " ")}</span></p>
+              <p className="text-sm text-slate-400">{hora.format(new Date(x.fecha_hora_recogida))} · <span className="text-marca-claro">{x.estado.replaceAll("_", " ")}</span></p>
               <p>{x.origen_texto} → {x.destino_texto}</p>
             </li>))}
           </ul>)}
@@ -36,7 +36,7 @@ export default async function Historial() {
         {tickets.length === 0 ? <p className="text-slate-400">Sin tickets en los últimos 7 días.</p> : (
           <ul className="space-y-2">{tickets.map((x) => (
             <li key={x.id} className="flex justify-between rounded-lg border border-slate-700 bg-slate-900 p-3">
-              <span>{fechaCorta(x.fecha)} · {litros2(Number(x.litros))}</span><span className="font-medium text-amber-300">{euros(Number(x.importe))}</span>
+              <span>{fechaCorta(x.fecha)} · {litros2(Number(x.litros))}</span><span className="font-medium text-marca-claro">{euros(Number(x.importe))}</span>
             </li>))}
           </ul>)}
       </section>

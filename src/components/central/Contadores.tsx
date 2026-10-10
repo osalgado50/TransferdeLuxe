@@ -13,7 +13,7 @@ export default function Contadores({ servicios }: { servicios: Servicio[] }) {
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {items.map(([t, v]) => (
         <div key={t} data-contador={t} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <p className="text-3xl font-semibold text-amber-400">{v}</p>
+          <p className="text-3xl font-semibold text-marca-claro">{v}</p>
           <p className="text-sm text-slate-400">{t}</p>
         </div>
       ))}
