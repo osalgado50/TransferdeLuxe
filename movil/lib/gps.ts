@@ -28,7 +28,8 @@ export async function arrancarGps(): Promise<void> {
   await Location.startLocationUpdatesAsync(TAREA_GPS, {
     accuracy: Location.Accuracy.High,
     timeInterval: 15_000,
-    distanceInterval: 25,
+    // 0: también con el coche parado (si no, la central lo marca «sin señal» a los 5 min). La tarea limita a 1 envío / 12 s.
+    distanceInterval: 0,
     deferredUpdatesInterval: 15_000,
     pausesUpdatesAutomatically: false,
     showsBackgroundLocationIndicator: true,
