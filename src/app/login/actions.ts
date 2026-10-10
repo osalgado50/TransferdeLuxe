@@ -4,7 +4,7 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 
 export async function entrar(_: unknown, fd: FormData): Promise<{ error?: string }> {
   const sb = await clienteServidor();
-  const { data, error } = await sb.auth.signInWithPassword({ email: String(fd.get("email")), password: String(fd.get("password")) });
+  const { data, error } = await sb.auth.signInWithPassword({ email: String(fd.get("email") ?? "").trim().toLowerCase(), password: String(fd.get("password") ?? "").trim() });
   if (error || !data.user) return { error: "Email o contraseña incorrectos" };
   const { data: p } = await sb.from("perfiles").select("rol").eq("id", data.user.id).single();
   const area = p?.rol === "operador" ? "/central" : "/conductor";
