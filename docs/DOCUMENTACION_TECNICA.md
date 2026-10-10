@@ -245,3 +245,14 @@ Navegación del conductor llegando al destino: `docs/capturas/conductor-navegaci
   guarda una generación por conductor que se relee antes de cada insert/escritura (OFF en vuelo → se descarta), y al
   apagar se espera al lote en curso antes del POST (con un reintento). Cola y último envío por conductor, filas con dueño,
   envío en trozos de 50 y limpieza al iniciar sesión.
+
+### App nativa N5 — Mapa y avisos (10/10/2026)
+- Mapa nativo con `@maplibre/maplibre-react-native` y teselas raster de OpenStreetMap (sin claves): posición en vivo
+  (watch propio de la pantalla, independiente de la tarea en segundo plano), objetivo verde/rojo, ruta de `/api/ruta`
+  (Bearer) con conectores discontinuos, banner «Hacia la recogida · 4,2 km · 7 min», seguimiento automático y «Centrar».
+- Avisos 500/100 m con la misma histéresis que la web: vibración, notificación local, banner y botón del paso resaltado;
+  una vez por servicio+objetivo (AsyncStorage). «Llegando» a la central solo se marca con respuesta ok (reintento ≥ 15 s).
+- Push: permiso con explicación previa, token Expo (solo dispositivo físico) a `/api/conductor/push-token`; al salir,
+  nuevo `DELETE /api/conductor/push-token` (solo borra el token del conductor que llama). Tocar «Servicio nuevo» abre Hoy.
+- Lógica pura nueva en `src/lib/dominio/navegacion.ts` (`debePedirRuta`, `tiempoRestanteS`, textos), con tests.
+- Challenge: MapLibre es código nativo → no funciona en Expo Go; requiere development build (N7).

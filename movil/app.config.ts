@@ -52,6 +52,12 @@ const config: ExpoConfig = {
         isAndroidForegroundServiceEnabled: true,
       },
     ],
+    [
+      "expo-notifications",
+      { color: "#0167a9", defaultChannel: "servicios" },
+    ],
+    // Mapa nativo (MapLibre + teselas OSM, sin claves). Requiere development build: no funciona en Expo Go.
+    "@maplibre/maplibre-react-native",
   ],
   experiments: { typedRoutes: true },
   extra: { eas: { projectId: "c5b7d38c-6dc1-45c7-ad61-dc2190b2ff34" } },

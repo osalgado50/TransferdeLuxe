@@ -88,3 +88,31 @@ export function llegandoReciente<E extends { servicio_id: string; tipo: string; 
   return null;
 }
 export const EVENTO_RESALTAR = "tdl-resaltar-paso";
+
+/** Recalcular ruta: si se desvía más de DESVIO_M de la polilínea, como mucho una vez cada REPETIR_RUTA_MS. */
+export const DESVIO_M = 300, REPETIR_RUTA_MS = 30_000, REINTENTO_LLEGANDO_MS = 15_000;
+export interface PeticionRuta { clave: string; t: number; conPos: boolean }
+/** ¿Hay que pedir ruta? Objetivo nuevo, primer fix tras una ruta pedida sin posición, o desvío (limitado en el tiempo). */
+export function debePedirRuta(prev: PeticionRuta | null, clave: string, conPos: boolean, desvioM: number | null, ahora: number): boolean {
+  if (!prev || prev.clave !== clave) return true;
+  if (!prev.conPos && conPos) return true;
+  return desvioM != null && desvioM > DESVIO_M && ahora - prev.t >= REPETIR_RUTA_MS;
+}
+/** Tiempo restante proporcional a lo que queda de la ruta. */
+export function tiempoRestanteS(ruta: { distanciaM: number; duracionS: number } | null, quedaM: number | null): number | null {
+  if (!ruta || quedaM == null) return null;
+  return ruta.distanciaM > 0 ? ruta.duracionS * Math.min(1, quedaM / ruta.distanciaM) : 0;
+}
+/** «Hacia la recogida · 4,2 km · 7 min» */
+export function textoBannerRuta(tipo: TipoObjetivo, quedaM: number | null, quedaS: number | null): string {
+  const t = tipo === "recogida" ? "Hacia la recogida" : "Hacia el destino";
+  return `${t}${quedaM != null ? ` · ${formatoDistancia(quedaM)}` : ""}${quedaS != null ? ` · ${formatoDuracion(quedaS)}` : ""}`;
+}
+/** Texto del aviso de proximidad (banner y notificación local). */
+export function textoAvisoProximidad(fase: Exclude<Fase, "lejos">, tipo: TipoObjetivo, distanciaM: number | null): string {
+  const a = tipo === "recogida" ? "a la recogida" : "al destino";
+  return fase === "llegado" ? `Has llegado ${a}` : `Estás llegando ${a}${distanciaM != null ? ` (≈ ${formatoDistancia(distanciaM)})` : ""}`;
+}
+/** Clave «una sola vez» por servicio + objetivo + aviso (cerca / llegado / central). */
+export const claveAvisoNav = (servicioId: string, tipo: TipoObjetivo, aviso: "cerca" | "llegado" | "central") =>
+  `tdl-nav:${servicioId}:${tipo}:${aviso}`;

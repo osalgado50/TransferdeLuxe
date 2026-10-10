@@ -1,11 +1,14 @@
 import { rangosConductor } from "@dominio/dias";
+import { objetivoActual, type Fase } from "@dominio/navegacion";
 import type { EstadoServicio, Punto, Servicio } from "@dominio/tipos";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BotonPaso } from "~/components/BotonPaso";
 import { EstadoBadge } from "~/components/EstadoBadge";
+import { MapaServicio } from "~/components/MapaServicio";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 import { fechaHora, fmt, hora } from "~/lib/formato";
 import { exigir } from "~/lib/servicios";
@@ -37,6 +40,7 @@ export default function ServicioEnCurso() {
   }, [id, yo]);
 
   const s = datos?.s;
+  const [fase, setFase] = useState<Fase>("lejos");
   const volver = (
     <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} accessibilityRole="button" accessibilityLabel="Volver"
       style={estilos.volver} hitSlop={8}>
@@ -57,6 +61,7 @@ export default function ServicioEnCurso() {
   const pt = (lat: number | null, lng: number | null): Punto | null => (lat != null && lng != null ? { lat, lng } : null);
   const estado = s.estado as EstadoServicio;
   const meta = estado === "recogido" || estado === "completado" ? pt(s.destino_lat, s.destino_lng) : pt(s.origen_lat, s.origen_lng);
+  const objetivo = objetivoActual(estado, s);
   const nombre = `${s.cliente_nombre} ${s.cliente_apellidos ?? ""}`.trim();
 
   return (
@@ -76,10 +81,10 @@ export default function ServicioEnCurso() {
           {s.numero_vuelo && <Text style={estilos.texto}><Text style={estilos.tenue}>Vuelo: </Text>{s.numero_vuelo}</Text>}
           {s.notas && <Text style={estilos.texto}><Text style={estilos.tenue}>Notas: </Text>{s.notas}</Text>}
         </Tarjeta>
-        <View style={estilos.mapa} accessibilityLabel="Mapa (próximamente)">
-          <Ionicons name="map-outline" size={40} color={color.textoTenue} />
-          <Text style={estilos.tenue}>Mapa y avisos de llegada: próximamente</Text>
-        </View>
+        {objetivo && (
+          <MapaServicio key={`${s.id}:${objetivo.tipo}`} servicioId={s.id} objetivo={objetivo}
+            origenServicio={pt(s.origen_lat, s.origen_lng)} alCambiarFase={setFase} />
+        )}
         {meta && (
           <View style={estilos.dos}>
             <Boton texto="Google Maps" variante="secundario" estilo={{ flex: 1 }}
@@ -93,7 +98,7 @@ export default function ServicioEnCurso() {
         )}
         <View style={{ marginTop: 8 }}>
           <BotonPaso key={s.id} servicioId={s.id} conductorId={yo} estadoServidor={estado} siguienteId={datos?.siguienteId ?? null}
-            alCambiar={() => void recargar()} />
+            alCambiar={() => void recargar()} resaltar={!!objetivo && fase === "llegado"} />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -109,6 +114,5 @@ const estilos = StyleSheet.create({
   hora: { color: color.marcaClaro, fontSize: 36, fontWeight: "800" },
   texto: { color: color.texto, fontSize: 17 },
   tenue: { color: color.textoTenue, fontSize: 15 },
-  mapa: { height: 160, borderRadius: 16, borderWidth: 1, borderColor: color.borde, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 6 },
   dos: { flexDirection: "row", gap: 12 },
 });

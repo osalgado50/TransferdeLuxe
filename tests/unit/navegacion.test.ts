@@ -128,3 +128,24 @@ test("leerPunto valida formato", () => {
   expect(leerPunto("41,1,2")).toBeNull();
   expect(leerPunto(null)).toBeNull();
 });
+
+import { debePedirRuta, tiempoRestanteS, textoBannerRuta, textoAvisoProximidad, claveAvisoNav } from "@/lib/dominio/navegacion";
+test("debePedirRuta: objetivo nuevo, primer fix y desvío limitado a 1 vez / 30 s", () => {
+  expect(debePedirRuta(null, "a", false, null, 0)).toBe(true);
+  const p = { clave: "a", t: 1000, conPos: true };
+  expect(debePedirRuta(p, "b", true, null, 1001)).toBe(true);
+  expect(debePedirRuta({ ...p, conPos: false }, "a", true, null, 1001)).toBe(true);
+  expect(debePedirRuta(p, "a", true, 100, 999_999)).toBe(false);
+  expect(debePedirRuta(p, "a", true, 301, 1000 + 29_999)).toBe(false);
+  expect(debePedirRuta(p, "a", true, 301, 1000 + 30_000)).toBe(true);
+});
+test("tiempo restante, banner y avisos", () => {
+  expect(tiempoRestanteS(null, 100)).toBeNull();
+  expect(tiempoRestanteS({ distanciaM: 1000, duracionS: 600 }, 500)).toBe(300);
+  expect(tiempoRestanteS({ distanciaM: 1000, duracionS: 600 }, 5000)).toBe(600);
+  expect(textoBannerRuta("recogida", 4200, 420)).toBe("Hacia la recogida · 4,2 km · 7 min");
+  expect(textoBannerRuta("destino", null, null)).toBe("Hacia el destino");
+  expect(textoAvisoProximidad("cerca", "recogida", 430)).toBe("Estás llegando a la recogida (≈ 430 m)");
+  expect(textoAvisoProximidad("llegado", "destino", 20)).toBe("Has llegado al destino");
+  expect(claveAvisoNav("s1", "destino", "cerca")).toBe("tdl-nav:s1:destino:cerca");
+});

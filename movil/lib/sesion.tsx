@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { AppState } from "react-native";
 import { marcarFueraDeServicio, pararGps } from "./gps";
 import { limpiarDatosGps } from "./gpsTarea";
+import { darDeBajaPush } from "./push";
 import { supabase } from "./supabase";
 
 interface EstadoSesion {
@@ -109,6 +110,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     // Primero se para la tarea de ubicación (y se avisa a la central con el token aún válido).
     const id = (await supabase.auth.getSession()).data.session?.user.id;
     if (id) { await pararGps(id).catch(() => undefined); await marcarFueraDeServicio(); }
+    await darDeBajaPush(); // este dispositivo deja de recibir avisos de servicios
     await supabase.auth.signOut();
     if (vivo.current) { setSesion(null); setPerfil(null); setSinConexion(false); }
   }, []);

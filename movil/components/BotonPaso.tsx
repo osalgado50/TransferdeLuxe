@@ -13,8 +13,10 @@ type Paso = AccionPendiente["accion"];
 const SIGUIENTE: Record<Paso, EstadoServicio> = { salir: "en_camino", cargar: "recogido", descargar: "completado" };
 
 /** Botón del siguiente paso con cola offline: optimista, un toque a la vez, y el servidor manda si rechaza. */
-export function BotonPaso({ servicioId, conductorId, estadoServidor, siguienteId, alCambiar }: {
+export function BotonPaso({ servicioId, conductorId, estadoServidor, siguienteId, alCambiar, resaltar }: {
   servicioId: string; conductorId: string; estadoServidor: EstadoServicio; siguienteId: string | null; alCambiar: () => void;
+  /** Ha llegado al objetivo: el botón del paso se destaca. */
+  resaltar?: boolean;
 }) {
   const [c, setC] = useState<Compartida | null>(null);
   const [estado, setEstado] = useState<EstadoServicio>(estadoServidor);
@@ -73,7 +75,8 @@ export function BotonPaso({ servicioId, conductorId, estadoServidor, siguienteId
   };
   return (
     <View style={estilos.caja}>
-      {paso && <Boton texto={paso.etiqueta} alto={72} tamano={20} deshabilitado={!c || pendientes > 0} onPress={pulsar} />}
+      {paso && <Boton texto={paso.etiqueta} alto={72} tamano={20} deshabilitado={!c || pendientes > 0} onPress={pulsar}
+        variante={resaltar ? "exito" : "primario"} estilo={resaltar ? estilos.resaltado : undefined} />}
       {avisoPendiente}
       {atascada && (
         <Boton variante="peligro" alto={52} tamano={15} onPress={descartar}
@@ -86,5 +89,6 @@ export function BotonPaso({ servicioId, conductorId, estadoServidor, siguienteId
 
 const estilos = StyleSheet.create({
   caja: { gap: 10 },
+  resaltado: { borderWidth: 3, borderColor: "#ffffff" },
   terminado: { color: "#34d399", fontSize: 22, fontWeight: "800", textAlign: "center" },
 });
