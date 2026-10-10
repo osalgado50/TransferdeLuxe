@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
-import { VISTAS, atajos, contar, diaValido, rangoPeriodo, type Vista } from "@/lib/dominio/periodo";
+import { VISTAS, atajos, diaValido, rangoPeriodo, type Vista } from "@/lib/dominio/periodo";
 import TablaServicios, { type FilaServicio } from "@/components/central/TablaServicios";
 
 const ESTADOS = ["pendiente", "asignado", "aceptado", "en_camino", "recogido", "completado", "cancelado", "subcontratado"];
@@ -37,17 +37,26 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   const { data: conductores } = await sb.from("perfiles").select("id,nombre").eq("rol", "conductor").order("nombre");
   let q = sb.from("servicios").select("*, conductor:perfiles!servicios_conductor_id_fkey(nombre)", { count: "exact" })
     .gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc).order("fecha_hora_recogida").range(0, pagina * POR_PAGINA - 1);
-  // Los contadores respetan conductor y origen pero no el estado, para ver el reparto completo del periodo.
-  let qc = sb.from("servicios").select("estado,subcontratar").gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc).limit(5000);
   if (estado) q = q.eq("estado", estado);
-  if (conductor) { q = q.eq("conductor_id", conductor); qc = qc.eq("conductor_id", conductor); }
-  if (origen) { q = q.eq("origen_pedido", origen); qc = qc.eq("origen_pedido", origen); }
-  const [{ data, error, count }, { data: filasC }] = await Promise.all([q, qc]);
-  const c = contar(filasC ?? []);
+  if (conductor) q = q.eq("conductor_id", conductor);
+  if (origen) q = q.eq("origen_pedido", origen);
+  // Contadores: un count exacto (head) por tarjeta; respetan conductor y origen pero no el estado.
+  const cuenta = (est?: string[], sub?: boolean) => {
+    let x = sb.from("servicios").select("id", { count: "exact", head: true })
+      .gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc);
+    if (conductor) x = x.eq("conductor_id", conductor);
+    if (origen) x = x.eq("origen_pedido", origen);
+    if (est) x = x.in("estado", est);
+    if (sub) x = x.eq("subcontratar", true).not("estado", "in", "(completado,cancelado)");
+    return x;
+  };
+  const [{ data, error, count }, ...cs] = await Promise.all([q, cuenta(["pendiente"]), cuenta(["asignado"]), cuenta(["aceptado", "en_camino", "recogido"]),
+    cuenta(["completado"]), cuenta(undefined, true), cuenta(["cancelado"])]);
+  const errCont = cs.some((x) => x.error);
   const a = atajos(hoy);
   const hayMas = (count ?? 0) > pagina * POR_PAGINA;
-  const kpis: [string, number][] = [["Pendientes", c.pendientes], ["Esperando respuesta", c.esperando], ["En curso", c.enCurso],
-    ["Completados", c.completados], ["Subcontratar", c.subcontratar], ["Cancelados", c.cancelados]];
+  const nombres = ["Pendientes", "Esperando respuesta", "En curso", "Completados", "Subcontratar", "Cancelados"];
+  const kpis: [string, string][] = nombres.map((t, i) => [t, errCont || cs[i].count == null ? "—" : String(cs[i].count)]);
 
   return (
     <div className="space-y-4">
@@ -82,6 +91,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
         <button className="rounded-lg border border-slate-600 px-3 py-1.5 hover:border-marca-claro">Filtrar</button>
       </form>
 
+      {errCont && <p className="text-sm text-amber-400">No se pudieron calcular los contadores del periodo.</p>}
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {kpis.map(([t, n]) => (
           <div key={t} className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2">

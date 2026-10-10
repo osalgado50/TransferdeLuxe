@@ -29,6 +29,13 @@ describe("rangoPeriodo", () => {
     expect(semanaAnterior.hastaUtc).toBe("2026-10-25T23:00:00.000Z");
     expect((Date.parse(semanaAnterior.hastaUtc) - Date.parse(semanaAnterior.desdeUtc)) / 3600e3).toBe(169);
   });
+  test("cambio de hora de primavera (29/03/2026): día de 23 h", () => {
+    const r = rangoPeriodo("dia", "2026-03-29");
+    expect(r.desdeUtc).toBe("2026-03-28T23:00:00.000Z");
+    expect(r.hastaUtc).toBe("2026-03-29T22:00:00.000Z");
+    expect((Date.parse(r.hastaUtc) - Date.parse(r.desdeUtc)) / 3600e3).toBe(23);
+    expect(rangoPeriodo("semana", "2026-03-29").inicio).toBe("2026-03-23");
+  });
   test("día 25/10/2026 dura 25 h", () => {
     const r = rangoPeriodo("dia", "2026-10-25");
     expect((Date.parse(r.hastaUtc) - Date.parse(r.desdeUtc)) / 3600e3).toBe(25);

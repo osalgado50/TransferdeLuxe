@@ -139,6 +139,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Validación de rutas de fotos**: el ticket recibía `foto_path` del cliente. Se valida que la ruta pertenezca
   al conductor y al bucket privado `tickets`; las miniaturas de la central usan URL firmadas de 1 hora.
 
+- **Contadores de la agenda truncados**: contar filas en JS se topaba con el máximo de 1000 filas de Supabase y ocultaba errores. Ahora cada tarjeta usa un `count` exacto (head) y, si falla, muestra «—» con un aviso.
 - **La demo envejece durante la evaluación**: los datos se crean relativos a «hoy», así que se añade un reinicio
   diario automático protegido con secreto, que además mantiene activo el plan gratuito de Supabase.
 - **Revisiones que encontraban fallos reales**: carreras en la cola offline, pulsaciones duplicadas, fechas
