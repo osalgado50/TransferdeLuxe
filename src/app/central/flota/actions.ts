@@ -13,10 +13,10 @@ const esquemaVehiculo = z.object({
   matricula: z.string().trim().min(1, "Matrícula obligatoria").transform((s) => s.toUpperCase()),
   modelo: z.string().trim().min(1, "Modelo obligatorio"),
   plazas: num(1, 19),
-  maletas: num(0, 30),
+  maletas: z.preprocess((v) => (v === "" || v == null ? undefined : v), num(0, 30).optional()),
   estado: z.enum(["activo", "taller"]),
   km_actuales: num(0, 5_000_000),
-});
+}).transform((d) => ({ ...d, maletas: d.maletas ?? d.plazas }));
 const esquemaConductor = z.object({
   id: z.string().uuid().optional().or(z.literal("").transform(() => undefined)),
   nombre: z.string().trim().min(1, "Nombre obligatorio"),

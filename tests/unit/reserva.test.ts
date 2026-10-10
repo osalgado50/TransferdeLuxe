@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { motivoSubcontratar, leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { esquemaReserva, serviciosDesdeReserva, crearServicios } from "@/lib/reserva/esquema";
 
 const base = {
@@ -29,6 +30,35 @@ test("tipo que no cabe → error en tipo_vehiculo_pedido", () => {
   const r = esquemaReserva.safeParse({ ...base, tipo_vehiculo_pedido: "sedan", pasajeros: "5", maletas: "6" });
   expect(r.success ? [] : r.error.flatten().fieldErrors.tipo_vehiculo_pedido).toEqual([expect.stringContaining("elige MiniVan (7 pax)")]);
   expect(esquemaReserva.safeParse({ ...base, tipo_vehiculo_pedido: "minibus", pasajeros: "19", maletas: "19" }).success).toBe(true);
+});
+
+test("motivo de subcontratación: constructor y lector coinciden", () => {
+  expect(leerMotivoSubcontratar(motivoSubcontratar(5, 6))).toBe("ningún vehículo propio cabe");
+  expect(leerMotivoSubcontratar("nuevo")).toBeNull();
+});
+
+test("12 pax en microbús sin vehículo propio → válido y subcontratar", async () => {
+  const r = esquemaReserva.safeParse({ ...base, tipo_vehiculo_pedido: "microbus", pasajeros: "12", maletas: "12" });
+  expect(r.success).toBe(true);
+  const filas: { subcontratar: boolean }[][] = [];
+  const sb = { from(t: string) { const q: Record<string, unknown> = {};
+    q.select = () => (t === "vehiculos" ? Promise.resolve({ data: [{ plazas: 8, maletas: 8, estado: "activo" }], error: null })
+      : t === "ajustes" ? { single: () => Promise.resolve({ data: { plazo_respuesta_min: 15 }, error: null }) } : Promise.resolve({ data: [{ id: "A" }], error: null }));
+    q.insert = (a: never) => { if (t === "servicios") { filas.push(a); return q; } return Promise.resolve({ error: null }); };
+    return q; } } as never;
+  await crearServicios(sb, serviciosDesdeReserva(r.success ? r.data : (null as never), "web"));
+  expect(filas[0][0].subcontratar).toBe(true);
+});
+
+test("error al leer la flota se propaga y no inserta", async () => {
+  let insertado = false;
+  const sb = { from(t: string) { const q: Record<string, unknown> = {};
+    q.select = () => (t === "vehiculos" ? Promise.resolve({ data: null, error: { message: "flota caída" } })
+      : { single: () => Promise.resolve({ data: { plazo_respuesta_min: 15 }, error: null }) });
+    q.insert = () => { insertado = true; return q; };
+    return q; } } as never;
+  await expect(crearServicios(sb, [nuevo])).rejects.toThrow("flota caída");
+  expect(insertado).toBe(false);
 });
 
 test("crearServicios marca subcontratar si ningún vehículo propio cabe, con motivo", async () => {

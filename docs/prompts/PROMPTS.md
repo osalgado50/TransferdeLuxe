@@ -462,3 +462,15 @@ sí, adelante con los tipos genéricos
 
 ---
 
+## 2026-10-10 11:40 · Claude Code · sesión `b3c0e64f`
+
+Vale, cuando termines, eh, plantea la posibilidad de crear favoritos, ¿vale? Se, si llenas una dirección tanto de destino como de recogida a mano, que haya la opción de guardarlo en una lista de favoritos por si son viajes que se repiten en el tiempo, pues tener los datos ya metidos para facilitar el trabajo.
+
+---
+
+## 2026-10-10 11:41 · Claude Code · sesión `b3c0e64f`
+
+Luego echo de menos una página con los servicios que hay programados para el día de hoy, para mañana, para pasado, incluso para todo el mes, ¿vale? Que se puedan filtrar por día, por semana, o por mes, todos los envíos que hayan registrados en la base de datos.
+
+---
+

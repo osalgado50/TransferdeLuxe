@@ -1,5 +1,6 @@
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
+import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
 import { guardarVehiculo, guardarConductor, guardarAjustes } from "./actions";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
@@ -52,8 +53,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           <span className="py-1 text-sm text-slate-400">Nuevo:</span>
           <div className="flex flex-col gap-1"><label htmlFor="nv-matricula" className="text-xs text-slate-400">Matrícula</label><input id="nv-matricula" name="matricula" placeholder="Matrícula" required className={`${campo} w-28`} /></div>
           <div className="flex flex-col gap-1"><label htmlFor="nv-modelo" className="text-xs text-slate-400">Modelo</label><input id="nv-modelo" name="modelo" placeholder="Modelo" required className={`${campo} w-40`} /></div>
-          <div className="flex flex-col gap-1"><label htmlFor="nv-plazas" className="text-xs text-slate-400">Plazas</label><input id="nv-plazas" name="plazas" type="number" min={1} max={19} defaultValue={4} className={`${campo} w-16`} /></div>
-          <div className="flex flex-col gap-1"><label htmlFor="nv-maletas" className="text-xs text-slate-400">Maletas</label><input id="nv-maletas" name="maletas" type="number" min={0} max={30} defaultValue={4} className={`${campo} w-16`} /></div>
+          <CamposNuevoVehiculo />
           <input type="hidden" name="estado" value="activo" />
           <div className="flex flex-col gap-1"><label htmlFor="nv-km" className="text-xs text-slate-400">Km</label><input id="nv-km" name="km_actuales" type="number" min={0} defaultValue={0} className={`${campo} w-28`} /></div>
           <button className={boton}>Añadir vehículo</button>

@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { duracionEstimadaMin } from "@/lib/dominio/geo";
-import { avisoCapacidad } from "@/lib/dominio/capacidad";
-import { vehiculosAptos, type VehiculoCapacidad } from "@/lib/dominio/capacidad";
+import { avisoCapacidad, vehiculosAptos, motivoSubcontratar, type VehiculoCapacidad } from "@/lib/dominio/capacidad";
 import type { Servicio } from "@/lib/dominio/tipos";
 
 const coord = z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().finite().nullable());
@@ -76,15 +75,17 @@ export function serviciosDesdeReserva(r: Reserva, origen: "web" | "manual"): Nue
 }
 
 export async function crearServicios(sb: import("@supabase/supabase-js").SupabaseClient, nuevos: NuevoServicio[]): Promise<string[]> {
-  const { data: aj } = await sb.from("ajustes").select("plazo_respuesta_min").single();
-  const { data: flota } = await sb.from("vehiculos").select("plazas, maletas, estado");
+  const { data: aj, error: eAj } = await sb.from("ajustes").select("plazo_respuesta_min").single();
+  if (eAj) throw new Error(eAj.message);
+  const { data: flota, error: eFlota } = await sb.from("vehiculos").select("plazas, maletas, estado");
+  if (eFlota) throw new Error(eFlota.message);
   const propios = (flota ?? []) as VehiculoCapacidad[];
   const filas = nuevos.map((n) => {
     const sinFlota = vehiculosAptos(propios, n.pasajeros, n.maletas).length === 0;
     return {
       ...n, plazo_respuesta_min: aj?.plazo_respuesta_min ?? 15, incidencia_vista: false,
       subcontratar: sinFlota,
-      ultima_incidencia: sinFlota ? `subcontratar: ${n.pasajeros} pax y ${n.maletas} maletas, ningún vehículo propio cabe` : "nuevo",
+      ultima_incidencia: sinFlota ? motivoSubcontratar(n.pasajeros, n.maletas) : "nuevo",
     };
   });
   const { data, error } = await sb.from("servicios").insert(filas)

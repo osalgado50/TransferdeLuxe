@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
 import DialogoAsignar from "@/components/central/DialogoAsignar";
 import type { Servicio } from "@/lib/dominio/tipos";
@@ -32,8 +33,8 @@ export function esAlerta(s: Servicio) {
 
 function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id: string | null) => string) {
   if (s.subcontratar && s.estado === "pendiente") {
-    const razon = (s.ultima_incidencia ?? "").replace(/^subcontratar:\s*.*?maletas,\s*/, "");
-    return ["Subcontratar", `Subcontratar (${s.pasajeros} pax, ${s.maletas} maletas)${razon && razon !== (s.ultima_incidencia ?? "") ? `: ${razon}` : ""}`] as const;
+    const razon = leerMotivoSubcontratar(s.ultima_incidencia);
+    return ["Subcontratar", `Subcontratar (${s.pasajeros} pax, ${s.maletas} maletas)${razon ? `: ${razon}` : ""}`] as const;
   }
   const inc = s.ultima_incidencia ?? "";
   if (inc.startsWith("rechazado")) {

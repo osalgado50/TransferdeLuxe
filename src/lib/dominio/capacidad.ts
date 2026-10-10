@@ -41,3 +41,16 @@ export function avisoCapacidad(tipo: TipoVehiculo, pax: number, maletas: number)
       : `${base}; para ${pax} pasajeros y ${maletas} maletas no hay un tipo que quepa, consúltanos`,
   };
 }
+
+const PREFIJO_SUBCONTRATAR = "subcontratar: ";
+const SUFIJO_SUBCONTRATAR = "ningún vehículo propio cabe";
+
+/** Texto guardado en ultima_incidencia cuando ningún vehículo propio cabe. */
+export function motivoSubcontratar(pax: number, maletas: number): string {
+  return `${PREFIJO_SUBCONTRATAR}${pax} pax y ${maletas} maletas, ${SUFIJO_SUBCONTRATAR}`;
+}
+/** Extrae la razón legible de un motivo de subcontratación; null si el texto no lo es. */
+export function leerMotivoSubcontratar(texto: string | null): string | null {
+  if (!texto?.startsWith(PREFIJO_SUBCONTRATAR) || !texto.endsWith(SUFIJO_SUBCONTRATAR)) return null;
+  return SUFIJO_SUBCONTRATAR;
+}
