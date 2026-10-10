@@ -4,6 +4,7 @@ import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
 import GestionFavoritos from "@/components/central/GestionFavoritos";
 import type { Favorito } from "@/lib/dominio/favoritos";
 import { guardarVehiculo, guardarConductor, guardarAjustes } from "./actions";
+import { CampoContrasena } from "@/components/comun/CampoContrasena";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
 const rejilla = "grid grid-cols-[7rem_10rem_4rem_4rem_7rem_7rem_6rem] items-center gap-2";
@@ -87,7 +88,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
             <option value="">Sin vehículo</option>
             {(vehiculos ?? []).map((v) => <option key={v.id} value={v.id}>{v.matricula} · {v.modelo}</option>)}
           </select></div>
-          {!demo && <input name="password" type="password" minLength={8} required placeholder="Contraseña (mín. 8)" aria-label="Contraseña nueva" className={`${campo} w-44`} />}
+          {!demo && <div className="flex flex-col gap-1"><label htmlFor="nc-password" className="text-xs text-slate-400">Contraseña (mín. 8)</label><div className="w-48"><CampoContrasena id="nc-password" name="password" minLength={8} required autoComplete="new-password" className={campo} /></div></div>}
           <button className={boton}>Añadir conductor</button>
         </form>
         {demo && <p className="text-xs text-slate-500">Modo demo: el conductor nuevo usa la contraseña de demo y su email debe terminar en @transferdeluxe.test.</p>}

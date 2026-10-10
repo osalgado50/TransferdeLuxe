@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { entrar } from "./actions";
+import { CampoContrasena } from "@/components/comun/CampoContrasena";
 
 export function FormularioLogin({ destino }: { destino: string }) {
   const [estado, accion, pendiente] = useActionState(entrar, {} as { error?: string });
@@ -14,7 +15,7 @@ export function FormularioLogin({ destino }: { destino: string }) {
       </div>
       <div>
         <label htmlFor="password" className="text-sm text-slate-300">Contraseña</label>
-        <input id="password" name="password" type="password" required autoComplete="current-password" className={campo} />
+        <CampoContrasena id="password" name="password" required autoComplete="current-password" className={campo} />
       </div>
       {estado.error && <p role="alert" className="text-sm text-red-400">{estado.error}</p>}
       <button type="submit" disabled={pendiente} className="w-full rounded-lg bg-marca px-4 py-2 font-semibold text-white hover:bg-marca-oscuro disabled:opacity-60">
