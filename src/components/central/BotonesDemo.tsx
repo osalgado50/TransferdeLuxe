@@ -10,7 +10,12 @@ export default function BotonesDemo() {
   const parar = () => { if (timer.current) clearInterval(timer.current); timer.current = null; setSimulando(false); };
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
 
-  const paso = () => simularPaso().catch((e) => { setError(e instanceof Error ? e.message : "Error"); parar(); });
+  const paso = () => simularPaso().catch((e) => {
+    const msg = e instanceof Error ? e.message : "Error";
+    // Tras un despliegue nuevo, las Server Actions de la página abierta quedan obsoletas: recargar la página.
+    if (/Server Action .* was not found/.test(msg)) { parar(); window.location.reload(); return; }
+    setError(msg); parar();
+  });
   const alternar = () => {
     if (simulando) return parar();
     setError(null); setSimulando(true); void paso();
