@@ -34,3 +34,10 @@ next-env.d.ts
 
 # Datos de idioma de tesseract.js generados en Node
 *.traineddata
+
+# App nativa (Expo, CNG: ios/ y android/ se generan en EAS)
+movil/node_modules/
+movil/.expo/
+movil/ios/
+movil/android/
+movil/dist/

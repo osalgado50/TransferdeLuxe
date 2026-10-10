@@ -140,6 +140,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   mismo modelo recta × 1,3 a 70 km/h sin margen de carga, plan del día, `encaja` con motivo legible). La sugerencia
   de conductores exige llegar a tiempo desde el servicio anterior y al siguiente; la hoja de ruta muestra franjas de
   traslado, confirma asignaciones inviables y sugiere el mejor conductor para cada servicio sin asignar.
+- **10/10/2026**: **app nativa TVL Conductor (N1, andamiaje)**. Proyecto Expo SDK 57 en `movil/` (Expo Router,
+  TypeScript), proyecto EAS `@osalgado/tvl-conductor`, identidad (bundle `com.transfersvipluxe.conductor`, icono
+  VIP LUXE generado con sharp, tema oscuro de marca), permisos de ubicación en segundo plano, perfiles `eas.json`,
+  cliente Supabase con AsyncStorage y login con guardia de rol conductor y cuentas de demo (Copiar/Usar).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -195,6 +199,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   el JWT caducó); y la cabecera muestra «📍 última posición enviada hace Xs», en rojo si pasa de 60 s.
   Decisiones puras testeadas en `tests/unit/gps.test.ts`. Límite que no se puede saltar: con la pantalla
   bloqueada una PWA en iOS no envía posición.
+- **App nativa dentro del repo web**: había que compartir `src/lib/dominio/*` sin que Next/tsc/eslint/vitest
+  analizasen `movil/`. Solución: `movil/` excluido en la raíz; en la app, Metro vigila `../src` y los alias
+  `@dominio/*` y `@/*` (este último para las importaciones internas de dominio) salen de `movil/tsconfig.json`.
+  `eas init` no puede escribir en `app.config.ts` dinámico: el `projectId` se añadió a mano.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
