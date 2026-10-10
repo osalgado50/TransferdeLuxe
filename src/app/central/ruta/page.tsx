@@ -2,7 +2,8 @@ import Link from "next/link";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
-import TableroRuta, { type TarjetaRuta } from "@/components/central/TableroRuta";
+import type { TarjetaRuta } from "@/components/central/TableroRuta";
+import TableroRuta from "@/components/central/TableroRutaCliente";
 
 function desplazar(dia: string, n: number): string {
   return new Date(Date.parse(`${dia}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
