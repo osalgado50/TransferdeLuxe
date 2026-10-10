@@ -20,3 +20,15 @@ export async function POST(req: Request) {
   if (error) return Response.json({ error: "No se pudo registrar el dispositivo." }, { status: 500 });
   return Response.json({ ok: true });
 }
+
+/** Al cerrar sesión: borra el token de este dispositivo, solo si pertenece al conductor que llama. */
+export async function DELETE(req: Request) {
+  const a = await exigirConductorBearer(req);
+  if (!a.ok) return a.res;
+  if (!permitir(`app-push:${a.yo.id}`, 10, 60_000)) return demasiadas();
+  const b = cuerpo.pick({ token: true }).safeParse(await leerJson(req));
+  if (!b.success) return datosNoValidos();
+  const { error } = await clienteAdmin().from("dispositivos_push").delete().eq("token", b.data.token).eq("conductor_id", a.yo.id);
+  if (error) return Response.json({ error: "No se pudo borrar el dispositivo." }, { status: 500 });
+  return Response.json({ ok: true });
+}

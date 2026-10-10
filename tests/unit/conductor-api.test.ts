@@ -17,7 +17,10 @@ vi.mock("@/lib/supabase/admin", () => ({
       if (tabla === "servicios") return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: st.servicio }) }) }) };
       return {
         select: () => ({ eq: async () => ({ data: st.tokens }) }),
-        delete: () => ({ in: async (_c: string, v: string[]) => { st.borrados.push(v); return { error: null }; } }),
+        delete: () => ({
+          in: async (_c: string, v: string[]) => { st.borrados.push(v); return { error: null }; },
+          eq: (c1: string, v1: string) => ({ eq: async (c2: string, v2: string) => { st.borrados.push([`${c1}=${v1}`, `${c2}=${v2}`]); return { error: null }; } }),
+        }),
         upsert: async (f: unknown) => { st.upserts.push(f); return { error: null }; },
       };
     },
@@ -27,7 +30,7 @@ const ej = vi.hoisted(() => ({ fn: vi.fn() }));
 vi.mock("@/lib/servicios/acciones", () => ({ ejecutarAccion: ej.fn, repoSupabase: vi.fn() }));
 
 import { POST as accion } from "@/app/api/conductor/accion/route";
-import { POST as pushToken } from "@/app/api/conductor/push-token/route";
+import { DELETE as borrarPushToken, POST as pushToken } from "@/app/api/conductor/push-token/route";
 import { notificarServicioNuevo } from "@/lib/push";
 
 const U = "11111111-1111-4111-8111-111111111111";
@@ -64,6 +67,15 @@ test("push-token valida y hace upsert", async () => {
   expect((await pushToken(req({ token: "basura", plataforma: "ios" }))).status).toBe(400);
   expect((await pushToken(req({ token: "ExponentPushToken[abc]", plataforma: "ios" }))).status).toBe(200);
   expect(st.upserts[0]).toMatchObject({ token: "ExponentPushToken[abc]", conductor_id: U, plataforma: "ios" });
+});
+test("DELETE push-token borra solo el token del conductor que llama", async () => {
+  const del = (body: unknown, auth = "Bearer bueno") =>
+    new Request("http://x/api", { method: "DELETE", headers: auth ? { authorization: auth } : {}, body: JSON.stringify(body) });
+  expect((await borrarPushToken(del({ token: "ExponentPushToken[abc]" }, ""))).status).toBe(401);
+  expect((await borrarPushToken(del({ token: "basura" }))).status).toBe(400);
+  expect(st.borrados).toEqual([]);
+  expect((await borrarPushToken(del({ token: "ExponentPushToken[abc]" }))).status).toBe(200);
+  expect(st.borrados).toEqual([["token=ExponentPushToken[abc]", `conductor_id=${U}`]]);
 });
 test("push: forma del mensaje y limpieza DeviceNotRegistered", async () => {
   st.servicio = { id: S, conductor_id: U, fecha_hora_recogida: "2026-10-10T08:30:00Z", origen_texto: "Aeropuerto", destino_texto: "Hotel" };
