@@ -56,6 +56,14 @@ const config: ExpoConfig = {
       "expo-notifications",
       { color: "#0167a9", defaultChannel: "servicios" },
     ],
+    [
+      "expo-image-picker",
+      {
+        cameraPermission: "TVL Conductor usa la cámara para fotografiar los tickets de combustible.",
+        photosPermission: "TVL Conductor accede a tus fotos para adjuntar el ticket de combustible.",
+        microphonePermission: false,
+      },
+    ],
     // Mapa nativo (MapLibre + teselas OSM, sin claves). Requiere development build: no funciona en Expo Go.
     "@maplibre/maplibre-react-native",
   ],
