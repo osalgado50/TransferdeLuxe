@@ -50,7 +50,7 @@ function Bloques({ filas }: { filas: FilaCal[] }) {
           return (
             <Link key={s.id} href={`/central/servicios/${s.id}`} title={`${trayecto(s)} · ${s.pasajeros} pax`}
               className={`absolute overflow-hidden rounded border-l-4 px-1 text-[11px] leading-tight hover:z-10 hover:brightness-125 ${COLOR[s.estado]}`}
-              style={{ top: b.top * PX_MIN, height: Math.max(14, b.height * PX_MIN - 1), left: `${(b.col / b.cols) * 100}%`, width: `calc(${100 / b.cols}% - 2px)` }}>
+              style={{ top: b.top * PX_MIN, height: Math.max(30, b.height * PX_MIN - 1), left: `${(b.col / b.cols) * 100}%`, width: `calc(${100 / b.cols}% - 2px)` }}>
               <span className="font-semibold">{hora.format(new Date(s.fecha_hora_recogida))}</span> {trayecto(s)}
               <div className="truncate">{s.pasajeros} pax · {s.conductor?.nombre ?? "sin conductor"}</div>
             </Link>
