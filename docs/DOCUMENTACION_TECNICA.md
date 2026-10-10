@@ -20,7 +20,7 @@ reparten a mano. La aplicación cubre todo el ciclo:
 Todo con datos de demostración inventados (cuentas `@transferdeluxe.test`, matrículas imposibles, clientes ficticios).
 
 **Acceso para el jurado**:
-- URL: https://darkseagreen-gnat-699073.hostingersite.com (central: `/central`, conductor en el móvil: `/conductor`, reserva pública: `/reservar`)
+- URL: https://app.transfersvipluxe.com (central: `/central`, conductor en el móvil: `/conductor`, reserva pública: `/reservar`)
 - Cuentas: `central@transferdeluxe.test` (central) y `conductor1@…`, `conductor2@…`, `conductor3@transferdeluxe.test`
   (conductores). La contraseña de prueba aparece en la propia pantalla de acceso.
 - Repositorio: https://github.com/osalgado50/TransferdeLuxe
