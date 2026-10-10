@@ -47,13 +47,13 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
             ))}
           </div>
         </div>
-        <form action={guardarVehiculo} className="flex flex-wrap items-center gap-2 border-t border-slate-700 pt-2">
-          <span className="text-sm text-slate-400">Nuevo:</span>
-          <input name="matricula" placeholder="Matrícula" aria-label="Matrícula nueva" required className={`${campo} w-28`} />
-          <input name="modelo" placeholder="Modelo" aria-label="Modelo nuevo" required className={`${campo} w-40`} />
-          <input name="plazas" type="number" min={1} max={19} defaultValue={4} aria-label="Plazas nuevo" className={`${campo} w-16`} />
+        <form action={guardarVehiculo} className="flex flex-wrap items-end gap-2 border-t border-slate-700 pt-2">
+          <span className="py-1 text-sm text-slate-400">Nuevo:</span>
+          <div className="flex flex-col gap-1"><label htmlFor="nv-matricula" className="text-xs text-slate-400">Matrícula</label><input id="nv-matricula" name="matricula" placeholder="Matrícula" required className={`${campo} w-28`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nv-modelo" className="text-xs text-slate-400">Modelo</label><input id="nv-modelo" name="modelo" placeholder="Modelo" required className={`${campo} w-40`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nv-plazas" className="text-xs text-slate-400">Plazas</label><input id="nv-plazas" name="plazas" type="number" min={1} max={19} defaultValue={4} className={`${campo} w-16`} /></div>
           <input type="hidden" name="estado" value="activo" />
-          <input name="km_actuales" type="number" min={0} defaultValue={0} aria-label="Km nuevo" className={`${campo} w-28`} />
+          <div className="flex flex-col gap-1"><label htmlFor="nv-km" className="text-xs text-slate-400">Km</label><input id="nv-km" name="km_actuales" type="number" min={0} defaultValue={0} className={`${campo} w-28`} /></div>
           <button className={boton}>Añadir vehículo</button>
         </form>
       </section>
@@ -73,15 +73,15 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
             <button className={boton}>Guardar</button>
           </form>
         ))}
-        <form action={guardarConductor} className="flex flex-wrap items-center gap-2 border-t border-slate-700 pt-2">
-          <span className="text-sm text-slate-400">Nuevo:</span>
-          <input name="nombre" placeholder="Nombre" aria-label="Nombre nuevo" required className={`${campo} w-40`} />
-          <input name="email" type="email" placeholder="conductor@transferdeluxe.test" aria-label="Email nuevo" required className={`${campo} w-56`} />
-          <input name="telefono" placeholder="Teléfono" aria-label="Teléfono nuevo" className={`${campo} w-32`} />
-          <select name="vehiculo_habitual_id" aria-label="Vehículo habitual nuevo" defaultValue="" className={campo}>
+        <form action={guardarConductor} className="flex flex-wrap items-end gap-2 border-t border-slate-700 pt-2">
+          <span className="py-1 text-sm text-slate-400">Nuevo:</span>
+          <div className="flex flex-col gap-1"><label htmlFor="nc-nombre" className="text-xs text-slate-400">Nombre</label><input id="nc-nombre" name="nombre" placeholder="Nombre" required className={`${campo} w-40`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nc-email" className="text-xs text-slate-400">Email</label><input id="nc-email" name="email" type="email" placeholder="conductor@transferdeluxe.test" required className={`${campo} w-56`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nc-telefono" className="text-xs text-slate-400">Teléfono</label><input id="nc-telefono" name="telefono" placeholder="Teléfono" className={`${campo} w-32`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nc-vehiculo" className="text-xs text-slate-400">Vehículo</label><select id="nc-vehiculo" name="vehiculo_habitual_id" defaultValue="" className={campo}>
             <option value="">Sin vehículo</option>
             {(vehiculos ?? []).map((v) => <option key={v.id} value={v.id}>{v.matricula} · {v.modelo}</option>)}
-          </select>
+          </select></div>
           {!demo && <input name="password" type="password" minLength={8} required placeholder="Contraseña (mín. 8)" aria-label="Contraseña nueva" className={`${campo} w-44`} />}
           <button className={boton}>Añadir conductor</button>
         </form>

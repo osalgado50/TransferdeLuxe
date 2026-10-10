@@ -396,3 +396,15 @@ Revisa bien si se guardan los datos en la base de datos. He creado un vehículo 
 
 ---
 
+## 2026-10-10 11:16 · Claude Code · sesión `b3c0e64f`
+
+En este campo de crear un nuevo vehículo, pon arriba los títulos de qué es cada campo. Aunque se pueda deducir, pero para que no haya confusión. Encima de matrícula le escribes matrícula, encima de modelo modelo, y así con todo.
+
+---
+
+## 2026-10-10 11:17 · Claude Code · sesión `b3c0e64f`
+
+Aflójame la correa aquí Y déjame crear con emails
+
+---
+
