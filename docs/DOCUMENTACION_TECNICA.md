@@ -240,3 +240,8 @@ Navegación del conductor llegando al destino: `docs/capturas/conductor-navegaci
 - Decisiones puras en `src/lib/dominio/gpsNativo.ts` (tests en `tests/unit/gpsNativo.test.ts`).
 - Challenge: la cola podía pisar la posición actual con fixes viejos → se envían con su hora real y el trigger de
   `posicion_actual` ya ignora filas más antiguas. El GPS en segundo plano no funciona en Expo Go: requiere development build (N7).
+- Revisión N4: un fallo de red al refrescar el token ya no para la tarea (solo un refresh token rechazado, AuthApiError
+  400/401, da la sesión por perdida → para y limpia; sin token no se puede avisar «fuera de servicio»). El flag «en servicio»
+  guarda una generación por conductor que se relee antes de cada insert/escritura (OFF en vuelo → se descarta), y al
+  apagar se espera al lote en curso antes del POST (con un reintento). Cola y último envío por conductor, filas con dueño,
+  envío en trozos de 50 y limpieza al iniciar sesión.

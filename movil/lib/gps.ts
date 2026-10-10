@@ -1,18 +1,18 @@
 // Control del GPS en servicio: permisos, arranque/parada de la tarea y estado persistido por conductor.
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Permiso } from "@dominio/gpsNativo";
+import { claveOn, type Permiso } from "@dominio/gpsNativo";
+import * as Crypto from "expo-crypto";
 import * as Location from "expo-location";
 import { API_URL } from "./config";
-import { CLAVE_ULTIMO_ENVIO, TAREA_GPS, vaciarColaGps } from "./gpsTarea";
+import { TAREA_GPS, esperarLoteEnCurso, limpiarDatosGps } from "./gpsTarea";
 import { supabase } from "./supabase";
 
-const claveOn = (conductorId: string) => `tvl:gps:on:${conductorId}`;
-
 export async function leerEnServicio(conductorId: string): Promise<boolean> {
-  return (await AsyncStorage.getItem(claveOn(conductorId)).catch(() => null)) === "1";
+  return (await AsyncStorage.getItem(claveOn(conductorId)).catch(() => null)) !== null;
 }
+/** ON guarda una generación nueva: un lote que empezó con otra (o con OFF de por medio) se descarta. */
 export const guardarEnServicio = (conductorId: string, on: boolean) =>
-  on ? AsyncStorage.setItem(claveOn(conductorId), "1") : AsyncStorage.removeItem(claveOn(conductorId));
+  on ? AsyncStorage.setItem(claveOn(conductorId), Crypto.randomUUID()) : AsyncStorage.removeItem(claveOn(conductorId));
 
 export async function permisosActuales(): Promise<{ primerPlano: Permiso; fondo: Permiso }> {
   const [a, b] = await Promise.all([Location.getForegroundPermissionsAsync(), Location.getBackgroundPermissionsAsync()]);
@@ -42,14 +42,19 @@ export async function arrancarGps(): Promise<void> {
   });
 }
 
-export async function pararGps(): Promise<void> {
+/** Apaga: quita el flag (los lotes en vuelo se descartan), espera al lote en curso, para la tarea y limpia la cola. */
+export async function pararGps(conductorId: string): Promise<void> {
+  await guardarEnServicio(conductorId, false).catch(() => undefined);
+  await esperarLoteEnCurso();
   if (await tareaCorriendo()) await Location.stopLocationUpdatesAsync(TAREA_GPS).catch(() => undefined);
-  await vaciarColaGps().catch(() => undefined);
-  await AsyncStorage.removeItem(CLAVE_ULTIMO_ENVIO).catch(() => undefined);
+  await limpiarDatosGps(conductorId).catch(() => undefined);
 }
 
 /** POST /api/conductor/fuera-de-servicio con el JWT (best effort: si falla, la central lo verá por inactividad). */
 export async function marcarFueraDeServicio(): Promise<boolean> {
+  return (await postFuera()) || (await postFuera()); // un reintento
+}
+async function postFuera(): Promise<boolean> {
   try {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) return false;

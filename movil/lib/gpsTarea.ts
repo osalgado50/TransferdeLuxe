@@ -2,7 +2,8 @@
 // quede registrada al arrancar, también cuando el SO relanza la app sin interfaz para entregar ubicaciones.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  decisionSesion, debeEnviarNativo, encolarPosicion, filaPosicion, velocidadValida, type PosicionPendiente,
+  PREFIJO_GPS, claveCola, claveOn, claveUltimo, clasificarRefresco, decidirLote, decisionSesion, debeEnviarNativo,
+  encolarPosicion, filaPosicion, filtrarCola, sigueActivo, trozos, velocidadValida, type EstadoSesionGps, type PosicionPendiente,
 } from "@dominio/gpsNativo";
 import { ENVIO_TIMEOUT_MS } from "@dominio/gps";
 import * as Location from "expo-location";
@@ -10,67 +11,81 @@ import * as TaskManager from "expo-task-manager";
 import { supabase } from "./supabase";
 
 export const TAREA_GPS = "tvl-gps-servicio";
-export const CLAVE_ULTIMO_ENVIO = "tvl:gps:ultimoEnvio";
-const CLAVE_COLA = "tvl:gps:cola";
 
-async function leerCola(): Promise<PosicionPendiente[]> {
-  try { return JSON.parse((await AsyncStorage.getItem(CLAVE_COLA)) ?? "[]") as PosicionPendiente[]; } catch { return []; }
+async function leerCola(id: string): Promise<PosicionPendiente[]> {
+  try { return filtrarCola(JSON.parse((await AsyncStorage.getItem(claveCola(id))) ?? "[]") as PosicionPendiente[], id); }
+  catch { return []; }
 }
-export const vaciarColaGps = () => AsyncStorage.removeItem(CLAVE_COLA);
 
-export async function leerUltimoEnvio(): Promise<number | null> {
-  const v = await AsyncStorage.getItem(CLAVE_ULTIMO_ENVIO).catch(() => null);
+export async function leerUltimoEnvio(id: string): Promise<number | null> {
+  const v = await AsyncStorage.getItem(claveUltimo(id)).catch(() => null);
   return v ? Number(v) : null;
 }
 
-/** Sesión válida o null (refresca si caduca en < 60 s). */
-async function sesionValida() {
-  const { data } = await supabase.auth.getSession();
-  const s = data.session;
-  const d = decisionSesion(!!s, s?.expires_at, Date.now());
-  if (d === "sin_sesion") return null;
-  if (d === "ok") return s;
-  const r = await supabase.auth.refreshSession();
-  return r.data.session ?? null;
+/** Borra cola y último envío (de un conductor o de todos). */
+export async function limpiarDatosGps(id?: string, conFlag = false): Promise<void> {
+  const claves = id ? [claveCola(id), claveUltimo(id), ...(conFlag ? [claveOn(id)] : [])]
+    : (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(PREFIJO_GPS) && (conFlag || !k.startsWith(`${PREFIJO_GPS}on:`)));
+  if (claves.length) await AsyncStorage.multiRemove(claves);
 }
 
-let enCurso = false;
+async function estadoSesion(): Promise<{ estado: EstadoSesionGps; id: string | null }> {
+  const { data } = await supabase.auth.getSession();
+  const s = data.session;
+  const id = s?.user.id ?? null;
+  const d = decisionSesion(!!s, s?.expires_at, Date.now());
+  if (d !== "refrescar") return { estado: d, id };
+  try {
+    const r = await supabase.auth.refreshSession();
+    return { estado: clasificarRefresco(!!r.data.session, r.error), id };
+  } catch { return { estado: "reintentar", id }; }
+}
 
-async function procesar(ubicaciones: Location.LocationObject[]) {
-  const ultima = ubicaciones.at(-1);
-  if (!ultima || enCurso) return;
+let enVuelo: Promise<void> | null = null;
+/** Espera al lote en curso (para no enviar «fuera de servicio» antes de que acabe un insert). */
+export const esperarLoteEnCurso = () => enVuelo ?? Promise.resolve();
+
+async function procesar(ultima: Location.LocationObject) {
   const ahora = Date.now();
-  if (!debeEnviarNativo(ahora, await leerUltimoEnvio())) return;
-  enCurso = true;
+  const { estado, id } = await estadoSesion();
+  if (!id) { await parar(); await limpiarDatosGps(undefined, true); return; }
+  const gen = await AsyncStorage.getItem(claveOn(id));
+  const activo = async () => sigueActivo(gen, await AsyncStorage.getItem(claveOn(id)));
+  const decision = decidirLote(gen !== null, estado);
+  if (decision === "parar_y_limpiar") { await parar(); await limpiarDatosGps(id, true); return; } // sin token no hay «fuera de servicio» posible
+  if (decision === "descartar") return;
+  if (!debeEnviarNativo(ahora, await leerUltimoEnvio(id))) return;
   const p: PosicionPendiente = {
-    lat: ultima.coords.latitude, lng: ultima.coords.longitude,
+    dueno: id, lat: ultima.coords.latitude, lng: ultima.coords.longitude,
     velocidad: velocidadValida(ultima.coords.speed), precision_m: ultima.coords.accuracy ?? null, ts: ultima.timestamp || ahora,
   };
-  const cola = await leerCola();
-  try {
-    let s;
-    try { s = await sesionValida(); } catch { s = undefined; } // fallo de red al refrescar: encolar
-    if (s === null) { // sesión cerrada: no hay a quién atribuir la posición
-      await Location.stopLocationUpdatesAsync(TAREA_GPS).catch(() => undefined);
-      return;
-    }
-    if (!s) { await AsyncStorage.setItem(CLAVE_COLA, JSON.stringify(encolarPosicion(cola, p))); return; }
-    const filas = [...cola, p].map((x) => filaPosicion(s.user.id, x, ahora));
+  let pendientes = [...(await leerCola(id)), p];
+  const guardar = async () => {
+    if (!(await activo())) return;
+    const cola = pendientes.slice(0, -1).reduce<PosicionPendiente[]>((c, x) => encolarPosicion(c, x), []);
+    await AsyncStorage.setItem(claveCola(id), JSON.stringify(pendientes.length ? encolarPosicion(cola, pendientes.at(-1)!) : []));
+  };
+  if (decision === "encolar") { await guardar(); return; }
+  for (const trozo of trozos(pendientes)) {
+    if (!(await activo())) return; // OFF durante el envío: no insertar
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ENVIO_TIMEOUT_MS);
     let error: unknown = null;
-    try { ({ error } = await supabase.from("posiciones").insert(filas).abortSignal(ctrl.signal)); }
+    try { ({ error } = await supabase.from("posiciones").insert(trozo.map((x) => filaPosicion(id, x, ahora))).abortSignal(ctrl.signal)); }
     catch (e) { error = e; }
     finally { clearTimeout(t); }
-    if (error) {
-      await AsyncStorage.setItem(CLAVE_COLA, JSON.stringify(encolarPosicion(cola, p)));
-      return;
-    }
-    await AsyncStorage.multiSet([[CLAVE_ULTIMO_ENVIO, String(Date.now())], [CLAVE_COLA, "[]"]]);
-  } finally { enCurso = false; }
+    if (error) { await guardar(); return; }
+    pendientes = pendientes.slice(trozo.length);
+  }
+  if (!(await activo())) return;
+  await AsyncStorage.multiSet([[claveUltimo(id), String(Date.now())], [claveCola(id), "[]"]]);
 }
 
+const parar = () => Location.stopLocationUpdatesAsync(TAREA_GPS).catch(() => undefined);
+
 TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TAREA_GPS, async ({ data, error }) => {
-  if (error || !data?.locations?.length) return;
-  try { await procesar(data.locations); } catch (e) { console.warn("[gps] tarea", e); }
+  const ultima = data?.locations?.at(-1);
+  if (error || !ultima || enVuelo) return;
+  enVuelo = procesar(ultima).catch((e) => console.warn("[gps] tarea", e)).finally(() => { enVuelo = null; });
+  await enVuelo;
 });

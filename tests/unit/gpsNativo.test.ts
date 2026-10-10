@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  alEncender, alIniciar, COLA_GPS_MAX, debeEnviarNativo, decisionSesion, encolarPosicion, filaPosicion, velocidadValida,
+  alEncender, alIniciar, clasificarRefresco, decidirLote, filtrarCola, sigueActivo, trozos, COLA_GPS_MAX, debeEnviarNativo, decisionSesion, encolarPosicion, filaPosicion, velocidadValida,
   type PosicionPendiente,
 } from "@/lib/dominio/gpsNativo";
 
-const pos = (ts: number): PosicionPendiente => ({ lat: 39.5, lng: 2.6, velocidad: 10, precision_m: 5, ts });
+const pos = (ts: number, dueno = "c1"): PosicionPendiente => ({ dueno, lat: 39.5, lng: 2.6, velocidad: 10, precision_m: 5, ts });
 
 describe("gpsNativo", () => {
   it("throttle de 12 s", () => {
@@ -47,5 +47,30 @@ describe("gpsNativo", () => {
     expect(alIniciar(true, false, "granted", "granted")).toEqual({ accion: "arrancar", estado: "en_servicio" });
     expect(alIniciar(true, true, "granted", "denied")).toEqual({ accion: "nada", estado: "solo_primer_plano" });
     expect(alIniciar(true, true, "denied", "denied")).toEqual({ accion: "parar", estado: "fuera" });
+  });
+  it("refresco: error de red conserva la sesión; refresh token rechazado la pierde", () => {
+    expect(clasificarRefresco(true, null)).toBe("ok");
+    expect(clasificarRefresco(false, null)).toBe("sin_sesion");
+    expect(clasificarRefresco(false, { name: "AuthRetryableFetchError", status: 0 })).toBe("reintentar");
+    expect(clasificarRefresco(false, { name: "AuthApiError", status: 500 })).toBe("reintentar");
+    expect(clasificarRefresco(false, { name: "AuthApiError", status: 400 })).toBe("sin_sesion");
+    expect(clasificarRefresco(false, { name: "AuthApiError", status: 401 })).toBe("sin_sesion");
+  });
+  it("lote: OFF durante el envío se descarta; sin sesión se para", () => {
+    expect(sigueActivo("g1", "g1")).toBe(true);
+    expect(sigueActivo("g1", null)).toBe(false); // apagado en vuelo
+    expect(sigueActivo("g1", "g2")).toBe(false); // apagado y vuelto a encender
+    expect(sigueActivo(null, null)).toBe(false);
+    expect(decidirLote(sigueActivo("g1", null), "ok")).toBe("descartar");
+    expect(decidirLote(true, "ok")).toBe("enviar");
+    expect(decidirLote(true, "reintentar")).toBe("encolar");
+    expect(decidirLote(false, "reintentar")).toBe("descartar");
+    expect(decidirLote(true, "sin_sesion")).toBe("parar_y_limpiar");
+  });
+  it("cola por dueño y trozos de 50", () => {
+    expect(filtrarCola([pos(1, "c1"), pos(2, "c2"), pos(3, "c1")], "c1").map((p) => p.ts)).toEqual([1, 3]);
+    const t = trozos(Array.from({ length: 120 }, (_, i) => i));
+    expect(t.map((x) => x.length)).toEqual([50, 50, 20]);
+    expect(trozos([])).toEqual([]);
   });
 });

@@ -46,6 +46,7 @@ const config: ExpoConfig = {
           "Para seguir enviando tu posición a la central con la pantalla bloqueada, permite el acceso a la ubicación «Siempre» mientras estés en servicio.",
         locationAlwaysPermission:
           "Para seguir enviando tu posición a la central con la pantalla bloqueada, permite el acceso a la ubicación «Siempre» mientras estés en servicio.",
+        motionUsagePermission: false,
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,

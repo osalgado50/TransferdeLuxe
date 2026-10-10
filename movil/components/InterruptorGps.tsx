@@ -21,12 +21,14 @@ export function InterruptorGps({ conductorId }: { conductorId: string }) {
   const desde = useRef<number | null>(null);
 
   // Al abrir y al volver a primer plano: reconciliar estado persistido, tarea y permisos (pudieron cambiar en Ajustes).
+  const ocupadoRef = useRef(false);
   const sincronizar = useCallback(async () => {
+    if (ocupadoRef.current) return; // no pisar un encendido/apagado en curso
     const [on, corriendo, p] = await Promise.all([leerEnServicio(conductorId), tareaCorriendo(), permisosActuales()]);
     const r = alIniciar(on, corriendo, p.primerPlano, p.fondo);
     try {
       if (r.accion === "arrancar") await arrancarGps();
-      if (r.accion === "parar") await pararGps();
+      if (r.accion === "parar") await pararGps(conductorId);
     } catch (e) { setError(`No se pudo reanudar el GPS: ${(e as Error).message}`); }
     if (on && r.estado === "fuera") setError("Se ha retirado el permiso de ubicación. Actívalo en Ajustes y vuelve a entrar en servicio.");
     if (r.estado !== "fuera" && desde.current === null) desde.current = Date.now();
@@ -41,46 +43,50 @@ export function InterruptorGps({ conductorId }: { conductorId: string }) {
 
   useEffect(() => {
     if (estado === "fuera") return;
-    const t = setInterval(() => { setAhora(Date.now()); void leerUltimoEnvio().then(setUltimo); }, 1000);
+    const t = setInterval(() => { setAhora(Date.now()); void leerUltimoEnvio(conductorId).then(setUltimo); }, 1000);
     return () => clearInterval(t);
-  }, [estado]);
+  }, [estado, conductorId]);
 
+  const marcar = (v: boolean) => { ocupadoRef.current = v; setOcupado(v); };
   const activar = async (pedirSiempre: boolean) => {
     setExplicando(false);
-    setOcupado(true);
+    marcar(true);
     try {
-      const fondo = pedirSiempre ? await pedirFondo() : (await permisosActuales()).fondo;
-      const r = alEncender("granted", fondo);
+      const actuales = await permisosActuales();
+      const fondo = pedirSiempre ? await pedirFondo() : actuales.fondo;
+      const r = alEncender(actuales.primerPlano, fondo);
+      if (r.error) { setError(r.error); return; }
       await arrancarGps();
       await guardarEnServicio(conductorId, true);
       desde.current = Date.now();
       setEstado(r.estado);
     } catch (e) { setError(`No se pudo arrancar el GPS: ${(e as Error).message}`); }
-    finally { setOcupado(false); }
+    finally { marcar(false); }
   };
 
   const encender = async () => {
     setError(null);
-    setOcupado(true);
+    marcar(true);
+    let modal = false; // con el modal abierto sigue «ocupado» hasta que activar() termine
     try {
       const pp = await pedirPrimerPlano(); // iOS exige «Mientras se usa» antes de «Siempre»
       const r0 = alEncender(pp, "undetermined");
       if (r0.error) { setError(r0.error); return; }
       const { fondo } = await permisosActuales();
-      if (fondo === "granted") { setOcupado(false); await activar(false); return; }
+      if (fondo === "granted") { marcar(false); await activar(false); return; }
+      modal = true;
       setExplicando(true); // pantalla explicativa antes del diálogo del sistema
-    } finally { setOcupado(false); }
+    } finally { if (!modal) marcar(false); }
   };
 
   const apagar = async () => {
-    setOcupado(true);
+    marcar(true);
     setError(null);
     try {
-      await pararGps();
-      await guardarEnServicio(conductorId, false);
+      await pararGps(conductorId);
       setEstado("fuera"); setUltimo(null); desde.current = null;
-      await marcarFueraDeServicio();
-    } finally { setOcupado(false); }
+      if (!(await marcarFueraDeServicio())) setError("No se pudo avisar a la central de «Fuera de servicio». Se dejará de ver tu posición igualmente.");
+    } finally { marcar(false); }
   };
 
   const on = estado !== "fuera";
