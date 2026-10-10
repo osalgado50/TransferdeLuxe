@@ -1,15 +1,20 @@
 import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
+import { encaja, type ServicioPlan, type EstadoTransicion } from "./planificacion";
 
-export interface ServicioParaSugerir { id: string; inicio: Date; duracionMin: number; pasajeros: number; maletas: number; origen: Punto | null }
-export interface TramoAgenda { servicioId: string; inicio: Date; fin: Date; destino: Punto | null }
+export interface ServicioParaSugerir { id: string; inicio: Date; duracionMin: number; pasajeros: number; maletas: number; origen: Punto | null;
+  destino?: Punto | null; origenTexto?: string; destinoTexto?: string }
+export interface TramoAgenda { servicioId: string; inicio: Date; fin: Date; destino: Punto | null;
+  origen?: Punto | null; origenTexto?: string; destinoTexto?: string }
 export interface Candidato {
   conductorId: string; nombre: string;
   vehiculo: { id: string; plazas: number; maletas: number; estado: "activo" | "taller" } | null;
   posicion: { punto: Punto; registradoEn: Date } | null;
   agenda: TramoAgenda[];
 }
-export interface Sugerencia { conductorId: string; nombre: string; apto: boolean; motivos: string[]; distanciaKm: number | null }
+export interface Sugerencia { conductorId: string; nombre: string; apto: boolean; motivos: string[]; distanciaKm: number | null;
+  /** Peor margen (min) de llegada entre el servicio anterior y el siguiente; null si no hay datos. */
+  margenMin?: number | null; viabilidad?: EstadoTransicion }
 
 const MIN = 60_000;
 const VENTANA_GPS_MIN = 60;
@@ -30,7 +35,24 @@ export function sugerirConductores(s: ServicioParaSugerir, candidatos: Candidato
       if (c.vehiculo.maletas < s.maletas) { apto = false; motivos.push(`Vehículo con ${c.vehiculo.maletas} maletas (necesita ${s.maletas})`); }
     }
     const otros = c.agenda.filter((t) => t.servicioId !== s.id);
+    let margenMin: number | null = null;
+    let viabilidad: EstadoTransicion = "desconocido";
     if (otros.some((t) => t.inicio < fin && s.inicio < t.fin)) { apto = false; motivos.push("Ocupado a esa hora"); }
+    else {
+      const plan: ServicioPlan[] = otros.map((t) => ({ id: t.servicioId, inicio: t.inicio, duracionMin: (t.fin.getTime() - t.inicio.getTime()) / MIN,
+        origen: t.origen ?? null, destino: t.destino, origenTexto: t.origenTexto, destinoTexto: t.destinoTexto }));
+      const e = encaja({ id: s.id, inicio: s.inicio, duracionMin: s.duracionMin, origen: s.origen, destino: s.destino ?? null,
+        origenTexto: s.origenTexto, destinoTexto: s.destinoTexto }, plan);
+      const margenes = [e.anterior, e.siguiente].map((t) => t?.margenMin).filter((m): m is number => m != null);
+      margenMin = margenes.length ? Math.min(...margenes) : null;
+      viabilidad = e.peor?.estado ?? "ok";
+      const desde = e.anterior?.desdeTexto ? ` desde ${e.anterior.desdeTexto}` : " desde su servicio anterior";
+      const hacia = e.siguiente?.hastaTexto ? ` a ${e.siguiente.hastaTexto}` : "";
+      if (e.anterior?.estado === "no_llega") { apto = false; motivos.push(`No llega a tiempo${desde}`); }
+      else if (e.anterior?.margenMin != null) motivos.push(`Llega con ${e.anterior.margenMin} min de margen${desde}`);
+      if (e.siguiente?.estado === "no_llega") { apto = false; motivos.push(`No llega a tiempo al siguiente servicio${hacia}`); }
+      else if (e.siguiente?.estado === "justo") motivos.push(`Justo para el siguiente servicio${hacia} (${e.siguiente.margenMin} min de margen)`);
+    }
 
     let distancia: number | null = null;
     const gpsValido = c.posicion && ahora.getTime() - c.posicion.registradoEn.getTime() <= GPS_VALIDO_MIN * MIN;
@@ -45,9 +67,12 @@ export function sugerirConductores(s: ServicioParaSugerir, candidatos: Candidato
       }
     }
     if (apto) motivos.push("Libre a esa hora");
-    return { conductorId: c.conductorId, nombre: c.nombre, apto, motivos, distanciaKm: distancia };
+    return { conductorId: c.conductorId, nombre: c.nombre, apto, motivos, distanciaKm: distancia, margenMin, viabilidad };
   });
 
+  const rango = (x: Sugerencia) => (x.viabilidad === "justo" ? 1 : 0);
   return res.sort((a, b) =>
-    a.apto !== b.apto ? (a.apto ? -1 : 1) : (a.distanciaKm ?? Infinity) - (b.distanciaKm ?? Infinity));
+    a.apto !== b.apto ? (a.apto ? -1 : 1)
+      : rango(a) !== rango(b) ? rango(a) - rango(b)
+      : (a.distanciaKm ?? Infinity) - (b.distanciaKm ?? Infinity) || (b.margenMin ?? -Infinity) - (a.margenMin ?? -Infinity));
 }

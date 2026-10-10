@@ -14,10 +14,11 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
   const desde = madridAUtc(dia, "00:00");
   const hasta = madridAUtc(desplazar(dia, 1), "00:00");
   const sb = await clienteServidor();
-  const [{ data: conductores, error: errC }, { data: servicios, error }] = await Promise.all([
+  const [{ data: conductores, error: errC }, { data: servicios, error }, { data: vehiculos }] = await Promise.all([
     sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor").order("nombre"),
-    sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros")
+    sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng")
       .gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta).neq("estado", "cancelado").order("fecha_hora_recogida"),
+    sb.from("vehiculos").select("id,plazas,maletas,estado"),
   ]);
   const enlace = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-600 px-3 py-1.5 hover:border-marca-claro";
   return (
@@ -30,7 +31,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
         <Link href="/central/ruta" className="inline-flex min-h-11 items-center px-2 text-sm text-marca-claro hover:underline">Hoy</Link>
       </div>
       {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
-        : <TableroRuta servicios={(servicios ?? []) as TarjetaRuta[]} conductores={conductores ?? []} />}
+        : <TableroRuta servicios={(servicios ?? []) as TarjetaRuta[]} conductores={conductores ?? []} vehiculos={vehiculos ?? []} />}
     </div>
   );
 }

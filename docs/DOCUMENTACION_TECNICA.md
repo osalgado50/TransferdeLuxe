@@ -76,6 +76,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 14. **Favoritos**: el operador guarda «Aeropuerto de Reus» o el trayecto Reus → Salou (4 pax, MiniVan) y lo reutiliza en un clic al dar de alta un servicio telefónico.
 15. **Calendario de servicios**: la central alterna «Lista | Calendario», ve los servicios sobre una rejilla horaria (día/semana) o por chips (mes) coloreados por estado, y abre la ficha con un clic.
 16. **Navegación del conductor**: con el servicio aceptado, en camino o con pasajeros, el conductor ve en la app su posición, la ruta por carretera hasta la recogida o el destino y «Hacia la recogida · 4,2 km · 7 min»; a 500 m suena un aviso «Estás llegando…», la central ve «Llegando» y, al llegar (100 m), se resalta el botón CARGA/DESCARGA.
+17. **Planificación con tiempos**: en la hoja de ruta cada servicio muestra «13:00 → 13:45 · 45 min» y, entre dos servicios del mismo conductor, una franja «🚗 Barcelona T1 → Tarragona · 1 h 10 min · llega 15:20 · 40 min de margen» (verde/ámbar/roja). Al arrastrar un servicio a un conductor que no llegaría a tiempo se pide confirmación con el motivo; los servicios sin asignar proponen «💡 Mejor: …» con botón «Asignar».
 
 ## 5. Proceso iterativo con la IA
 - **09/10/2026**: preparación del entorno. Repo nuevo, reglas de las bases en `CLAUDE.md` para que el
@@ -135,6 +136,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   usuario, fallback en línea recta), helpers puros `navegacion.ts` con TDD (objetivo, proximidad con histéresis,
   formatos es-ES, distancia restante sobre la polilínea), mapa con punto azul + precisión, ruta, «Centrar»,
   avisos de proximidad (vibración + pitido + banner) y evento `llegando_*` que la central muestra como «Llegando».
+- **10/10/2026**: **planificación con tiempos**. Módulo puro `planificacion.ts` con TDD (traslado en vacío con el
+  mismo modelo recta × 1,3 a 70 km/h sin margen de carga, plan del día, `encaja` con motivo legible). La sugerencia
+  de conductores exige llegar a tiempo desde el servicio anterior y al siguiente; la hoja de ruta muestra franjas de
+  traslado, confirma asignaciones inviables y sugiere el mejor conductor para cada servicio sin asignar.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto

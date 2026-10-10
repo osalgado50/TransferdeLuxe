@@ -534,3 +534,15 @@ sí, adelante con el mapa y los avisos
 
 ---
 
+## 2026-10-10 12:52 · Claude Code · sesión `b3c0e64f`
+
+Cuando en la hoja de ruta asignamos eh, trabajos a los conductores, eh, estaría bien que hicieras un pequeño cálculo de qué le puede costar en tiempo aproximado cada servicio por si el gestor pone un trabajo que no podría llegar a tiempo porque no es lo mismo ir de Reus a Barcelona que de Reus al aeropuerto. Y si después le pones un servicio que está en Tarragona y el coche ha terminado en Barcelona, esa casuística tendrías que contemplarla para optimizar los servicios, ¿no? Si un coche está en Barcelona y hay un servicio en Barcelona, pues los servicios de SIN asignar ponga pues eh, yo qué sé, la IA está en Barcelona, pues este sería bueno asignársela a la IA porque estará allí. ¿Me explico cómo va el tema?
+
+---
+
+## 2026-10-10 12:53 · Claude Code · sesión `b3c0e64f`
+
+sí, adelante con la planificación de tiempos
+
+---
+

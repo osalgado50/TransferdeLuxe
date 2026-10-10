@@ -42,7 +42,7 @@ export async function obtenerSugerencias(servicioId: string) {
     sb.from("perfiles").select("id, nombre, vehiculo_habitual_id").eq("rol", "conductor"),
     sb.from("vehiculos").select("*"),
     sb.from("posicion_actual").select("*"),
-    sb.from("servicios").select("id, conductor_id, fecha_hora_recogida, duracion_estimada_min, destino_lat, destino_lng")
+    sb.from("servicios").select("id, conductor_id, fecha_hora_recogida, duracion_estimada_min, origen_lat, origen_lng, destino_lat, destino_lng, origen_texto, destino_texto")
       .in("estado", ["asignado", "aceptado", "en_camino", "recogido"]).gte("fecha_hora_recogida", desde).lte("fecha_hora_recogida", hasta),
   ]);
   const candidatos: Candidato[] = (conductores ?? []).map((c) => {
@@ -55,12 +55,16 @@ export async function obtenerSugerencias(servicioId: string) {
       agenda: (agenda ?? []).filter((a) => a.conductor_id === c.id).map((a) => {
         const i = new Date(a.fecha_hora_recogida);
         return { servicioId: a.id, inicio: i, fin: new Date(i.getTime() + a.duracion_estimada_min * 60_000),
-          destino: a.destino_lat != null ? { lat: a.destino_lat, lng: a.destino_lng } : null };
+          destino: a.destino_lat != null ? { lat: a.destino_lat, lng: a.destino_lng } : null,
+          origen: a.origen_lat != null ? { lat: a.origen_lat, lng: a.origen_lng } : null,
+          origenTexto: a.origen_texto, destinoTexto: a.destino_texto };
       }),
     };
   });
   const origen = s.origen_lat != null ? { lat: s.origen_lat, lng: s.origen_lng } : null;
-  return sugerirConductores({ id: s.id, inicio, duracionMin: s.duracion_estimada_min, pasajeros: s.pasajeros, maletas: s.maletas, origen }, candidatos, new Date())
+  const destino = s.destino_lat != null ? { lat: s.destino_lat, lng: s.destino_lng } : null;
+  return sugerirConductores({ id: s.id, inicio, duracionMin: s.duracion_estimada_min, pasajeros: s.pasajeros, maletas: s.maletas, origen,
+    destino, origenTexto: s.origen_texto, destinoTexto: s.destino_texto }, candidatos, new Date())
     .map((sg) => {
       const v = vehiculos?.find((x) => x.id === conductores?.find((c) => c.id === sg.conductorId)?.vehiculo_habitual_id);
       return { ...sg, vehiculoId: v?.id ?? null, matricula: v?.matricula ?? null };
