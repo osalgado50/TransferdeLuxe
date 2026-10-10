@@ -390,3 +390,9 @@ Vamos a hacerlo un poquito más corporativo. Eh, en la página web búscate el l
 
 ---
 
+## 2026-10-10 11:08 · Claude Code · sesión `b3c0e64f`
+
+Revisa bien si se guardan los datos en la base de datos. He creado un vehículo y un conductor y, y no se han guardado.
+
+---
+

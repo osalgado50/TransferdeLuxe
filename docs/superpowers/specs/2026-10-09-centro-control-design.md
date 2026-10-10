@@ -21,7 +21,10 @@ Construimos **TransferdeLuxe**: una web app con tres piezas:
 datos persistentes, interfaz usable, desplegada y probable por el jurado del 20 al 27/10/2026.
 
 **Restricciones:** todo el código generado por IA; sin datos personales ni credenciales reales (solo datos de demo
-inventados, sin nombre, marca ni contacto de la empresa real); secretos en `.env`; entrega 19/10/2026 23:59.
+inventados; secretos en `.env`; entrega 19/10/2026 23:59.
+**Cambio 10/10/2026:** a petición del responsable, la app usa la imagen corporativa real de la empresa (logotipo
+TVL VIP Transfers y azul de marca, descargados de su propia web). Los datos de demo siguen siendo ficticios y no se
+muestran teléfonos, emails ni direcciones reales de la empresa.
 
 ## 2. Decisiones tomadas
 

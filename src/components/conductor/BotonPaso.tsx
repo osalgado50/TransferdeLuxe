@@ -41,7 +41,7 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
         <Link href={siguienteId ? `/conductor/servicio/${siguienteId}` : "/conductor"} className="flex min-h-14 items-center justify-center rounded-xl bg-marca text-lg font-semibold text-white">
           {siguienteId ? "Siguiente servicio de hoy" : "Volver a Hoy"}
         </Link>
-        {pendientes > 0 && <p className="text-sm text-marca-claro">⏳ pendiente de enviar ({pendientes})</p>}
+        {pendientes > 0 && <p className="text-sm text-amber-300">⏳ pendiente de enviar ({pendientes})</p>}
       </div>
     );
   }
@@ -64,7 +64,7 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
   return (
     <div className="space-y-2">
       {paso && <button onClick={pulsar} disabled={pendientes > 0} className="min-h-16 w-full rounded-xl bg-marca text-lg font-bold text-white disabled:opacity-50">{paso.etiqueta}</button>}
-      {pendientes > 0 && <p className="text-sm text-marca-claro">⏳ pendiente de enviar ({pendientes})</p>}
+      {pendientes > 0 && <p className="text-sm text-amber-300">⏳ pendiente de enviar ({pendientes})</p>}
       {atascada && (
         <button onClick={descartar} className="min-h-12 w-full rounded-xl border border-red-400 text-sm font-semibold text-red-300">
           Descartar (no se pudo enviar tras {atascada.intentos} intentos)

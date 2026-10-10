@@ -2021,7 +2021,7 @@ export default function manifest(): MetadataRoute.Manifest {
 }
 ```
 Iconos: generarlos con un script Node (`sharp` como devDependency) a partir de un SVG con las letras «TdL» sobre
-fondo `#0f172a`; guardar el script en `scripts/iconos.ts`.
+fondo `#0f172a`; guardar el script en `scripts/marca.ts`.
 
 `public/sw.js` (mínimo para instalabilidad; sin caché agresiva para no servir datos viejos):
 ```js

@@ -81,7 +81,7 @@ export default function ColumnaAlertas({ servicios, eventos, conductores }: {
         const [tipo, texto] = textoAlerta(s, eventos, nombre);
         return (
           <article key={s.id} data-alerta={tipo} className="rounded-xl border border-slate-700 bg-slate-900 p-3">
-            <p className="text-sm font-medium text-marca-claro">{texto}</p>
+            <p className="text-sm font-medium text-amber-300">{texto}</p>
             <p className="text-xs text-slate-400">
               {new Date(s.fecha_hora_recogida).toLocaleString("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" })} · {s.cliente_nombre} · {s.origen_texto} → {s.destino_texto}
             </p>
