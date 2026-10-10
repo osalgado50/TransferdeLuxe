@@ -46,7 +46,7 @@ const config: ExpoConfig = {
           "Para seguir enviando tu posición a la central con la pantalla bloqueada, permite el acceso a la ubicación «Siempre» mientras estés en servicio.",
         locationAlwaysPermission:
           "Para seguir enviando tu posición a la central con la pantalla bloqueada, permite el acceso a la ubicación «Siempre» mientras estés en servicio.",
-        motionUsagePermission: false,
+        motionUsagePermission: "TVL Conductor usa los sensores de movimiento del dispositivo para mejorar la precisión de la ubicación durante los servicios.",
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
