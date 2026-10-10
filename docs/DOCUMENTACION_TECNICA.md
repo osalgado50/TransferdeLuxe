@@ -184,6 +184,17 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **GPS solo con la app abierta**: una web no puede seguir la ubicación en segundo plano; la navegación funciona
   mientras la pantalla del servicio está abierta. Para probar sin moverse, en desarrollo `?simular=lat,lng` fija
   una posición (y no envía el aviso a la central para no tocar datos reales).
+- **Huecos de GPS en iPhone (hasta 30 min sin posiciones con la app abierta)**: en producción el conductor enviaba
+  cada ~15 s mientras todo iba bien y luego dejaba de enviar durante minutos. iOS solo da GPS a una web en primer
+  plano y, al bloquear la pantalla o cambiar de app, mata el `watchPosition` y a menudo no lo reanuda al volver;
+  nuestro código nunca lo reiniciaba. Además un insert colgado (red móvil) dejaba la promesa `pendiente` sin
+  resolver y bloqueaba todos los envíos siguientes. Solución: gestor único de GPS por página
+  (`src/lib/gps/gestor.ts`) compartido por el interruptor y la navegación, que reinicia el watch al volver a primer
+  plano (`visibilitychange`/`pageshow`/`online`) y con un watchdog si pasan 30 s sin fix, con `getCurrentPosition`
+  de respaldo; el insert tiene timeout de 10 s, los errores se registran y se reintenta (refrescando la sesión si
+  el JWT caducó); y la cabecera muestra «📍 última posición enviada hace Xs», en rojo si pasa de 60 s.
+  Decisiones puras testeadas en `tests/unit/gps.test.ts`. Límite que no se puede saltar: con la pantalla
+  bloqueada una PWA en iOS no envía posición.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

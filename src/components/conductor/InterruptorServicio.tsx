@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clienteNavegador } from "@/lib/supabase/navegador";
 import { fueraDeServicio } from "@/app/conductor/actions";
+import { suscribirGps } from "@/lib/gps/gestor";
+import { debeEnviar, ENVIO_TIMEOUT_MS, estadoEnvio } from "@/lib/dominio/gps";
 
-const CADA_MS = 15_000;
 export const EVENTO_APAGAR = "tdl-apagar";
 
 export default function InterruptorServicio({ conductorId }: { conductorId: string }) {
@@ -14,43 +15,49 @@ export default function InterruptorServicio({ conductorId }: { conductorId: stri
   const [errorEnvio, setErrorEnvio] = useState(false);
   const [ultimo, setUltimo] = useState<number | null>(null);
   const [, setTick] = useState(0);
-  const watch = useRef<number | null>(null);
+  const quitar = useRef<(() => void) | null>(null);
   const ultimoEnvio = useRef(0);
   const gen = useRef(0);
   const pendiente = useRef<Promise<unknown> | null>(null);
+  const pendienteDesde = useRef<number | null>(null);
 
   const detener = useCallback(() => {
     gen.current++;
-    if (watch.current !== null) { navigator.geolocation.clearWatch(watch.current); watch.current = null; }
+    quitar.current?.(); quitar.current = null;
   }, []);
 
+  const enviar = useCallback((pos: GeolocationPosition, g: number) => {
+    const ahora = Date.now();
+    if (!debeEnviar(ahora, ultimoEnvio.current, pendienteDesde.current)) return;
+    if (g !== gen.current) return; // se apagó el servicio: no enviar
+    const sb = clienteNavegador();
+    pendienteDesde.current = ahora;
+    const p = Promise.resolve(sb.from("posiciones").insert({
+      conductor_id: conductorId, lat: pos.coords.latitude, lng: pos.coords.longitude,
+      velocidad: pos.coords.speed, precision_m: pos.coords.accuracy,
+    }).abortSignal(AbortSignal.timeout(ENVIO_TIMEOUT_MS))).then(({ error }) => {
+      if (error) {
+        console.warn("[gps] error al enviar posición", error.code, error.message);
+        setErrorEnvio(true);
+        if (/jwt|token|401|PGRST30/i.test(`${error.code} ${error.message}`)) void sb.auth.refreshSession();
+        return; // sin throttle: reintenta en el próximo fix
+      }
+      ultimoEnvio.current = ahora; setUltimo(ahora); setErrorEnvio(false);
+    }, (e) => { console.warn("[gps] envío fallido", e); setErrorEnvio(true); })
+      .finally(() => { if (pendiente.current === p) { pendiente.current = null; pendienteDesde.current = null; } });
+    pendiente.current = p;
+  }, [conductorId]);
+
   const iniciar = useCallback(() => {
-    if (watch.current !== null) return;
-    if (!("geolocation" in navigator)) { setAviso("Este dispositivo no permite usar la ubicación"); return; }
+    if (quitar.current) return;
     setAviso(null);
     const g = ++gen.current;
-    watch.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        setAviso(null);
-        const ahora = Date.now();
-        if (ahora - ultimoEnvio.current < CADA_MS || pendiente.current) return;
-        if (g !== gen.current) return; // se apagó el servicio: no enviar
-        const p = Promise.resolve(clienteNavegador().from("posiciones").insert({
-          conductor_id: conductorId, lat: pos.coords.latitude, lng: pos.coords.longitude,
-          velocidad: pos.coords.speed, precision_m: pos.coords.accuracy,
-        })).then(({ error }) => {
-          if (error) { setErrorEnvio(true); return; } // sin throttle: reintenta en el próximo fix
-          ultimoEnvio.current = ahora; setUltimo(ahora); setErrorEnvio(false);
-        }, () => setErrorEnvio(true)).finally(() => { pendiente.current = null; });
-        pendiente.current = p;
-      },
-      (err) => {
-        setAviso(err.code === err.PERMISSION_DENIED ? "Activa la ubicación para que la central te vea"
-          : "No se puede obtener tu ubicación; comprueba la señal GPS");
-      },
-      { enableHighAccuracy: true, maximumAge: 10_000 },
-    );
-  }, [conductorId]);
+    quitar.current = suscribirGps({
+      fix: (pos) => { setAviso(null); enviar(pos, g); },
+      error: (err) => setAviso(err.code === err.PERMISSION_DENIED ? "Activa la ubicación para que la central te vea"
+        : "No se puede obtener tu ubicación; comprueba la señal GPS"),
+    });
+  }, [enviar]);
 
   // Apagar: parar el GPS, esperar el envío en vuelo y solo entonces marcar fuera de servicio.
   const apagar = useCallback(async () => {
@@ -87,7 +94,7 @@ export default function InterruptorServicio({ conductorId }: { conductorId: stri
     if (!nuevo) { setUltimo(null); setAviso(null); setErrorEnvio(false); ultimoEnvio.current = 0; void apagar(); }
   }
 
-  const hace = ultimo ? Math.max(0, Math.round((Date.now() - ultimo) / 1000)) : null;
+  const est = estadoEnvio(Date.now(), ultimo);
   return (
     <div className="flex flex-col items-end gap-1">
       <button type="button" onClick={alternar} aria-pressed={activo} disabled={!listo}
@@ -95,8 +102,8 @@ export default function InterruptorServicio({ conductorId }: { conductorId: stri
         {activo ? "En servicio" : "Fuera de servicio"}
       </button>
       {activo && !aviso && (
-        <span className={`text-xs ${errorEnvio ? "text-red-400" : "text-slate-400"}`}>
-          {errorEnvio ? "📍 error al enviar" : `📍 enviando${hace !== null ? ` · hace ${hace}s` : " · esperando GPS…"}`}
+        <span role="status" className={`text-xs ${errorEnvio || est.alerta ? "rounded bg-red-600 px-2 py-0.5 font-semibold text-white" : "text-slate-400"}`}>
+          {est.texto}{errorEnvio ? " · error al enviar, reintentando" : ""}
         </span>
       )}
       {activo && aviso && <p role="alert" className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white">{aviso}</p>}

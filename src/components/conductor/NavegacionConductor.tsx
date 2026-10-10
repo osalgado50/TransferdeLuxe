@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapaNavegacion from "@/components/mapa/MapaNavegacionCarga";
 import { distanciaKm } from "@/lib/dominio/geo";
 import { EVENTO_RESALTAR, faseProximidad, formatoDistancia, formatoDuracion, restanteEnRuta, type Fase, type Objetivo } from "@/lib/dominio/navegacion";
+import { suscribirGps } from "@/lib/gps/gestor";
 import { avisarLlegando } from "@/app/conductor/actions";
 import type { Punto } from "@/lib/dominio/tipos";
 
@@ -63,13 +64,11 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
       const [lat, lng] = sim.split(",").map(Number);
       if (Number.isFinite(lat) && Number.isFinite(lng)) { simulado.current = true; setPos({ lat, lng, precision: 25 }); return; }
     }
-    if (!("geolocation" in navigator)) { setAvisoGps("Este dispositivo no permite usar la ubicación"); return; }
-    const id = navigator.geolocation.watchPosition(
-      (p) => { setAvisoGps(null); setPos({ lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy }); },
-      (e) => setAvisoGps(e.code === e.PERMISSION_DENIED ? "Permite la ubicación en el navegador para ver tu posición y la distancia restante" : "Buscando señal GPS…"),
-      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
+    // GPS compartido con el interruptor «En servicio» (un solo watch por página, con watchdog).
+    return suscribirGps({
+      fix: (p) => { setAvisoGps(null); setPos({ lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy }); },
+      error: (e) => setAvisoGps(e.code === e.PERMISSION_DENIED ? "Permite la ubicación en el navegador para ver tu posición y la distancia restante" : "Buscando señal GPS…"),
+    });
   }, []);
 
   // Desbloquear el audio con el primer gesto del usuario.
