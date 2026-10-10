@@ -213,3 +213,16 @@ Navegación del conductor llegando al destino: `docs/capturas/conductor-navegaci
 - Endpoints `POST /api/conductor/{accion,llegando,fuera-de-servicio,push-token}` con `Authorization: Bearer` (validado con `auth.getUser`), zod y límite por usuario; `/api/ruta` acepta también Bearer.
 - Tabla `dispositivos_push` (migración 0008, RLS) y `src/lib/push.ts`: aviso «Servicio nuevo» vía Expo tras asignar/reasignar (con `after()`, nunca rompe la asignación; borra tokens `DeviceNotRegistered`).
 - Challenge: compartir la lógica de «llegando»/«fuera de servicio» entre server actions y API → extraída a `src/lib/servicios/llegando.ts`.
+
+### App nativa N3 — Pantallas del conductor (10/10/2026)
+- Pestañas Hoy (+ Próximos 7 días), Historial y Ticket («Próximamente»), cabecera con nombre y «Salir»; datos con
+  Supabase (RLS) y recarga en vivo (Realtime con `setAuth` antes de suscribirse y al renovar el token; reconexión y
+  vuelta a primer plano → recarga).
+- «Servicio nuevo» a pantalla completa (cuenta atrás, ACEPTAR / Rechazar con motivos, «Ver más tarde», vibración,
+  reconciliación cada 20 s) y pantalla del servicio (botón de paso, Google Maps / Waze / Llamar, «¡Servicio terminado!»).
+- Cola offline: se reutiliza `ColaAcciones` de la web con un almacén en memoria respaldado por AsyncStorage; el envío
+  va a `/api/conductor/accion` con Bearer (`src/lib/offline/accionApi.ts`, 401 → refresco y un reintento; 429/5xx/red
+  se conservan; 4xx de negocio se descartan y se muestran). Drenaje al arrancar, al volver a primer plano, al
+  recuperar la red (NetInfo) y cada 20 s.
+- Challenge: `madridAUtc` reparseaba la salida de `toLocaleString`, que Hermes no admite («Date value out of
+  bounds» en el simulador). Se movió a `src/lib/dominio/dias.ts` calculando el desfase con `formatToParts`.

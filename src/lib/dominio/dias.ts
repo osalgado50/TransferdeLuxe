@@ -1,11 +1,18 @@
 import { diaMadrid } from "./geo";
 
+const partes = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Europe/Madrid", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+});
+/** Diferencia (ms) entre la hora de pared de Madrid y UTC en el instante t. Sin reparsear cadenas (Hermes no lo admite). */
+function desfaseMadrid(t: number): number {
+  const p = Object.fromEntries(partes.formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - Math.floor(t / 1000) * 1000;
+}
+
 /** Hora local de Madrid («YYYY-MM-DD», «HH:MM») → instante UTC ISO. */
 export function madridAUtc(fecha: string, hora: string): string {
-  const guess = new Date(`${fecha}T${hora}:00Z`);
-  const enMadrid = new Date(guess.toLocaleString("en-US", { timeZone: "Europe/Madrid" }));
-  const offset = enMadrid.getTime() - new Date(guess.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
-  return new Date(guess.getTime() - offset).toISOString();
+  const guess = Date.parse(`${fecha}T${hora}:00Z`);
+  return new Date(guess - desfaseMadrid(guess)).toISOString();
 }
 
 /** Día de Madrid desplazado n días (n puede ser negativo). */
