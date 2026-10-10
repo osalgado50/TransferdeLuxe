@@ -38,3 +38,6 @@ body {
   main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) { min-height: 44px; }
   .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; }
 }
+
+/* Mapa de navegación del conductor: los controles quedan bajo el banner superior */
+.mapa-nav .leaflet-top { top: 4.25rem; }

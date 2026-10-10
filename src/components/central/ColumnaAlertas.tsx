@@ -57,9 +57,8 @@ export default function ColumnaAlertas({ servicios, eventos, conductores }: {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setAhora(new Date()), 60_000); return () => clearInterval(t); }, []);
   const llegando = useMemo(() => servicios.flatMap((s) => {
-    if (!llegandoReciente(eventos, s.id, ahora)) return [];
-    const ev = eventos.filter((e) => e.servicio_id === s.id).sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
-    return [{ s, ev }];
+    const ev = llegandoReciente(eventos, s, ahora);
+    return ev ? [{ s, ev }] : [];
   }), [servicios, eventos, ahora]);
   const [error, setError] = useState<string | null>(null);
 

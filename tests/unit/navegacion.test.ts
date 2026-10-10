@@ -49,15 +49,22 @@ test("restanteEnRuta sigue la polilínea desde el punto más cercano", () => {
   expect(restanteEnRuta([[41, 1]], { lat: 41.01, lng: 1 }).restanteM).toBeGreaterThan(1100);
 });
 
-test("llegandoReciente y etiquetas", () => {
+test("llegandoReciente: último evento real, ventana de 20 min y estado coherente", () => {
   const ahora = new Date("2026-10-10T10:00:00Z");
+  // Forma real: la central carga todos los eventos de los últimos 20 min (cualquier tipo) + los rechazos.
   const ev = [
-    { servicio_id: "a", tipo: "en_camino", creado_en: "2026-10-10T09:30:00Z" },
-    { servicio_id: "a", tipo: "llegando_recogida", creado_en: "2026-10-10T09:50:00Z" },
+    { id: 1, servicio_id: "a", tipo: "en_camino", creado_en: "2026-10-10T09:45:00Z" },
+    { id: 2, servicio_id: "a", tipo: "llegando_recogida", creado_en: "2026-10-10T09:50:00Z" },
+    { id: 3, servicio_id: "b", tipo: "llegando_destino", creado_en: "2026-10-10T09:58:00Z" },
   ];
-  expect(llegandoReciente(ev, "a", ahora)).toBe(true);
-  expect(llegandoReciente(ev, "a", new Date("2026-10-10T10:30:00Z"))).toBe(false);
-  expect(llegandoReciente([...ev, { servicio_id: "a", tipo: "recogido", creado_en: "2026-10-10T09:55:00Z" }], "a", ahora)).toBe(false);
+  expect(llegandoReciente(ev, { id: "a", estado: "en_camino" }, ahora)?.id).toBe(2);
+  expect(llegandoReciente(ev, { id: "a", estado: "aceptado" }, ahora)?.id).toBe(2);
+  expect(llegandoReciente(ev, { id: "a", estado: "recogido" }, ahora)).toBeNull(); // ya cargó: no es vigente
+  expect(llegandoReciente(ev, { id: "a", estado: "en_camino" }, new Date("2026-10-10T10:30:00Z"))).toBeNull();
+  expect(llegandoReciente([...ev, { id: 4, servicio_id: "a", tipo: "recogido", creado_en: "2026-10-10T09:55:00Z" }], { id: "a", estado: "en_camino" }, ahora)).toBeNull();
+  expect(llegandoReciente(ev, { id: "b", estado: "recogido" }, ahora)?.id).toBe(3);
+  expect(llegandoReciente(ev, { id: "b", estado: "completado" }, ahora)).toBeNull();
+  expect(llegandoReciente(ev, { id: "c", estado: "en_camino" }, ahora)).toBeNull();
   expect(etiquetaEvento("llegando_destino")).toBe("Llegando al destino");
   expect(etiquetaEvento("aceptado")).toBe("aceptado");
 });
@@ -76,6 +83,7 @@ test("obtenerRuta usa OSRM y cachea", async () => {
 });
 
 test("obtenerRuta cae a línea recta si OSRM falla", async () => {
+  vi.useFakeTimers();
   for (const f of [vi.fn(async () => { throw new Error("red"); }), vi.fn(async () => new Response("x", { status: 503 })), vi.fn(async () => new Response(JSON.stringify({ code: "NoRoute" })))]) {
     limpiarCacheRuta();
     const r = await obtenerRuta(o, d, f as unknown as typeof fetch);
@@ -83,12 +91,39 @@ test("obtenerRuta cae a línea recta si OSRM falla", async () => {
     expect(r.coords).toEqual([[o.lat, o.lng], [d.lat, d.lng]]);
     expect(r.distanciaM).toBeGreaterThan(7000);
     expect(r.duracionS).toBeGreaterThan(0);
+    vi.advanceTimersByTime(1100);
   }
+  vi.useRealTimers();
 });
 
-test("leerPunto valida formato y caja de Cataluña", () => {
+test("obtenerRuta: caché negativa 60 s, 1 petición/s y peticiones idénticas agrupadas", async () => {
+  vi.useFakeTimers();
+  const falla = vi.fn(async () => { throw new Error("red"); });
+  expect((await obtenerRuta(o, d, falla as unknown as typeof fetch)).fuente).toBe("recta");
+  vi.advanceTimersByTime(2000);
+  await obtenerRuta(o, d, falla as unknown as typeof fetch);
+  expect(falla).toHaveBeenCalledTimes(1); // fallo cacheado
+  vi.advanceTimersByTime(61_000);
+  const ok = vi.fn(async () => new Response(JSON.stringify({ code: "Ok", routes: [{ distance: 9000, duration: 600, geometry: { coordinates: [[1.1672, 41.1474], [1.158, 41.088]] } }] })));
+  const [a, b] = await Promise.all([obtenerRuta(o, d, ok as unknown as typeof fetch), obtenerRuta(o, d, ok as unknown as typeof fetch)]);
+  expect(a.fuente).toBe("osrm"); expect(b).toBe(a);
+  expect(ok).toHaveBeenCalledTimes(1);
+  // otra ruta en el mismo segundo: limitada → recta sin llamar a OSRM
+  const otra = await obtenerRuta({ lat: 41.2, lng: 1.2 }, d, ok as unknown as typeof fetch);
+  expect(otra.fuente).toBe("recta"); expect(ok).toHaveBeenCalledTimes(1);
+  // fuera de Cataluña: recta sin llamar
+  vi.advanceTimersByTime(1100);
+  expect((await obtenerRuta({ lat: 40.4, lng: -3.7 }, d, ok as unknown as typeof fetch)).fuente).toBe("recta");
+  expect(ok).toHaveBeenCalledTimes(1);
+  vi.useRealTimers();
+});
+
+test("leerPunto valida formato", () => {
   expect(leerPunto("41.1,1.2")).toEqual({ lat: 41.1, lng: 1.2 });
-  expect(leerPunto("40.4,-3.7")).toBeNull();
+  expect(leerPunto("40.4,-3.7")).toEqual({ lat: 40.4, lng: -3.7 });
+  expect(leerPunto(",1.2")).toBeNull();
+  expect(leerPunto("41.1,")).toBeNull();
+  expect(leerPunto("95,1")).toBeNull();
   expect(leerPunto("abc")).toBeNull();
   expect(leerPunto("41,1,2")).toBeNull();
   expect(leerPunto(null)).toBeNull();

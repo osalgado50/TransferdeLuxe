@@ -35,6 +35,8 @@ function pitar(veces: number, freq: number) {
   } catch { /* audio bloqueado */ }
 }
 function vibrar(patron: number[]) { try { navigator.vibrate?.(patron); } catch { /* sin vibración */ } }
+function marcado(clave: string): boolean { try { return !!sessionStorage.getItem(clave); } catch { return false; } }
+function marcar(clave: string) { try { sessionStorage.setItem(clave, "1"); } catch { /* sin almacenamiento */ } }
 function yaAvisado(clave: string): boolean {
   try { if (sessionStorage.getItem(clave)) return true; sessionStorage.setItem(clave, "1"); } catch { /* sin almacenamiento */ }
   return false;
@@ -46,6 +48,8 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
   const [ruta, setRuta] = useState<Ruta | null>(null);
   const [seguir, setSeguir] = useState(true);
   const simulado = useRef(false);
+  const enviando = useRef(false);
+  const ultimoIntento = useRef(0);
   const [fase, setFase] = useState<Fase>("lejos");
   const pedida = useRef<{ clave: string; t: number; conPos: boolean } | null>(null);
   const claveObj = `${objetivo.tipo}:${objetivo.punto.lat},${objetivo.punto.lng}`;
@@ -82,8 +86,9 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
   const pedir = useCallback(async (o: Punto) => {
     try {
       const r = await fetch(`/api/ruta?o=${o.lat.toFixed(5)},${o.lng.toFixed(5)}&d=${objetivo.punto.lat},${objetivo.punto.lng}`);
-      if (r.ok) setRuta((await r.json()) as Ruta);
-    } catch { /* sin red: se mantiene la ruta anterior */ }
+      if (!r.ok) throw new Error(String(r.status));
+      setRuta((await r.json()) as Ruta);
+    } catch { pedida.current = null; /* sin red: se reintenta en el próximo fix */ }
   }, [objetivo.punto.lat, objetivo.punto.lng]);
   useEffect(() => {
     const p = pedida.current, ahora = Date.now();
@@ -108,11 +113,16 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
   useEffect(() => {
     if (fase === "lejos") return;
     const base = `tdl-nav:${servicioId}:${objetivo.tipo}`;
-    if (!simulado.current && !yaAvisado(`${base}:central`)) void avisarLlegando(servicioId, objetivo.tipo).catch(() => undefined);
+    if (!simulado.current && !marcado(`${base}:central`) && !enviando.current && Date.now() - ultimoIntento.current > 15_000) {
+      enviando.current = true; ultimoIntento.current = Date.now(); // si falla, se reintenta en un fix posterior
+      void avisarLlegando(servicioId, objetivo.tipo)
+        .then((r) => { if (r.ok) marcar(`${base}:central`); }, () => undefined)
+        .finally(() => { enviando.current = false; });
+    }
     if (fase === "cerca" && !yaAvisado(`${base}:cerca`)) { vibrar([200, 100, 200]); pitar(2, 880); }
     if (fase === "llegado" && !yaAvisado(`${base}:llegado`)) { vibrar([400, 150, 400, 150, 400]); pitar(4, 1046); }
     window.dispatchEvent(new CustomEvent(EVENTO_RESALTAR, { detail: { activo: fase === "llegado" } }));
-  }, [fase, servicioId, objetivo.tipo]);
+  }, [fase, servicioId, objetivo.tipo, pos]);
   useEffect(() => () => { window.dispatchEvent(new CustomEvent(EVENTO_RESALTAR, { detail: { activo: false } })); }, []);
 
   const quedaM = restante?.restanteM ?? distObj ?? ruta?.distanciaM ?? null;
@@ -126,7 +136,7 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
           {fase === "llegado" ? `Has llegado ${aObj}` : `Estás llegando ${aObj}${distObj != null ? ` (≈ ${formatoDistancia(distObj)})` : ""}`}
         </div>
       )}
-      <div className="relative overflow-hidden rounded-xl border border-slate-700">
+      <div className="relative isolate overflow-hidden rounded-xl border border-slate-700">
         <div className="absolute inset-x-0 top-0 z-[1100] bg-slate-950/90 px-3 py-2 text-base font-semibold text-white">
           {titulo}{quedaM != null && ` · ${formatoDistancia(quedaM)}`}{quedaS != null && ` · ${formatoDuracion(quedaS)}`}
           {ruta?.fuente === "recta" && <span className="block text-xs font-normal text-amber-300">Ruta aproximada (sin servicio de rutas)</span>}

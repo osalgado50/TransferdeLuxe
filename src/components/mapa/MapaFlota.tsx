@@ -38,7 +38,7 @@ export default function MapaFlota({ posiciones, servicios, conductores, vehiculo
     const estado = estadoEnMapa(p, actual, ahora, umbralMin);
     const veh = vehiculos.find((v) => v.id === c?.vehiculo_habitual_id);
     const min = Math.max(0, Math.round((ahora.getTime() - new Date(p.registrado_en).getTime()) / 60_000));
-    const llegando = mios.some((s) => llegandoReciente(eventos, s.id, ahora));
+    const llegando = mios.some((s) => llegandoReciente(eventos, s, ahora));
     return { p, llegando, nombre: c?.nombre ?? "Conductor", matricula: veh?.matricula ?? "—", estado, actual, siguiente, min };
   }), [posiciones, servicios, conductores, vehiculos, ahora, umbralMin, eventos]);
 

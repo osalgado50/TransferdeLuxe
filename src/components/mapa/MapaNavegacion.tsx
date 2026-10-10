@@ -32,15 +32,17 @@ export default function MapaNavegacion(p: PropsMapaNavegacion) {
   const { pos, objetivo, coords } = p;
   const color = objetivo.tipo === "recogida" ? "#16a34a" : "#dc2626";
   return (
-    <MapContainer center={[objetivo.punto.lat, objetivo.punto.lng]} zoom={14} zoomControl={false} className="h-[55vh] w-full">
+    <MapContainer center={[objetivo.punto.lat, objetivo.punto.lng]} zoom={14} zoomControl={false} fadeAnimation={false} className="mapa-nav h-[55vh] w-full">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+      {coords && coords.length > 1 && pos && <Polyline positions={[[pos.lat, pos.lng], coords[0]]} pathOptions={{ color: "#2563eb", weight: 4, dashArray: "6 8" }} />}
+      {coords && coords.length > 1 && <Polyline positions={[coords[coords.length - 1], [objetivo.punto.lat, objetivo.punto.lng]]} pathOptions={{ color: "#2563eb", weight: 4, dashArray: "6 8" }} />}
       {coords && coords.length > 1 && <Polyline positions={coords} pathOptions={{ color: "#2563eb", weight: 6, opacity: 0.85 }} />}
       <CircleMarker center={[objetivo.punto.lat, objetivo.punto.lng]} radius={11} pathOptions={{ color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }}>
         <Tooltip permanent direction="top" offset={[0, -10]}>{objetivo.tipo === "recogida" ? "Recogida" : "Destino"}</Tooltip>
       </CircleMarker>
       {pos && <Circle center={[pos.lat, pos.lng]} radius={pos.precision} pathOptions={{ color: "#3b82f6", weight: 1, fillOpacity: 0.15 }} />}
       {pos && <CircleMarker center={[pos.lat, pos.lng]} radius={9} pathOptions={{ color: "#fff", weight: 3, fillColor: "#2563eb", fillOpacity: 1 }} />}
-      <ZoomControl position="bottomleft" />
+      <ZoomControl position="topright" />
       <Control {...p} />
     </MapContainer>
   );

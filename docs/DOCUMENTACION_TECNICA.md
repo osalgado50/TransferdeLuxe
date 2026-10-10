@@ -167,6 +167,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Rutas sin API de pago**: se usa el servidor demo gratuito de OSRM (`router.project-osrm.org`) a través de un proxy
   propio con User-Agent, timeout de 8 s, caché y límite por usuario. Si falla o tarda, la API devuelve una ruta en
   línea recta (×1,3) marcada como «aproximada»; nunca un 500. Para producción real habría que alojar OSRM propio.
+  Para no abusar del servidor público: caché de fallos 60 s, máximo 1 petición/s y 50/min globales, y peticiones
+  idénticas agrupadas. Las coordenadas del conductor se envían a ese servidor público de OSRM (aceptable con datos
+  de demo; en producción, OSRM propio). Destinos fuera de Cataluña → ruta recta sin consultar OSRM.
+- **«Llegando» que no caducaba tras recargar la central**: la carga inicial solo traía los avisos, no los eventos
+  posteriores. Ahora trae todos los eventos de los últimos 20 min y además se exige que el estado del servicio
+  siga correspondiendo (recogida ⇔ aceptado/en camino; destino ⇔ con pasajeros). El aviso a la central solo se da
+  por enviado cuando el servidor confirma; si falla, se reintenta en un fix posterior.
 - **Avisos que parpadean en el límite**: con el GPS oscilando en torno a 500 m el aviso entraba y salía. Se añade
   histéresis (entrar a 500/100 m, salir a 600/150 m) y cada aviso suena una sola vez por objetivo (sessionStorage).
 - **GPS solo con la app abierta**: una web no puede seguir la ubicación en segundo plano; la navegación funciona

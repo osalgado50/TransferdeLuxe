@@ -74,9 +74,17 @@ export const EVENTO_LLEGANDO: Record<TipoObjetivo, string> = { recogida: "llegan
 const ETIQUETAS: Record<string, string> = { llegando_recogida: "Llegando a la recogida", llegando_destino: "Llegando al destino" };
 export const etiquetaEvento = (tipo: string) => ETIQUETAS[tipo] ?? tipo;
 
-/** ¿El último evento del servicio es un «llegando_*» de hace menos de 20 min? */
-export function llegandoReciente(eventos: { servicio_id: string; tipo: string; creado_en: string }[], servicioId: string, ahora: Date, ventanaMin = 20): boolean {
-  const ult = eventos.filter((e) => e.servicio_id === servicioId).sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
-  return !!ult && ult.tipo.startsWith("llegando_") && ahora.getTime() - new Date(ult.creado_en).getTime() <= ventanaMin * 60_000;
+/**
+ * Evento «llegando_*» vigente para el servicio: el más reciente de los últimos 20 min, y solo si el estado actual
+ * del servicio sigue correspondiendo (recogida ⇔ aceptado/en_camino; destino ⇔ recogido).
+ */
+export function llegandoReciente<E extends { servicio_id: string; tipo: string; creado_en: string }>(
+  eventos: E[], s: { id: string; estado: EstadoServicio }, ahora: Date, ventanaMin = 20,
+): E | null {
+  const ult = eventos.filter((e) => e.servicio_id === s.id).sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
+  if (!ult || ahora.getTime() - new Date(ult.creado_en).getTime() > ventanaMin * 60_000) return null;
+  if (ult.tipo === "llegando_recogida" && (s.estado === "aceptado" || s.estado === "en_camino")) return ult;
+  if (ult.tipo === "llegando_destino" && s.estado === "recogido") return ult;
+  return null;
 }
 export const EVENTO_RESALTAR = "tdl-resaltar-paso";
