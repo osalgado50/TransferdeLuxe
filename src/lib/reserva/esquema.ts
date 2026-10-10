@@ -45,12 +45,8 @@ export type NuevoServicio = Omit<Servicio, "id" | "estado" | "creado_en" | "serv
   "asignado_en" | "ultima_incidencia" | "incidencia_vista" | "plazo_respuesta_min">;
 
 // Convierte fecha+hora locales de Madrid a ISO UTC.
-export function madridAUtc(fecha: string, hora: string): string {
-  const guess = new Date(`${fecha}T${hora}:00Z`);
-  const enMadrid = new Date(guess.toLocaleString("en-US", { timeZone: "Europe/Madrid" }));
-  const offset = enMadrid.getTime() - new Date(guess.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
-  return new Date(guess.getTime() - offset).toISOString();
-}
+export { madridAUtc } from "@/lib/dominio/dias";
+import { madridAUtc } from "@/lib/dominio/dias";
 
 function tramo(r: Reserva, origen: "web" | "manual", t: {
   o: string; olat: number | null; olng: number | null; d: string; dlat: number | null; dlng: number | null; fecha: string; hora: string; vuelo: string | null;
