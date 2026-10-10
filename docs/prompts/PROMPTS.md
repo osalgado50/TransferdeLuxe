@@ -546,3 +546,68 @@ sí, adelante con la planificación de tiempos
 
 ---
 
+## 2026-10-10 14:08 · Claude Code · sesión `b3c0e64f`
+
+Cuando coges un servicio que ya ha pasado el horario de carga, queda como deshabilitado y no lo podemos usar. Tendrías que poner igualmente que se pudiera ejecutar aunque no esté en el horario previsto.
+
+---
+
+## 2026-10-10 14:09 · Claude Code · sesión `b3c0e64f`
+
+y luego hay bastantes fallos de sincronización con el GPS. Teniendo la aplicación abierta de conductor, no sale el mapa y parece que no emite bien la señal al centro de datos.
+
+---
+
+## 2026-10-10 19:50 · Claude Code · sesión `b3c0e64f`
+
+Oye, tengo una cuenta en, Google Play y otra en, en Apple Developer. Creo que podríamos crear esas aplicaciones de los móviles nativas para que tengas un control del GPS más preciso y puedas tener una presentación mejor y una actualización más fidedigna de la posición y del envío de datos entre la aplicación de control y las distintas terminales de los choferes. Eh, ¿qué te parece? ¿Qué es lo que necesitas?
+
+---
+
+## 2026-10-10 19:53 · Claude Code · sesión `b3c0e64f`
+
+A ver, he pensado más bien en, ya que en Apple tengo Test Flight y lo puedo distribuir a quien yo quiera, en Google Play seguro que hay también algún grupo de pruebas de, de aplicaciones. Mi cuenta debe tener un mes de trabajo, no tiene más antigüedad, no sé si es mucho o poco. Entonces, eh, mi cuenta de Google Play es personal. Cuenta de Expo no tengo. No sé lo que es. Y de Apple, lo que necesites. Tengo dos cuentas. Tengo una, una cuenta personal, que es la que usaremos, y una profesional de empresa. Así que vesme pidiendo cosas paso a paso y yo te voy dando lo que necesites.
+
+---
+
+## 2026-10-10 19:58 · Claude Code · sesión `b3c0e64f`
+
+claude plugin install expo@claude-plugins-official
+
+que mas necesitas
+
+---
+
+## 2026-10-10 20:00 · Claude Code · sesión `b3c0e64f`
+
+<pasted_content id="e72c">
+Last login: Sat Oct 10 11:50:06 on ttys000
+You have new mail.
+/Users/mac2019/.openclaw/completions/openclaw.zsh:3939: command not found: compdef
+mac2019@MAC2019 ~ % npx eas-cli@latest login
+Need to install the following packages:
+eas-cli@24.12.1
+Ok to proceed? (y) y
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@2.4.5: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated glob@6.0.4: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Waiting for browser login...
+If your browser doesn't automatically open, visit this link to log in: https://expo.dev/login?client_id=eas-cli&redirect_uri=http://localhost:51752/auth/callback&response_type=code&code_challenge=s87_kpb3aBTzIAf3QdKzAoIQdC_-aKuqrJxZN9lcU9c&code_challenge_method=S256&state=J3txRRySCJp5UyRSVShNSzhipC-sYs1chMMKe4FgBeQ
+Logged in
+mac2019@MAC2019 ~ % npx eas-cli@latest whoami
+osalgado
+[email omitido]
+
+Accounts:
+• osalgado (Role: Owner)
+• osalgado-team (Role: Owner)
+mac2019@MAC2019 ~ %
+</pasted_content id="e72c">
+
+---
+
