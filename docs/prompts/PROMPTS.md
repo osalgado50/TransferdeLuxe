@@ -480,3 +480,27 @@ sí, adelante con los dos, incluye trayectos favoritos
 
 ---
 
+## 2026-10-10 11:56 · Claude Code · sesión `b3c0e64f`
+
+Añade aparte de esta vista una vista de calendario de diario, del semanal, del mensual
+
+---
+
+## 2026-10-10 11:57 · Claude Code · sesión `b3c0e64f`
+
+Luego en el login de entrada de todas las aplicaciones y de y de aquí eh, quiero que pongas un botoncito de ver contraseña para saber si has escrito bien la contraseña o, o has metido un dedazo.
+
+---
+
+## 2026-10-10 11:57 · Claude Code · sesión `b3c0e64f`
+
+Demo-zjSOtzfsbqGS cambia por Demo-Big
+
+---
+
+## 2026-10-10 12:01 · Claude Code · sesión `b3c0e64f`
+
+ya he cambiado la variable en Hostinger
+
+---
+
