@@ -474,3 +474,9 @@ Luego echo de menos una página con los servicios que hay programados para el d�
 
 ---
 
+## 2026-10-10 11:43 · Claude Code · sesión `b3c0e64f`
+
+sí, adelante con los dos, incluye trayectos favoritos
+
+---
+
