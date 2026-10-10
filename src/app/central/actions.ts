@@ -50,7 +50,7 @@ export async function obtenerSugerencias(servicioId: string) {
     const p = posiciones?.find((x) => x.conductor_id === c.id && x.en_servicio);
     return {
       conductorId: c.id, nombre: c.nombre,
-      vehiculo: v ? { id: v.id, plazas: v.plazas, estado: v.estado } : null,
+      vehiculo: v ? { id: v.id, plazas: v.plazas, maletas: v.maletas, estado: v.estado } : null,
       posicion: p ? { punto: { lat: p.lat, lng: p.lng }, registradoEn: new Date(p.registrado_en) } : null,
       agenda: (agenda ?? []).filter((a) => a.conductor_id === c.id).map((a) => {
         const i = new Date(a.fecha_hora_recogida);
@@ -60,7 +60,7 @@ export async function obtenerSugerencias(servicioId: string) {
     };
   });
   const origen = s.origen_lat != null ? { lat: s.origen_lat, lng: s.origen_lng } : null;
-  return sugerirConductores({ id: s.id, inicio, duracionMin: s.duracion_estimada_min, pasajeros: s.pasajeros, origen }, candidatos, new Date())
+  return sugerirConductores({ id: s.id, inicio, duracionMin: s.duracion_estimada_min, pasajeros: s.pasajeros, maletas: s.maletas, origen }, candidatos, new Date())
     .map((sg) => {
       const v = vehiculos?.find((x) => x.id === conductores?.find((c) => c.id === sg.conductorId)?.vehiculo_habitual_id);
       return { ...sg, vehiculoId: v?.id ?? null, matricula: v?.matricula ?? null };

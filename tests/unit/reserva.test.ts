@@ -25,8 +25,29 @@ test("con vuelta crea dos servicios; vuelta sin fecha es inválida", () => {
   expect(esquemaReserva.safeParse({ ...conVuelta, vuelta_fecha: "" }).success).toBe(false);
 });
 
-test("más de 8 pasajeros → subcontratar", () => {
-  expect(serviciosDesdeReserva(esquemaReserva.parse({ ...base, pasajeros: "12" }), "web")[0].subcontratar).toBe(true);
+test("tipo que no cabe → error en tipo_vehiculo_pedido", () => {
+  const r = esquemaReserva.safeParse({ ...base, tipo_vehiculo_pedido: "sedan", pasajeros: "5", maletas: "6" });
+  expect(r.success ? [] : r.error.flatten().fieldErrors.tipo_vehiculo_pedido).toEqual([expect.stringContaining("elige MiniVan (7 pax)")]);
+  expect(esquemaReserva.safeParse({ ...base, tipo_vehiculo_pedido: "minibus", pasajeros: "19", maletas: "19" }).success).toBe(true);
+});
+
+test("crearServicios marca subcontratar si ningún vehículo propio cabe, con motivo", async () => {
+  const filas: { subcontratar: boolean; ultima_incidencia: string }[][] = [];
+  const mk = (flota: unknown[]) => ({
+    from(t: string) {
+      const q: Record<string, unknown> = {};
+      q.select = () => (t === "vehiculos" ? Promise.resolve({ data: flota, error: null })
+        : t === "ajustes" ? { single: () => Promise.resolve({ data: { plazo_respuesta_min: 15 }, error: null }) }
+        : Promise.resolve({ data: [{ id: "A" }], error: null }));
+      q.insert = (a: never) => { if (t === "servicios") { filas.push(a); return q; } return Promise.resolve({ error: null }); };
+      return q;
+    },
+  }) as never;
+  const grande = { ...nuevo, pasajeros: 5, maletas: 6 };
+  await crearServicios(mk([{ plazas: 8, maletas: 2, estado: "activo" }]), [grande]);
+  expect(filas[0][0]).toMatchObject({ subcontratar: true, ultima_incidencia: "subcontratar: 5 pax y 6 maletas, ningún vehículo propio cabe" });
+  await crearServicios(mk([{ plazas: 8, maletas: 8, estado: "activo" }]), [grande]);
+  expect(filas[1][0]).toMatchObject({ subcontratar: false, ultima_incidencia: "nuevo" });
 });
 
 test("sin privacidad o con campo trampa relleno → inválida", () => {
@@ -56,7 +77,7 @@ function falso(errorEn?: string) {
         llamadas.push({ op, tabla, arg, ...extra });
         return Promise.resolve({ data: null, error: errorEn === op + ":" + tabla ? { message: "boom" } : null });
       };
-      q.select = () => (op === "insert" ? Promise.resolve({ data: [{ id: "A" }, { id: "B" }], error: null }) : { single: () => Promise.resolve({ data: { plazo_respuesta_min: 15 }, error: null }) });
+      q.select = () => (tabla === "vehiculos" ? Promise.resolve({ data: [{ plazas: 8, maletas: 8, estado: "activo" }], error: null }) : op === "insert" ? Promise.resolve({ data: [{ id: "A" }, { id: "B" }], error: null }) : { single: () => Promise.resolve({ data: { plazo_respuesta_min: 15 }, error: null }) });
       q.insert = (a: unknown) => { op = "insert"; arg = a; return tabla === "servicios" ? q : fin(); };
       q.update = (a: unknown) => { op = "update"; arg = a; return { eq: (_: string, id: unknown) => fin({ id }) }; };
       q.delete = () => { op = "delete"; return { in: (_: string, ids: unknown) => { arg = ids; return fin(); } }; };

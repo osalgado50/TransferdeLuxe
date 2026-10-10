@@ -13,6 +13,7 @@ const esquemaVehiculo = z.object({
   matricula: z.string().trim().min(1, "Matrícula obligatoria").transform((s) => s.toUpperCase()),
   modelo: z.string().trim().min(1, "Modelo obligatorio"),
   plazas: num(1, 19),
+  maletas: num(0, 30),
   estado: z.enum(["activo", "taller"]),
   km_actuales: num(0, 5_000_000),
 });

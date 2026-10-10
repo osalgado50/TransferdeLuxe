@@ -16,7 +16,7 @@ export interface Servicio {
   asignado_en: string | null; plazo_respuesta_min: number; duracion_estimada_min: number;
   subcontratar: boolean; ultima_incidencia: string | null; incidencia_vista: boolean; creado_en: string;
 }
-export interface Vehiculo { id: string; matricula: string; modelo: string; plazas: number; estado: "activo" | "taller"; km_actuales: number }
+export interface Vehiculo { id: string; matricula: string; modelo: string; plazas: number; maletas: number; estado: "activo" | "taller"; km_actuales: number }
 export interface Perfil { id: string; rol: Rol; nombre: string; telefono: string | null; vehiculo_habitual_id: string | null }
 export interface PosicionActual { conductor_id: string; lat: number; lng: number; velocidad: number | null; en_servicio: boolean; registrado_en: string }
 export interface TicketCombustible {

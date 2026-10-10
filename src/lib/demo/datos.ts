@@ -10,9 +10,9 @@ export const USUARIOS_DEMO = [
 ];
 
 export const VEHICULOS_DEMO = [
-  { matricula: "0001-TDL", modelo: "Mercedes Vito (demo)", plazas: 8, km: 120400 },
-  { matricula: "0002-TDL", modelo: "Mercedes Vito (demo)", plazas: 8, km: 98300 },
-  { matricula: "0003-TDL", modelo: "Volkswagen Caravelle (demo)", plazas: 7, km: 76100 },
+  { matricula: "0001-TDL", modelo: "Mercedes Vito (demo)", plazas: 8, maletas: 8, km: 120400 },
+  { matricula: "0002-TDL", modelo: "Mercedes Vito (demo)", plazas: 8, maletas: 8, km: 98300 },
+  { matricula: "0003-TDL", modelo: "Volkswagen Caravelle (demo)", plazas: 7, maletas: 7, km: 76100 },
 ];
 
 export const LUGARES_DEMO = [

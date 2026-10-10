@@ -1,11 +1,11 @@
 import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
 
-export interface ServicioParaSugerir { id: string; inicio: Date; duracionMin: number; pasajeros: number; origen: Punto | null }
+export interface ServicioParaSugerir { id: string; inicio: Date; duracionMin: number; pasajeros: number; maletas: number; origen: Punto | null }
 export interface TramoAgenda { servicioId: string; inicio: Date; fin: Date; destino: Punto | null }
 export interface Candidato {
   conductorId: string; nombre: string;
-  vehiculo: { id: string; plazas: number; estado: "activo" | "taller" } | null;
+  vehiculo: { id: string; plazas: number; maletas: number; estado: "activo" | "taller" } | null;
   posicion: { punto: Punto; registradoEn: Date } | null;
   agenda: TramoAgenda[];
 }
@@ -27,6 +27,7 @@ export function sugerirConductores(s: ServicioParaSugerir, candidatos: Candidato
     else {
       if (c.vehiculo.estado === "taller") { apto = false; motivos.push("Vehículo en taller"); }
       if (c.vehiculo.plazas < s.pasajeros) { apto = false; motivos.push(`Vehículo de ${c.vehiculo.plazas} plazas (necesita ${s.pasajeros})`); }
+      if (c.vehiculo.maletas < s.maletas) { apto = false; motivos.push(`Vehículo con ${c.vehiculo.maletas} maletas (necesita ${s.maletas})`); }
     }
     const otros = c.agenda.filter((t) => t.servicioId !== s.id);
     if (otros.some((t) => t.inicio < fin && s.inicio < t.fin)) { apto = false; motivos.push("Ocupado a esa hora"); }

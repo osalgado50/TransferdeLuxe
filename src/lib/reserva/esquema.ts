@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { duracionEstimadaMin } from "@/lib/dominio/geo";
+import { avisoCapacidad } from "@/lib/dominio/capacidad";
+import { vehiculosAptos, type VehiculoCapacidad } from "@/lib/dominio/capacidad";
 import type { Servicio } from "@/lib/dominio/tipos";
 
 const coord = z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().finite().nullable());
@@ -31,6 +33,8 @@ export const esquemaReserva = z.object({
   };
   if (!valida(r.fecha, "00:00")) ctx.addIssue({ code: "custom", path: ["fecha"], message: "Fecha no válida" });
   if (!valida("2000-01-01", r.hora)) ctx.addIssue({ code: "custom", path: ["hora"], message: "Hora no válida" });
+  const av = avisoCapacidad(r.tipo_vehiculo_pedido, r.pasajeros, r.maletas);
+  if (av) ctx.addIssue({ code: "custom", path: ["tipo_vehiculo_pedido"], message: av.mensaje });
   if (!r.con_vuelta) return;
   if (r.vuelta_fecha && !valida(r.vuelta_fecha, "00:00")) ctx.addIssue({ code: "custom", path: ["vuelta_fecha"], message: "Fecha no válida" });
   if (r.vuelta_hora && !valida("2000-01-01", r.vuelta_hora)) ctx.addIssue({ code: "custom", path: ["vuelta_hora"], message: "Hora no válida" });
@@ -59,7 +63,7 @@ function tramo(r: Reserva, origen: "web" | "manual", t: {
     origen_texto: t.o, origen_lat: t.olat, origen_lng: t.olng, destino_texto: t.d, destino_lat: t.dlat, destino_lng: t.dlng,
     fecha_hora_recogida: madridAUtc(t.fecha, t.hora), pasajeros: r.pasajeros, maletas: r.maletas,
     tipo_vehiculo_pedido: r.tipo_vehiculo_pedido, numero_vuelo: t.vuelo, notas: r.notas, origen_pedido: origen,
-    duracion_estimada_min: dur, subcontratar: r.pasajeros > 8,
+    duracion_estimada_min: dur, subcontratar: false,
   };
 }
 
@@ -73,8 +77,17 @@ export function serviciosDesdeReserva(r: Reserva, origen: "web" | "manual"): Nue
 
 export async function crearServicios(sb: import("@supabase/supabase-js").SupabaseClient, nuevos: NuevoServicio[]): Promise<string[]> {
   const { data: aj } = await sb.from("ajustes").select("plazo_respuesta_min").single();
-  const { data, error } = await sb.from("servicios")
-    .insert(nuevos.map((n) => ({ ...n, plazo_respuesta_min: aj?.plazo_respuesta_min ?? 15, incidencia_vista: false, ultima_incidencia: "nuevo" })))
+  const { data: flota } = await sb.from("vehiculos").select("plazas, maletas, estado");
+  const propios = (flota ?? []) as VehiculoCapacidad[];
+  const filas = nuevos.map((n) => {
+    const sinFlota = vehiculosAptos(propios, n.pasajeros, n.maletas).length === 0;
+    return {
+      ...n, plazo_respuesta_min: aj?.plazo_respuesta_min ?? 15, incidencia_vista: false,
+      subcontratar: sinFlota,
+      ultima_incidencia: sinFlota ? `subcontratar: ${n.pasajeros} pax y ${n.maletas} maletas, ningún vehículo propio cabe` : "nuevo",
+    };
+  });
+  const { data, error } = await sb.from("servicios").insert(filas)
     .select("id");
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear");
   // PostgREST devuelve las filas insertadas en el mismo orden que el array enviado.

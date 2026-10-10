@@ -1,6 +1,8 @@
 "use client";
 import { useActionState, useState } from "react";
 import CampoDireccion from "@/components/comun/CampoDireccion";
+import { avisoCapacidad, NOMBRE_TIPO } from "@/lib/dominio/capacidad";
+import type { TipoVehiculo } from "@/lib/dominio/tipos";
 import { reservar, type EstadoReserva } from "./actions";
 
 type Accion = (prev: EstadoReserva, fd: FormData) => Promise<EstadoReserva>;
@@ -21,6 +23,10 @@ function ErrorCampo({ e, k }: { e?: Record<string, string[]>; k: string }) {
 export default function FormularioReserva({ accion = reservar, modo = "publico" }: Props) {
   const [estado, enviar, pendiente] = useActionState<EstadoReserva, FormData>(accion, {});
   const [conVuelta, setConVuelta] = useState(false);
+  const [pax, setPax] = useState(2);
+  const [maletas, setMaletas] = useState(0);
+  const [tipo, setTipo] = useState<TipoVehiculo>("sedan");
+  const aviso = avisoCapacidad(tipo, pax, maletas);
   const err = (k: string) => estado.errores?.[k]?.[0];
 
   if (estado.ok) {
@@ -47,16 +53,21 @@ export default function FormularioReserva({ accion = reservar, modo = "publico" 
         </div>
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">Pasajeros
-            <select name="pasajeros" defaultValue="2" className={cls}>{numeros(1, 19).map((n) => <option key={n} value={n}>{n}</option>)}</select>
+            <select name="pasajeros" value={pax} onChange={(e) => setPax(Number(e.target.value))} className={cls}>{numeros(1, 19).map((n) => <option key={n} value={n}>{n}</option>)}</select>
             <ErrorCampo e={estado.errores} k="pasajeros" /></label>
           <label className="block text-sm font-medium">Maletas
-            <select name="maletas" defaultValue="0" className={cls}>{numeros(0, 19).map((n) => <option key={n} value={n}>{n}</option>)}</select>
+            <select name="maletas" value={maletas} onChange={(e) => setMaletas(Number(e.target.value))} className={cls}>{numeros(0, 19).map((n) => <option key={n} value={n}>{n}</option>)}</select>
             <ErrorCampo e={estado.errores} k="maletas" /></label>
         </div>
         <label className="block text-sm font-medium">Tipo de vehículo
-          <select name="tipo_vehiculo_pedido" defaultValue="sedan" className={cls}>
+          <select name="tipo_vehiculo_pedido" value={tipo} onChange={(e) => setTipo(e.target.value as TipoVehiculo)} className={cls}>
             {VEHICULOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-          </select><ErrorCampo e={estado.errores} k="tipo_vehiculo_pedido" /></label>
+          </select>
+          {aviso ? (
+            <p role="alert" data-aviso="capacidad" className="mt-1 text-sm text-red-400">{aviso.mensaje}
+              {aviso.sugerido && <> <button type="button" onClick={() => setTipo(aviso.sugerido!)} className="ml-1 rounded border border-red-400 px-2 py-0.5 text-red-300 hover:bg-red-950">Usar {NOMBRE_TIPO[aviso.sugerido]}</button></>}
+            </p>
+          ) : <ErrorCampo e={estado.errores} k="tipo_vehiculo_pedido" />}</label>
         <label className="block text-sm font-medium">Número de vuelo
           <input type="text" name="numero_vuelo" className={cls} /></label>
         <label className="flex items-center gap-2 text-sm font-medium">

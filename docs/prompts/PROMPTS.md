@@ -408,3 +408,57 @@ Aflójame la correa aquí Y déjame crear con emails
 
 ---
 
+## 2026-10-10 11:20 · Claude Code · sesión `b3c0e64f`
+
+sí, quita la restricción del email
+
+---
+
+## 2026-10-10 11:21 · Claude Code · sesión `b3c0e64f`
+
+es verdad que las bases no lo permiten,  anula la orden
+
+---
+
+## 2026-10-10 11:24 · Claude Code · sesión `b3c0e64f`
+
+He creado un nuevo conductor y no aparece en el mapa.
+
+---
+
+## 2026-10-10 11:28 · Claude Code · sesión `b3c0e64f`
+
+no me deja entrar con conductor4
+
+---
+
+## 2026-10-10 11:30 · Claude Code · sesión `b3c0e64f`
+
+creo que No lo has autorizado o dado de alta en la base de datos. Compruébalo.
+
+---
+
+## 2026-10-10 11:31 · Claude Code · sesión `b3c0e64f`
+
+ya he entrado, ahora no aparece en el mapa
+
+---
+
+## 2026-10-10 11:32 · Claude Code · sesión `b3c0e64f`
+
+Vale, al darle a en servicio ha aparecido en el mapa. Muy bien.
+
+---
+
+## 2026-10-10 11:34 · Claude Code · sesión `b3c0e64f`
+
+Cuando hago una recogida, un nuevo servicio, eh, la flota de coches no tiene consideración. Aquí en tipo de vehículo, porque tengo un Audi TT con dos plazas y no aparece. De hecho, el porte con cinco pasajeros y seis maletas no sería viable. Y eso lo tendrías que indicar. Tendrías que hacer un estudio de lo que se está pidiendo y el vehículo que se destina para soltar un aviso de que eso no es posible. Por ejemplo, un sedán de tres plazas no podría llevar nueve personas.
+
+---
+
+## 2026-10-10 11:36 · Claude Code · sesión `b3c0e64f`
+
+sí, adelante con los tipos genéricos
+
+---
+

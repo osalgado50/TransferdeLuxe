@@ -5,18 +5,18 @@ const salou = { lat: 41.0763, lng: 1.1416 };
 const cambrils = { lat: 41.0670, lng: 1.0597 };
 const tarragona = { lat: 41.1189, lng: 1.2445 };
 const ahora = new Date("2026-10-15T08:00:00Z");
-const servicio = { id: "s1", inicio: new Date("2026-10-15T08:30:00Z"), duracionMin: 40, pasajeros: 6, origen: salou };
+const servicio = { id: "s1", inicio: new Date("2026-10-15T08:30:00Z"), duracionMin: 40, pasajeros: 6, maletas: 4, origen: salou };
 
 const base = (id: string, extra: Partial<Candidato> = {}): Candidato => ({
   conductorId: id, nombre: id,
-  vehiculo: { id: "v" + id, plazas: 8, estado: "activo" },
+  vehiculo: { id: "v" + id, plazas: 8, maletas: 8, estado: "activo" },
   posicion: null, agenda: [], ...extra,
 });
 
 test("descarta por plazas, taller y solape, con motivos", () => {
   const r = sugerirConductores(servicio, [
-    base("pocas", { vehiculo: { id: "v", plazas: 4, estado: "activo" } }),
-    base("taller", { vehiculo: { id: "v", plazas: 8, estado: "taller" } }),
+    base("pocas", { vehiculo: { id: "v", plazas: 4, maletas: 8, estado: "activo" } }),
+    base("taller", { vehiculo: { id: "v", plazas: 8, maletas: 8, estado: "taller" } }),
     base("ocupado", { agenda: [{ servicioId: "x", inicio: new Date("2026-10-15T08:00:00Z"), fin: new Date("2026-10-15T09:00:00Z"), destino: null }] }),
     base("sinVehiculo", { vehiculo: null }),
   ], ahora);
@@ -52,4 +52,10 @@ test("GPS antiguo (>5 min) no cuenta como posición", () => {
     base("viejo", { posicion: { punto: salou, registradoEn: new Date("2026-10-15T07:00:00Z") } }),
   ], ahora);
   expect(r[0].distanciaKm).toBeNull();
+});
+
+test("descarta por maletas con motivo", () => {
+  const r = sugerirConductores(servicio, [base("pocasmaletas", { vehiculo: { id: "v", plazas: 8, maletas: 2, estado: "activo" } })], ahora);
+  expect(r[0].apto).toBe(false);
+  expect(r[0].motivos).toContain("Vehículo con 2 maletas (necesita 4)");
 });

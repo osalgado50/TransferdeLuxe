@@ -31,7 +31,10 @@ export function esAlerta(s: Servicio) {
 }
 
 function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id: string | null) => string) {
-  if (s.subcontratar && s.estado === "pendiente") return ["Subcontratar", `Subcontratar (${s.pasajeros} pax)`] as const;
+  if (s.subcontratar && s.estado === "pendiente") {
+    const razon = (s.ultima_incidencia ?? "").replace(/^subcontratar:\s*.*?maletas,\s*/, "");
+    return ["Subcontratar", `Subcontratar (${s.pasajeros} pax, ${s.maletas} maletas)${razon && razon !== (s.ultima_incidencia ?? "") ? `: ${razon}` : ""}`] as const;
+  }
   const inc = s.ultima_incidencia ?? "";
   if (inc.startsWith("rechazado")) {
     const ev = eventos.filter((e) => e.servicio_id === s.id && e.tipo === "rechazado").sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];

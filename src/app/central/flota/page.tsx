@@ -3,7 +3,7 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import { guardarVehiculo, guardarConductor, guardarAjustes } from "./actions";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
-const rejilla = "grid grid-cols-[7rem_10rem_4rem_7rem_7rem_6rem] items-center gap-2";
+const rejilla = "grid grid-cols-[7rem_10rem_4rem_4rem_7rem_7rem_6rem] items-center gap-2";
 const boton = "rounded bg-marca px-3 py-1 text-sm font-medium text-white hover:bg-marca-oscuro";
 
 export default async function Flota({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -28,9 +28,9 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Vehículos</h2>
         <div className="overflow-x-auto">
-          <div className="min-w-[640px]">
+          <div className="min-w-[720px]">
             <div className={`${rejilla} text-sm text-slate-400`}>
-              <span>Matrícula</span><span>Modelo</span><span>Plazas</span><span>Estado</span><span>Km</span><span />
+              <span>Matrícula</span><span>Modelo</span><span>Plazas</span><span>Maletas</span><span>Estado</span><span>Km</span><span />
             </div>
             {(vehiculos ?? []).map((v) => (
               <form key={v.id} action={guardarVehiculo} className={`${rejilla} border-t border-slate-700 py-1`}>
@@ -38,6 +38,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
                 <input name="matricula" defaultValue={v.matricula} aria-label="Matrícula" className={campo} />
                 <input name="modelo" defaultValue={v.modelo} aria-label="Modelo" className={campo} />
                 <input name="plazas" type="number" min={1} max={19} defaultValue={v.plazas} aria-label="Plazas" className={campo} />
+                <input name="maletas" type="number" min={0} max={30} defaultValue={v.maletas} aria-label="Maletas" className={campo} />
                 <select name="estado" defaultValue={v.estado} aria-label="Estado" className={campo}>
                   <option value="activo">Activo</option><option value="taller">En taller</option>
                 </select>
@@ -52,6 +53,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           <div className="flex flex-col gap-1"><label htmlFor="nv-matricula" className="text-xs text-slate-400">Matrícula</label><input id="nv-matricula" name="matricula" placeholder="Matrícula" required className={`${campo} w-28`} /></div>
           <div className="flex flex-col gap-1"><label htmlFor="nv-modelo" className="text-xs text-slate-400">Modelo</label><input id="nv-modelo" name="modelo" placeholder="Modelo" required className={`${campo} w-40`} /></div>
           <div className="flex flex-col gap-1"><label htmlFor="nv-plazas" className="text-xs text-slate-400">Plazas</label><input id="nv-plazas" name="plazas" type="number" min={1} max={19} defaultValue={4} className={`${campo} w-16`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nv-maletas" className="text-xs text-slate-400">Maletas</label><input id="nv-maletas" name="maletas" type="number" min={0} max={30} defaultValue={4} className={`${campo} w-16`} /></div>
           <input type="hidden" name="estado" value="activo" />
           <div className="flex flex-col gap-1"><label htmlFor="nv-km" className="text-xs text-slate-400">Km</label><input id="nv-km" name="km_actuales" type="number" min={0} defaultValue={0} className={`${campo} w-28`} /></div>
           <button className={boton}>Añadir vehículo</button>

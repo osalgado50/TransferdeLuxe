@@ -74,7 +74,7 @@ export async function sembrarDemo(sb: SupabaseClient, password: string, hoy: Dat
   await limpiar(sb, existentes);
 
   const vehiculos = ok(await sb.from("vehiculos").insert(
-    VEHICULOS_DEMO.map((v) => ({ matricula: v.matricula, modelo: v.modelo, plazas: v.plazas, km_actuales: v.km })),
+    VEHICULOS_DEMO.map((v) => ({ matricula: v.matricula, modelo: v.modelo, plazas: v.plazas, maletas: v.maletas, km_actuales: v.km })),
   ).select("id,matricula"), "vehiculos") as { id: string; matricula: string }[];
   const vehPorMatricula = new Map(vehiculos.map((v) => [v.matricula, v.id]));
 
