@@ -32,3 +32,14 @@ describe("estadoEnvio", () => {
     expect(estadoEnvio(100_000, 30_000).alerta).toBe(true);
   });
 });
+
+describe("reintentos y aviso sin envíos", () => {
+  it("tras un error espera 5 s antes de reintentar", () => {
+    expect(debeEnviar(102_000, 0, null, 100_000)).toBe(false);
+    expect(debeEnviar(105_000, 0, null, 100_000)).toBe(true);
+  });
+  it("rojo si lleva > 60 s en servicio sin ningún envío", () => {
+    expect(estadoEnvio(100_000, null, 50_000).alerta).toBe(false);
+    expect(estadoEnvio(100_000, null, 30_000).alerta).toBe(true);
+  });
+});
