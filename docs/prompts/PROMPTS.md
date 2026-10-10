@@ -504,3 +504,21 @@ ya he cambiado la variable en Hostinger
 
 ---
 
+## 2026-10-10 12:23 · Claude Code · sesión `b3c0e64f`
+
+No consigo entrar con conductor 4 y el código de la de la demo en el móvil.
+
+---
+
+## 2026-10-10 12:31 · Claude Code · sesión `b3c0e64f`
+
+Lo que quiero es que todo lo que yo añada en la demo eh, se quede. No me hagas un reinicio y me borres todos los parámetros. Y los eh, y todo lo que haya creado y los favoritos. ¿Vale? No sé para qué tenemos que reiniciar y borrarlo todo. A ver si me lo explicas.
+
+---
+
+## 2026-10-10 12:33 · Claude Code · sesión `b3c0e64f`
+
+Abajo donde pones las cuentas demo, pone el texto más grande, que no se ve un carajo, y pone un botoncito de copiar para hacer un copy-paste fácil en todos los elementos y la contraseña. Ya que vas, revísame la versión de central en un móvil que se vea bien, ¿vale? Quizá los menús laterales los tienes que colocar de otra forma para que no ocupen tanto sitio y se pueda disponer de una versión móvil operativa.
+
+---
+

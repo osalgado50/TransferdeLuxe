@@ -58,7 +58,7 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
           <select name="mes" defaultValue={f.mes ?? ""} className={campo}><option value="">Todos</option>
             {meses.map((m) => <option key={m} value={m}>{mesLegible(m)}</option>)}</select></label>
         <button className="rounded bg-marca px-3 py-1 text-sm font-medium text-white hover:bg-marca-oscuro">Filtrar</button>
-        <a href="/central/combustible" className="py-1 text-sm text-slate-400 hover:text-marca-claro">Limpiar</a>
+        <a href="/central/combustible" className="inline-flex min-h-11 items-center px-2 text-sm text-slate-400 hover:text-marca-claro">Limpiar</a>
       </form>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">

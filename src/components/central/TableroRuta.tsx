@@ -20,7 +20,7 @@ function Tarjeta({ s }: { s: TarjetaRuta }) {
       style={transform ? { transform: `translate(${transform.x}px,${transform.y}px)` } : undefined}
       className={`rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm ${movible ? "" : "opacity-70"} ${isDragging ? "z-10 shadow-lg" : ""}`}>
       <div className="flex items-center justify-between gap-2">
-        {movible && <button type="button" aria-label="Arrastrar servicio" {...attributes} {...listeners} className="-m-1 cursor-grab touch-none select-none p-1 text-slate-500">⋮⋮</button>}
+        {movible && <button type="button" aria-label="Arrastrar servicio" {...attributes} {...listeners} className="-m-1 flex min-h-11 min-w-11 cursor-grab touch-none select-none items-center justify-center p-1 text-slate-500">⋮⋮</button>}
         <strong>{hora.format(new Date(s.fecha_hora_recogida))}</strong><EstadoBadge estado={s.estado} />
       </div>
       <p className="mt-1 text-slate-300">{s.origen_texto} → {s.destino_texto}</p>

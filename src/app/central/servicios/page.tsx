@@ -9,9 +9,9 @@ const ESTADOS = ["pendiente", "asignado", "aceptado", "en_camino", "recogido", "
 const POR_PAGINA = 100;
 const LIMITE_CAL = 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const cls = "rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm";
-const chip = "rounded-lg border border-slate-600 px-3 py-1.5 text-sm hover:border-marca-claro";
-const chipOn = "rounded-lg border border-marca bg-marca px-3 py-1.5 text-sm text-white";
+const cls = "w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm";
+const chip = "inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-3 py-1.5 text-sm hover:border-marca-claro";
+const chipOn = "inline-flex min-h-11 items-center rounded-lg border border-marca bg-marca px-3 py-1.5 text-sm text-white";
 
 type P = Record<string, string | undefined>;
 
@@ -66,9 +66,9 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-marca-claro">Agenda de servicios</h1>
-        <Link href="/central/servicios/nuevo" className="rounded-lg bg-marca px-4 py-2 font-medium text-white hover:bg-marca-oscuro">Nuevo servicio</Link>
+        <Link href="/central/servicios/nuevo" className="inline-flex min-h-11 items-center rounded-lg bg-marca px-4 py-2 font-medium text-white hover:bg-marca-oscuro">Nuevo servicio</Link>
       </div>
 
       <nav aria-label="Atajos" className="flex flex-wrap gap-2">
@@ -91,18 +91,18 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
         </div>
         <div className="flex items-center gap-2">
           <Link href={href(vista, r.anterior)} aria-label="Periodo anterior" className={chip}>◀</Link>
-          <span className="min-w-48 text-center font-medium">{r.etiqueta}</span>
+          <span className="min-w-36 text-center font-medium sm:min-w-48">{r.etiqueta}</span>
           <Link href={href(vista, r.siguiente)} aria-label="Periodo siguiente" className={chip}>▶</Link>
         </div>
       </div>
 
-      <form className="flex flex-wrap items-end gap-3 text-sm">
+      <form className="grid grid-cols-2 items-end gap-3 text-sm sm:flex sm:flex-wrap">
         <input type="hidden" name="vista" value={vista} />
         {cal && <input type="hidden" name="modo" value="calendario" />}
-        <label>Ir a<br /><input type="date" name="desde" defaultValue={desde} className={cls} /></label>
-        <label>Estado<br /><select name="estado" defaultValue={estado} className={cls}><option value="">Todos</option>{ESTADOS.map((e) => <option key={e}>{e}</option>)}</select></label>
-        <label>Conductor<br /><select name="conductor" defaultValue={conductor} className={cls}><option value="">Todos</option>{(conductores ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select></label>
-        <label>Origen<br /><select name="origen" defaultValue={origen} className={cls}><option value="">Todos</option><option value="web">Web</option><option value="manual">Manual</option></select></label>
+        <label className="min-w-0">Ir a<br /><input type="date" name="desde" defaultValue={desde} className={cls} /></label>
+        <label className="min-w-0">Estado<br /><select name="estado" defaultValue={estado} className={cls}><option value="">Todos</option>{ESTADOS.map((e) => <option key={e}>{e}</option>)}</select></label>
+        <label className="min-w-0">Conductor<br /><select name="conductor" defaultValue={conductor} className={cls}><option value="">Todos</option>{(conductores ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select></label>
+        <label className="min-w-0">Origen<br /><select name="origen" defaultValue={origen} className={cls}><option value="">Todos</option><option value="web">Web</option><option value="manual">Manual</option></select></label>
         <button className="rounded-lg border border-slate-600 px-3 py-1.5 hover:border-marca-claro">Filtrar</button>
       </form>
 

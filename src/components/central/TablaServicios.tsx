@@ -31,7 +31,7 @@ export default function TablaServicios({ filas }: { filas: FilaServicio[] }) {
                       <td className="px-3 py-2">{s.conductor?.nombre ?? "—"}</td>
                       <td className="px-3 py-2"><EstadoBadge estado={s.estado} />
                         {inc && <span title={s.ultima_incidencia ?? ""} aria-label="Incidencia" className="ml-2 text-red-500">●</span>}</td>
-                      <td className="px-3 py-2"><Link href={`/central/servicios/${s.id}`} className="text-marca-claro hover:underline">Ver</Link></td>
+                      <td className="px-3 py-2"><Link href={`/central/servicios/${s.id}`} className="inline-flex min-h-11 items-center px-2 text-marca-claro hover:underline">Ver</Link></td>
                     </tr>
                   );
                 })}

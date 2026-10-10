@@ -107,7 +107,7 @@ export default function CalendarioServicios({ vista, desde, inicio, filas, hoy }
           const lista = por.get(c.dia) ?? [];
           return (
             <div key={c.dia} className={`min-h-16 min-w-0 border-l border-t border-slate-800 p-0.5 sm:min-h-24 sm:p-1 ${c.enMes ? "" : "opacity-40"} ${c.dia === hoy ? "bg-marca/15" : ""}`}>
-              <Link href={`/central/servicios?vista=dia&desde=${c.dia}&modo=calendario`} className="text-xs font-medium text-marca-claro hover:underline">{Number(c.dia.slice(8))}</Link>
+              <Link href={`/central/servicios?vista=dia&desde=${c.dia}&modo=calendario`} className="flex min-h-11 items-start justify-center pt-1 text-xs font-medium text-marca-claro hover:underline sm:inline sm:min-h-0 sm:pt-0">{Number(c.dia.slice(8))}</Link>
               {/* móvil: punto + contador */}
               {lista.length > 0 && <div className="flex items-center gap-1 text-[10px] sm:hidden"><span className={`inline-block h-2 w-2 rounded-full ${PUNTO[lista[0].estado]}`} />{lista.length}</div>}
               <div className="hidden space-y-0.5 sm:block">

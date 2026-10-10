@@ -8,7 +8,8 @@ import { CampoContrasena } from "@/components/comun/CampoContrasena";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
 const rejilla = "grid grid-cols-[7rem_10rem_4rem_4rem_7rem_7rem_6rem] items-center gap-2";
-const boton = "rounded bg-marca px-3 py-1 text-sm font-medium text-white hover:bg-marca-oscuro";
+const rejillaMovil = "grid grid-cols-2 items-end gap-2 md:grid-cols-[7rem_10rem_4rem_4rem_7rem_7rem_6rem] md:items-center";
+const boton = "rounded bg-marca px-3 py-2 md:py-1 text-sm font-medium text-white hover:bg-marca-oscuro";
 
 export default async function Flota({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await exigirRol("operador");
@@ -32,34 +33,34 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Vehículos</h2>
-        <div className="overflow-x-auto">
-          <div className="min-w-[720px]">
-            <div className={`${rejilla} text-sm text-slate-400`}>
+        <div className="md:overflow-x-auto">
+          <div className="md:min-w-[720px]">
+            <div className={`${rejilla} hidden text-sm text-slate-400 md:grid`}>
               <span>Matrícula</span><span>Modelo</span><span>Plazas</span><span>Maletas</span><span>Estado</span><span>Km</span><span />
             </div>
             {(vehiculos ?? []).map((v) => (
-              <form key={v.id} action={guardarVehiculo} className={`${rejilla} border-t border-slate-700 py-1`}>
+              <form key={v.id} action={guardarVehiculo} className={`${rejillaMovil} border-t border-slate-700 py-3 md:py-1`}>
                 <input type="hidden" name="id" value={v.id} />
-                <input name="matricula" defaultValue={v.matricula} aria-label="Matrícula" className={campo} />
-                <input name="modelo" defaultValue={v.modelo} aria-label="Modelo" className={campo} />
-                <input name="plazas" type="number" min={1} max={19} defaultValue={v.plazas} aria-label="Plazas" className={campo} />
-                <input name="maletas" type="number" min={0} max={30} defaultValue={v.maletas} aria-label="Maletas" className={campo} />
-                <select name="estado" defaultValue={v.estado} aria-label="Estado" className={campo}>
+                <label className="grid min-w-0 gap-0.5"><span className="text-xs text-slate-400 md:hidden">Matrícula</span><input name="matricula" defaultValue={v.matricula} aria-label="Matrícula" className={campo} /></label>
+                <label className="grid min-w-0 gap-0.5"><span className="text-xs text-slate-400 md:hidden">Modelo</span><input name="modelo" defaultValue={v.modelo} aria-label="Modelo" className={campo} /></label>
+                <label className="grid min-w-0 gap-0.5"><span className="text-xs text-slate-400 md:hidden">Plazas</span><input name="plazas" type="number" min={1} max={19} defaultValue={v.plazas} aria-label="Plazas" className={campo} /></label>
+                <label className="grid min-w-0 gap-0.5"><span className="text-xs text-slate-400 md:hidden">Maletas</span><input name="maletas" type="number" min={0} max={30} defaultValue={v.maletas} aria-label="Maletas" className={campo} /></label>
+                <label className="grid min-w-0 gap-0.5"><span className="text-xs text-slate-400 md:hidden">Estado</span><select name="estado" defaultValue={v.estado} aria-label="Estado" className={campo}>
                   <option value="activo">Activo</option><option value="taller">En taller</option>
-                </select>
-                <input name="km_actuales" type="number" min={0} defaultValue={v.km_actuales} aria-label="Km" className={campo} />
-                <button className={boton}>Guardar</button>
+                </select></label>
+                <label className="grid min-w-0 gap-0.5"><span className="text-xs text-slate-400 md:hidden">Km</span><input name="km_actuales" type="number" min={0} defaultValue={v.km_actuales} aria-label="Km" className={campo} /></label>
+                <button className={`${boton} col-span-2 md:col-span-1`}>Guardar</button>
               </form>
             ))}
           </div>
         </div>
-        <form action={guardarVehiculo} className="flex flex-wrap items-end gap-2 border-t border-slate-700 pt-2">
+        <form action={guardarVehiculo} className="grid grid-cols-1 gap-2 border-t border-slate-700 pt-2 sm:flex sm:flex-wrap sm:items-end">
           <span className="py-1 text-sm text-slate-400">Nuevo:</span>
-          <div className="flex flex-col gap-1"><label htmlFor="nv-matricula" className="text-xs text-slate-400">Matrícula</label><input id="nv-matricula" name="matricula" placeholder="Matrícula" required className={`${campo} w-28`} /></div>
-          <div className="flex flex-col gap-1"><label htmlFor="nv-modelo" className="text-xs text-slate-400">Modelo</label><input id="nv-modelo" name="modelo" placeholder="Modelo" required className={`${campo} w-40`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nv-matricula" className="text-xs text-slate-400">Matrícula</label><input id="nv-matricula" name="matricula" placeholder="Matrícula" required className={`${campo} w-full sm:w-28`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nv-modelo" className="text-xs text-slate-400">Modelo</label><input id="nv-modelo" name="modelo" placeholder="Modelo" required className={`${campo} w-full sm:w-40`} /></div>
           <CamposNuevoVehiculo />
           <input type="hidden" name="estado" value="activo" />
-          <div className="flex flex-col gap-1"><label htmlFor="nv-km" className="text-xs text-slate-400">Km</label><input id="nv-km" name="km_actuales" type="number" min={0} defaultValue={0} className={`${campo} w-28`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nv-km" className="text-xs text-slate-400">Km</label><input id="nv-km" name="km_actuales" type="number" min={0} defaultValue={0} className={`${campo} w-full sm:w-28`} /></div>
           <button className={boton}>Añadir vehículo</button>
         </form>
       </section>
@@ -67,11 +68,11 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Conductores</h2>
         {(conductores ?? []).map((c) => (
-          <form key={c.id} action={guardarConductor} className="flex flex-wrap items-center gap-2 border-t border-slate-700 py-1">
+          <form key={c.id} action={guardarConductor} className="grid grid-cols-1 gap-2 border-t border-slate-700 py-3 sm:flex sm:flex-wrap sm:items-center sm:py-1">
             <input type="hidden" name="id" value={c.id} />
-            <input name="nombre" defaultValue={c.nombre} aria-label="Nombre" className={`${campo} w-40`} />
-            <span className="w-56 truncate text-sm text-slate-400" title={emails.get(c.id)}>{emails.get(c.id)}</span>
-            <input name="telefono" defaultValue={c.telefono ?? ""} aria-label="Teléfono" className={`${campo} w-32`} />
+            <input name="nombre" defaultValue={c.nombre} aria-label="Nombre" className={`${campo} w-full sm:w-40`} />
+            <span className="truncate text-sm sm:w-56 text-slate-400" title={emails.get(c.id)}>{emails.get(c.id)}</span>
+            <input name="telefono" defaultValue={c.telefono ?? ""} aria-label="Teléfono" className={`${campo} w-full sm:w-32`} />
             <select name="vehiculo_habitual_id" defaultValue={c.vehiculo_habitual_id ?? ""} aria-label="Vehículo habitual" className={campo}>
               <option value="">Sin vehículo</option>
               {(vehiculos ?? []).map((v) => <option key={v.id} value={v.id}>{v.matricula} · {v.modelo}{v.estado === "taller" ? " (taller)" : ""}</option>)}
@@ -79,16 +80,16 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
             <button className={boton}>Guardar</button>
           </form>
         ))}
-        <form action={guardarConductor} className="flex flex-wrap items-end gap-2 border-t border-slate-700 pt-2">
+        <form action={guardarConductor} className="grid grid-cols-1 gap-2 border-t border-slate-700 pt-2 sm:flex sm:flex-wrap sm:items-end">
           <span className="py-1 text-sm text-slate-400">Nuevo:</span>
-          <div className="flex flex-col gap-1"><label htmlFor="nc-nombre" className="text-xs text-slate-400">Nombre</label><input id="nc-nombre" name="nombre" placeholder="Nombre" required className={`${campo} w-40`} /></div>
-          <div className="flex flex-col gap-1"><label htmlFor="nc-email" className="text-xs text-slate-400">Email</label><input id="nc-email" name="email" type="email" placeholder="conductor@transferdeluxe.test" required className={`${campo} w-56`} /></div>
-          <div className="flex flex-col gap-1"><label htmlFor="nc-telefono" className="text-xs text-slate-400">Teléfono</label><input id="nc-telefono" name="telefono" placeholder="Teléfono" className={`${campo} w-32`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nc-nombre" className="text-xs text-slate-400">Nombre</label><input id="nc-nombre" name="nombre" placeholder="Nombre" required className={`${campo} w-full sm:w-40`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nc-email" className="text-xs text-slate-400">Email</label><input id="nc-email" name="email" type="email" placeholder="conductor@transferdeluxe.test" required className={`${campo} w-full sm:w-56`} /></div>
+          <div className="flex flex-col gap-1"><label htmlFor="nc-telefono" className="text-xs text-slate-400">Teléfono</label><input id="nc-telefono" name="telefono" placeholder="Teléfono" className={`${campo} w-full sm:w-32`} /></div>
           <div className="flex flex-col gap-1"><label htmlFor="nc-vehiculo" className="text-xs text-slate-400">Vehículo</label><select id="nc-vehiculo" name="vehiculo_habitual_id" defaultValue="" className={campo}>
             <option value="">Sin vehículo</option>
             {(vehiculos ?? []).map((v) => <option key={v.id} value={v.id}>{v.matricula} · {v.modelo}</option>)}
           </select></div>
-          {!demo && <div className="flex flex-col gap-1"><label htmlFor="nc-password" className="text-xs text-slate-400">Contraseña (mín. 8)</label><div className="w-48"><CampoContrasena id="nc-password" name="password" minLength={8} required autoComplete="new-password" className={campo} /></div></div>}
+          {!demo && <div className="flex flex-col gap-1"><label htmlFor="nc-password" className="text-xs text-slate-400">Contraseña (mín. 8)</label><div className="sm:w-48"><CampoContrasena id="nc-password" name="password" minLength={8} required autoComplete="new-password" className={campo} /></div></div>}
           <button className={boton}>Añadir conductor</button>
         </form>
         {demo && <p className="text-xs text-slate-500">Modo demo: el conductor nuevo usa la contraseña de demo y su email debe terminar en @transferdeluxe.test.</p>}
