@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BloqueDireccion } from "~/components/BloqueDireccion";
 import { BotonPaso } from "~/components/BotonPaso";
 import { EstadoBadge } from "~/components/EstadoBadge";
 import { BotonIncidencia } from "~/components/ModulosConductor";
@@ -79,8 +80,8 @@ export default function ServicioEnCurso() {
         <Text style={estilos.tenue}>{fmt(fechaHora, s.fecha_hora_recogida)}</Text>
         {error && <Aviso tipo="error" texto={`Sin conexión: datos de hace un momento (${error})`} />}
         <Tarjeta>
-          <Text style={estilos.texto}><Text style={estilos.tenue}>Recogida: </Text>{s.origen_texto}</Text>
-          <Text style={estilos.texto}><Text style={estilos.tenue}>Destino: </Text>{s.destino_texto}</Text>
+          <BloqueDireccion tipo="recogida" texto={s.origen_texto} lat={s.origen_lat} lng={s.origen_lng} />
+          <BloqueDireccion tipo="destino" texto={s.destino_texto} lat={s.destino_lat} lng={s.destino_lng} />
           <Text style={estilos.texto}><Text style={estilos.tenue}>Cliente: </Text>{nombre} · {s.pasajeros} pax · {s.maletas} maletas</Text>
           {datos?.vuelos && s.numero_vuelo && <Text style={estilos.texto}><Text style={estilos.tenue}>Vuelo: </Text>{s.numero_vuelo}{"  "}
             <Text accessibilityRole="link" style={{ color: color.marcaClaro, textDecorationLine: "underline" }} onPress={() => void abrir(urlVuelo(s.numero_vuelo!))}>Ver vuelo</Text></Text>}

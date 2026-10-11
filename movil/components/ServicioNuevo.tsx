@@ -4,7 +4,8 @@ import type { Servicio } from "@dominio/tipos";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, Vibration, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { BloqueDireccion } from "./BloqueDireccion";
 import { Boton } from "./ui";
 import { enviarAccion, nuevoIdAccion } from "~/lib/acciones";
 import { fechaHora, fmt } from "~/lib/formato";
@@ -14,8 +15,8 @@ import { color } from "~/lib/tema";
 import { useConsulta } from "~/lib/tiempoReal";
 
 type Nuevo = Pick<Servicio, "id" | "estado" | "conductor_id" | "asignado_en" | "plazo_respuesta_min" | "fecha_hora_recogida" |
-  "origen_texto" | "destino_texto" | "pasajeros" | "maletas" | "numero_vuelo" | "notas">;
-const CAMPOS = "id,estado,conductor_id,asignado_en,plazo_respuesta_min,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,notas";
+  "origen_texto" | "destino_texto" | "pasajeros" | "maletas" | "numero_vuelo" | "notas" | "origen_lat" | "origen_lng" | "destino_lat" | "destino_lng">;
+const CAMPOS = "id,estado,conductor_id,asignado_en,plazo_respuesta_min,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,notas,origen_lat,origen_lng,destino_lat,destino_lng";
 const VUELTA = "El servicio ha vuelto a la central";
 
 /** Modal a pantalla completa cuando la central me asigna un servicio (el más antiguo primero). */
@@ -85,7 +86,9 @@ export function ServicioNuevo({ yo }: { yo: string }) {
   }
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={() => ocultar(clave(s))}>
-      <SafeAreaView style={estilos.pantalla}>
+      {/* Un Modal es otra ventana nativa: necesita su propio proveedor de zona segura (si no, el texto pisa la isla dinámica). */}
+      <SafeAreaProvider>
+      <SafeAreaView style={estilos.pantalla} edges={["top", "bottom", "left", "right"]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
             <Text style={estilos.etiqueta} accessibilityRole="header">SERVICIO NUEVO</Text>
@@ -93,7 +96,10 @@ export function ServicioNuevo({ yo }: { yo: string }) {
             {restante > 0 && restante <= 86400 && <Text style={estilos.tenue}>para responder</Text>}
             {restante === 0 && <Text style={[estilos.tenue, { color: "#fcd34d", fontWeight: "600", textAlign: "center" }]}>Plazo vencido · la central está avisada. Puedes aceptarlo igualmente si sigue siendo tuyo.</Text>}
             <Text style={estilos.fecha}>{fmt(fechaHora, s.fecha_hora_recogida)}</Text>
-            <Text style={estilos.ruta}>{s.origen_texto} → {s.destino_texto}</Text>
+            <View style={estilos.direcciones}>
+              <BloqueDireccion tipo="recogida" texto={s.origen_texto} lat={s.origen_lat} lng={s.origen_lng} />
+              <BloqueDireccion tipo="destino" texto={s.destino_texto} lat={s.destino_lat} lng={s.destino_lng} />
+            </View>
             <Text style={estilos.meta}>{s.pasajeros} pax · {s.maletas} maletas{s.numero_vuelo ? ` · Vuelo ${s.numero_vuelo}` : ""}</Text>
             {s.notas && <Text style={estilos.notas}>{s.notas}</Text>}
             {error && <Text style={estilos.error} accessibilityRole="alert">{error}</Text>}
@@ -127,6 +133,7 @@ export function ServicioNuevo({ yo }: { yo: string }) {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
@@ -137,8 +144,8 @@ const estilos = StyleSheet.create({
   etiqueta: { color: color.marcaClaro, fontSize: 15, fontWeight: "700", letterSpacing: 1 },
   cuenta: { color: color.marcaClaro, fontSize: 56, fontWeight: "800", fontVariant: ["tabular-nums"] },
   tenue: { color: color.textoTenue, fontSize: 14 },
-  fecha: { color: color.texto, fontSize: 30, fontWeight: "800", marginTop: 16 },
-  ruta: { color: color.texto, fontSize: 21, marginTop: 4 },
+  fecha: { color: color.texto, fontSize: 30, fontWeight: "800", marginTop: 10 },
+  direcciones: { gap: 10, marginTop: 10, marginBottom: 4 },
   meta: { color: color.textoSuave, fontSize: 17 },
   notas: { color: color.textoSuave, fontSize: 15, backgroundColor: color.tarjeta, borderRadius: 10, padding: 12, marginTop: 6 },
   error: { color: "#fca5a5", backgroundColor: "#450a0a", borderRadius: 10, padding: 12, marginTop: 8, fontSize: 15 },
