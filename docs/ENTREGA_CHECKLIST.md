@@ -41,6 +41,13 @@ Complejidad y funcionalidad · Innovación y originalidad · Calidad del vibe co
 Utilidad y aplicabilidad. Proceso: revisión inicial → testing funcional → evaluación técnica → deliberación.
 Bases completas: `docs/Bases-Hackaton-Vibecoding-E7.docx.pdf` (local, no versionado).
 
+## Estado a 12/10/2026
+- [x] App nativa TVL Conductor: APK Android funcionando, iOS en TestFlight.
+- [x] Auditoría técnica/legal (`docs/INFORME_AUDITORIA.md`) y mejoras aprobadas: seguridad, GPS sin pérdidas, purga
+      30 días, páginas legales, módulos (jornada, incidencias, checklist, mantenimiento, informes, vuelos).
+- [x] Guion del vídeo actualizado (sin «Restablecer demo»).
+- [ ] Antes del 20/10: añadir servicios de ejemplo (sin borrar nada) y revisar que no haya datos reales visibles.
+
 ## Estado a 10/10/2026 (madrugada)
 - [x] App completa en local: reserva, central (panel en vivo, servicios, asignación, hoja de ruta, flota, combustible),
       app del conductor (PWA, GPS, aceptar/rechazar, en curso offline, ticket con OCR), datos de demo y reinicio.

@@ -52,8 +52,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Tickets**: OCR gratuito en el navegador (Tesseract.js) + reglas de extracción; la foto va a un bucket privado.
 - **Mapas**: Leaflet + OpenStreetMap; geocodificación con Nominatim y lugares frecuentes.
 - **Despliegue**: Hostinger Cloud Startup (Node.js Web App importada de GitHub, redespliegue en cada push) y
-  GitHub Actions que reinicia la demo cada madrugada (y mantiene activo Supabase).
-- **Calidad**: 70 tests unitarios (Vitest) y 2 tests de punta a punta (Playwright) del flujo completo y del rechazo.
+  GitHub Actions diario que mantiene activo Supabase y limpia tokens push caducados (sin reiniciar datos).
+- **App nativa TVL Conductor** (`movil/`, Expo SDK 57): GPS en segundo plano con cola sin pérdidas, notificaciones push,
+  mapa MapLibre + OSM con avisos de proximidad, ticket con cámara. Android (APK interno) e iOS (TestFlight) con EAS.
+- **Módulos activables** desde la central: jornada laboral, incidencias, checklist del vehículo, mantenimiento,
+  informes y seguimiento de vuelos.
+- **Seguridad y legal**: RLS en todas las tablas, cabeceras HTTP, validación y purga de posiciones (30 días),
+  páginas `/privacidad` y `/aviso-legal`. Auditoría completa en `docs/INFORME_AUDITORIA.md`.
+- **Calidad**: más de 240 tests unitarios (Vitest) y 2 tests de punta a punta (Playwright).
 - Documentos de diseño: `docs/superpowers/specs/` (especificación) y `docs/superpowers/plans/` (plan de 22 tareas).
 
 ## 4. Casos de uso

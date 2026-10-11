@@ -1,23 +1,25 @@
 # Guion del vídeo demo (≤ 5 min)
 
-> Entregable 5. Grabar en 1920×1080, con la central en el ordenador y la app del conductor en el móvil
-> (o en una segunda ventana con tamaño de móvil). Solo datos de demo. Antes de grabar: «↺ Restablecer demo».
+> Entregable 5. Grabar en 1920×1080, con la central en el ordenador y la app **TVL Conductor** (Android/iOS) en el móvil.
+> Solo datos de demo (la demo ya no se reinicia: comprobar antes que hay servicios de ejemplo para hoy).
 
 | Tiempo | Pantalla | Qué se enseña | Texto (voz en off) |
 |---|---|---|---|
-| 0:00–0:25 | Portada | El problema | «Una empresa de traslados de Salou con 3 vehículos y 3 conductores gestiona sus pedidos por formulario web y teléfono. TransferdeLuxe es su centro de control: recibe los pedidos, los asigna, sigue la flota en directo y controla el gasto en combustible.» |
-| 0:25–0:55 | `/reservar` | Reserva pública con ida y vuelta | «El cliente reserva igual que en la web actual. Las direcciones se autocompletan con lugares frecuentes de la Costa Dorada. Al enviar…» |
-| 0:55–1:30 | `/central` | Panel en vivo | «…la reserva aparece al instante como alerta en la central. El mapa muestra los coches en tiempo real; pulso “Simular ruta” para verlos moverse. Arriba, los contadores del día.» |
-| 1:30–2:05 | Ficha → Asignar | Asignación con sugerencia | «Al asignar, la app ordena a los conductores: quién está libre a esa hora, si su vehículo tiene plazas y quién está más cerca. Recomienda uno y lo asigno.» |
-| 2:05–2:40 | Móvil: tarjeta | Aceptar / rechazar | «Al conductor le salta una tarjeta con sonido, vibración y cuenta atrás. Si rechaza indica el motivo, y en la central aparece la alerta roja para reasignar. Esta vez acepta.» |
-| 2:40–3:15 | Móvil: servicio | En camino · CARGA · DESCARGA | «Un solo botón grande va avanzando: salgo, carga de pasajeros, descarga. Si no hay cobertura, la pulsación se guarda y se envía al volver la señal. La central lo ve al momento.» |
-| 3:15–3:50 | Móvil: ticket | Ticket con OCR | «Para el combustible, el conductor fotografía el ticket. El OCR se ejecuta en el propio móvil, gratis y sin enviar la foto a terceros, y rellena litros, precio e importe. Revisa, añade los km y guarda.» |
-| 3:50–4:20 | `/central/combustible` | Gasto y consumo | «La central ve el gasto total, los litros, el consumo medio por vehículo y la evolución mensual, con la foto de cada ticket.» |
-| 4:20–4:45 | Hoja de ruta + Flota | Planificación | «La hoja de ruta permite arrastrar servicios entre conductores, y en Flota se ponen vehículos en taller: ese conductor deja de sugerirse.» |
-| 4:45–5:00 | Portada | Cierre | «Hecho 100 % con vibe coding en Claude Code: diseño, plan, 22 tareas revisadas por agentes y tests de punta a punta. Gracias.» |
+| 0:00–0:20 | Portada | El problema | «Una empresa de traslados de Salou con 3 vehículos y 3 conductores gestionaba sus pedidos por formulario y teléfono. TransferdeLuxe es su centro de control y la app de sus conductores.» |
+| 0:20–0:45 | `/reservar` | Reserva pública | «El cliente reserva con ida y vuelta, nº de vuelo y aceptación de privacidad. Las direcciones se autocompletan. Al enviar…» |
+| 0:45–1:15 | `/central` | Panel en vivo | «…aparece al instante en la central. El mapa muestra los coches con GPS real desde la app nativa; a la derecha, alertas: incidencias, checklists con fallos, mantenimiento.» |
+| 1:15–1:45 | Ficha → Asignar · Vuelo | Sugerencia + vuelos | «Al asignar, la app recomienda conductor por disponibilidad, plazas, maletas y cercanía. Con el nº de vuelo consulto la llegada real y muevo la recogida con un clic: el conductor recibe un aviso.» |
+| 1:45–2:15 | Móvil: notificación | Push + aceptar | «Con la app cerrada, al conductor le llega la notificación. Acepta con cuenta atrás; si rechaza, la central ve el motivo.» |
+| 2:15–2:50 | Móvil: jornada · checklist · servicio | Flujo del conductor | «Inicia la jornada —registro horario legal—, revisa el vehículo y avanza con un solo botón: en camino, carga, descarga. El mapa avisa a 500 y 100 m. El GPS sigue con la pantalla bloqueada.» |
+| 2:50–3:15 | Móvil: incidencia · ticket | Incidencias y combustible | «Si hay una avería, foto y aviso inmediato a la central. El ticket de combustible se fotografía y se registra.» |
+| 3:15–3:50 | Hoja de ruta · Calendario | Planificación | «La hoja de ruta calcula tiempos entre servicios y avisa si un conductor no llega; arrastro el servicio a otro. Calendario por día, semana y mes.» |
+| 3:50–4:25 | Mantenimiento · Informes · Jornadas | Gestión | «ITV, seguro y revisiones con semáforo; informes mensuales de servicios, km y consumo; registro de jornada exportable a CSV.» |
+| 4:25–4:45 | Flota y ajustes → Módulos | Configurable | «Cada empresa activa solo los módulos que necesita. Todo cumple RGPD: GPS solo en servicio y purga a los 30 días.» |
+| 4:45–5:00 | Portada | Cierre | «Hecho 100 % con vibe coding en Claude Code: diseño, planes, agentes revisores, auditoría y tests. Gracias.» |
 
 ## Comprobaciones antes de grabar
-- [ ] «Restablecer demo» pulsado y sesión iniciada como `central@transferdeluxe.test`.
-- [ ] Móvil con la PWA instalada y sesión de `conductor1@transferdeluxe.test`; ubicación permitida.
-- [ ] Ninguna notificación personal visible en pantalla; sin datos reales.
+- [ ] Servicios de ejemplo para hoy (añadirlos desde la central si hace falta; nunca reiniciar).
+- [ ] Sesión de `central@transferdeluxe.test` en el ordenador y de un conductor de demo en la app nativa; ubicación «Siempre» y notificaciones permitidas.
+- [ ] Todos los módulos activos en Flota y ajustes.
+- [ ] Ninguna notificación personal visible; sin datos reales (revisar direcciones y teléfonos que se vean).
 - [ ] Duración final ≤ 5:00.
