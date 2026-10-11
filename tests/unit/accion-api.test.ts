@@ -50,9 +50,9 @@ describe("ColaAcciones + API (app nativa)", () => {
     const cola = new ColaAcciones(almacen(), (a) => enviar(a), (_a, e) => rechazos.push(e));
     cola.encolar({ idAccion: "a1", servicioId: "s1", accion: "salir" });
     cola.encolar({ idAccion: "a2", servicioId: "s1", accion: "cargar" });
-    expect(await cola.vaciar()).toEqual({ enviadas: 0, errores: [] });
+    expect(await cola.vaciar()).toMatchObject({ enviadas: 0, errores: [] });
     expect(cola.pendientes()[0].intentos).toBe(1);
-    expect(await cola.vaciar()).toEqual({ enviadas: 1, errores: ["No"] });
+    expect(await cola.vaciar(true)).toEqual({ enviadas: 1, errores: ["No"] });
     expect(cola.pendientes()).toEqual([]);
     expect(rechazos).toEqual(["No"]);
   });

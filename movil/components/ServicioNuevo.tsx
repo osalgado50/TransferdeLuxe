@@ -9,6 +9,7 @@ import { BloqueDireccion } from "./BloqueDireccion";
 import { Boton } from "./ui";
 import { enviarAccion, nuevoIdAccion } from "~/lib/acciones";
 import { fechaHora, fmt } from "~/lib/formato";
+import { caido } from "~/lib/red";
 import { exigir } from "~/lib/servicios";
 import { supabase } from "~/lib/supabase";
 import { color } from "~/lib/tema";
@@ -46,7 +47,7 @@ export function ServicioNuevo({ yo }: { yo: string }) {
     setAhora(new Date());
     const t = setInterval(() => setAhora(new Date()), 1000);
     // Reconciliación periódica con la BD (por si se perdió un evento en vivo).
-    const r = setInterval(() => void recargar(), 20_000);
+    const r = setInterval(() => { if (!caido("supabase")) void recargar(); }, 20_000); // caída: la sonda avisa al volver
     return () => { clearInterval(t); clearInterval(r); };
   }, [abierta, recargar]);
   // Plazo agotado: cerrar con aviso.

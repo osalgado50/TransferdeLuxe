@@ -3,9 +3,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import { AppState, Platform } from "react-native";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
+import { fetchSupabase } from "./red";
 
 // Cliente único de Supabase: sesión persistida en AsyncStorage y refresco automático del token.
+// Todas sus llamadas HTTP (consultas, auth, refresco) llevan tiempo máximo (20 s) y alimentan el estado de conexión.
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { fetch: fetchSupabase },
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,

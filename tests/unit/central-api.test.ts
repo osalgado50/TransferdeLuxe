@@ -19,6 +19,7 @@ import { GET as sugerencia } from "@/app/api/central/sugerencia/route";
 import { POST as asignar } from "@/app/api/central/asignar/route";
 import { POST as reasignar } from "@/app/api/central/reasignar/route";
 import { POST as alertaVista } from "@/app/api/central/alerta-vista/route";
+import { vaciarCacheBearer } from "@/lib/supabase/bearer"; // la verificación del token se cachea 60 s
 
 const U = "11111111-1111-4111-8111-111111111111";
 const S = "22222222-2222-4222-8222-222222222222";
@@ -27,14 +28,14 @@ const post = (body: unknown, auth = "Bearer bueno") => new Request("http://x/api
 const get = (q = "", auth = "Bearer bueno") => new Request(`http://x/api${q}`, { headers: auth ? { authorization: auth } : {} });
 
 beforeEach(() => {
-  st.usuario = { id: U }; st.perfil = { id: U, rol: "operador" };
+  st.usuario = { id: U }; vaciarCacheBearer(); st.perfil = { id: U, rol: "operador" };
   Object.values(op).forEach((f) => f.mockReset());
 });
 
 test("401 sin Bearer o token malo; 403 si es conductor (aunque conduzca)", async () => {
   expect((await resumen(get("", ""))).status).toBe(401);
   expect((await asignar(post({}, "Bearer malo"))).status).toBe(401);
-  st.perfil = { id: U, rol: "conductor" };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor" };
   for (const r of [await resumen(get()), await sugerencia(get(`?servicio=${S}`)), await asignar(post({})), await reasignar(post({})), await alertaVista(post({}))]) expect(r.status).toBe(403);
   expect(op.ejecutar).not.toHaveBeenCalled();
 });

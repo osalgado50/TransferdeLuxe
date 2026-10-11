@@ -29,10 +29,11 @@ export function colaDe(conductorId: string): Compartida {
   return c;
 }
 
-export async function drenar(conductorId: string) {
+/** `forzar`: gesto del usuario o vuelta de la red (ignora el backoff); el temporizador respeta el backoff. */
+export async function drenar(conductorId: string, forzar = false) {
   const c = colaDe(conductorId);
-  const r = await c.cola.vaciar();
-  // Solo se avisa si algo cambió o sigue atascado: así no se refresca la página cada 20 s sin motivo.
-  if (r.enviadas || r.errores.length || c.cola.pendientes().length) c.oyentes.forEach((f) => f());
+  const r = await c.cola.vaciar(forzar);
+  // Solo se avisa si algo cambió o se intentó y falló (contador de intentos): así no se refresca la página sin motivo.
+  if (r.enviadas || r.errores.length || (c.cola.pendientes().length && !r.omitida)) c.oyentes.forEach((f) => f());
   return r;
 }

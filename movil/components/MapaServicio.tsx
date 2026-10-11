@@ -3,6 +3,7 @@ import {
   claveAvisoNav, debePedirRuta, faseProximidad, REINTENTO_LLEGANDO_MS, REPETIR_RUTA_MS, restanteEnRuta, textoAvisoProximidad, textoBannerRuta,
   tiempoRestanteS, type Fase, type Objetivo, type PeticionRuta,
 } from "@dominio/navegacion";
+import { clasificarRespuesta, esperaBackoff } from "@dominio/reintento";
 import type { Punto } from "@dominio/tipos";
 import { Camera, GeoJSONSource, Layer, Map as MapaLibre, Marker, type CameraRef, type StyleSpecification } from "@maplibre/maplibre-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -111,16 +112,21 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
   }, [claves]);
   const marcar = (k: string) => { disparados.current.add(k); void AsyncStorage.setItem(k, "1").catch(() => undefined); };
 
-  // Aviso «llegando» a la central: solo se marca con respuesta ok; si falla, reintento con temporizador ≥ 15 s.
+  // Aviso «llegando» a la central: solo se marca con respuesta ok (o un rechazo definitivo 4xx: no tiene sentido insistir);
+  // si falla la red o el servidor, reintento con backoff (15 s, 30 s, 60 s… hasta 5 min), nunca en caliente.
+  const fallosLlegando = useRef(0);
   const avisarCentral = useCallback(async () => {
     reintento.current = null;
     if (enviando.current || disparados.current.has(claves.central)) return;
     enviando.current = true;
-    let ok = false;
-    try { ok = (await llamarApi("/api/conductor/llegando", { method: "POST", body: { servicioId, objetivo: objetivo.tipo } })).ok; }
-    catch { /* sin red */ } finally { enviando.current = false; }
-    if (ok) marcar(claves.central);
-    else if (!reintento.current) reintento.current = setTimeout(() => void avisarCentral(), REINTENTO_LLEGANDO_MS);
+    let fin = false;
+    try {
+      const r = await llamarApi("/api/conductor/llegando", { method: "POST", body: { servicioId, objetivo: objetivo.tipo } });
+      fin = r.ok || clasificarRespuesta(r.status, r.headers.get("content-type")) === "ok";
+    } catch { /* sin red */ } finally { enviando.current = false; }
+    if (fin) { fallosLlegando.current = 0; marcar(claves.central); return; }
+    const espera = esperaBackoff(++fallosLlegando.current, { baseMs: REINTENTO_LLEGANDO_MS, topeMs: 5 * 60_000 });
+    if (!reintento.current) reintento.current = setTimeout(() => void avisarCentral(), Math.max(REINTENTO_LLEGANDO_MS, espera));
   }, [claves, servicioId, objetivo.tipo]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (reintento.current) clearTimeout(reintento.current); }, []);
 

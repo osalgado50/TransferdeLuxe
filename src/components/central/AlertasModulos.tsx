@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clienteNavegador } from "@/lib/supabase/navegador";
+import { crearFreno } from "@/lib/dominio/reintento";
 import { leerModulos } from "@/lib/dominio/modulos";
 import { nombreTipoIncidencia } from "@/lib/dominio/incidencias";
 import { fallos, type ItemChecklist, type Respuestas } from "@/lib/dominio/checklist";
@@ -39,17 +40,20 @@ export default function AlertasModulos({ conductores, vehiculos, alNuevo }: {
   useEffect(() => {
     void cargar();
     const sb = clienteNavegador();
+    // Ráfagas de cambios (p. ej. varias revisiones seguidas): como mucho una recarga (4 consultas) cada 3 s.
+    const freno = crearFreno(3000);
+    const recargar = () => freno.pedir(() => void cargar());
     let canal: ReturnType<typeof sb.channel> | null = null, cancelado = false;
     void sb.auth.getSession().then(({ data }) => {
       if (cancelado) return;
       if (data.session) sb.realtime.setAuth(data.session.access_token);
       canal = sb.channel(`rt-modulos-${crypto.randomUUID()}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "incidencias" }, () => void cargar())
-        .on("postgres_changes", { event: "*", schema: "public", table: "checklist_revisiones" }, () => void cargar())
+        .on("postgres_changes", { event: "*", schema: "public", table: "incidencias" }, recargar)
+        .on("postgres_changes", { event: "*", schema: "public", table: "checklist_revisiones" }, recargar)
         .subscribe();
     });
     const t = setInterval(() => void cargar(), 60_000); // respaldo si el socket se cae
-    return () => { cancelado = true; clearInterval(t); if (canal) void sb.removeChannel(canal); };
+    return () => { cancelado = true; clearInterval(t); freno.cancelar(); if (canal) void sb.removeChannel(canal); };
   }, [cargar]);
 
   const nombre = (id: string) => conductores.find((c) => c.id === id)?.nombre ?? "conductor";

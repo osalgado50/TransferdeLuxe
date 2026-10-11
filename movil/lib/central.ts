@@ -1,8 +1,10 @@
+import { crearFreno } from "@dominio/reintento";
 import type { Sugerencia } from "@dominio/sugerencia";
 import type { PosicionActual, Rol, Servicio } from "@dominio/tipos";
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { llamarApi } from "./api";
+import { alRecuperar, caido } from "./red";
 import { supabase } from "./supabase";
 import { useCambiosTabla } from "./tiempoReal";
 
@@ -66,6 +68,8 @@ async function leerUmbral(): Promise<number> {
 }
 
 const CADA_MS = 30_000;
+/** Las posiciones llegan cada ~12 s por conductor: recargar el resumen en cada una saturaba el servidor. Como mucho 1 / 15 s. */
+const FRENO_POSICIONES_MS = 15_000;
 
 /** Resumen de la central: carga, Realtime (servicios y posiciones), cada 30 s en primer plano y al volver a la app. */
 function useResumenCentral() {
@@ -90,16 +94,21 @@ function useResumenCentral() {
     if (t.current) clearTimeout(t.current);
     t.current = setTimeout(() => void recargar(), 800);
   }, [recargar]);
-  useEffect(() => () => { if (t.current) clearTimeout(t.current); }, []);
+  const freno = useRef(crearFreno(FRENO_POSICIONES_MS));
+  const posicion = useCallback(() => freno.current.pedir(() => void recargar()), [recargar]);
+  useEffect(() => () => { if (t.current) clearTimeout(t.current); freno.current.cancelar(); }, []);
   useCambiosTabla("servicios", programar, programar);
-  useCambiosTabla("posicion_actual", programar, programar);
+  useCambiosTabla("posicion_actual", posicion, programar);
+  useEffect(() => alRecuperar(() => programar()), [programar]);
 
   useEffect(() => {
-    let intervalo: ReturnType<typeof setInterval> | null = setInterval(() => void recargar(), CADA_MS);
+    // Con el servidor caído no se insiste: la sonda de red avisa al volver (alRecuperar) y entonces se recarga.
+    const periodico = () => { if (!caido("api")) void recargar(); };
+    let intervalo: ReturnType<typeof setInterval> | null = setInterval(periodico, CADA_MS);
     const s = AppState.addEventListener("change", (e) => {
       if (e === "active") {
         void recargar();
-        if (!intervalo) intervalo = setInterval(() => void recargar(), CADA_MS);
+        if (!intervalo) intervalo = setInterval(periodico, CADA_MS);
       } else if (intervalo) { clearInterval(intervalo); intervalo = null; }
     });
     return () => { s.remove(); if (intervalo) clearInterval(intervalo); };

@@ -1,6 +1,7 @@
 import "server-only";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { notificarCentral } from "@/lib/push";
+import { esperaBackoff } from "@/lib/dominio/reintento";
 import { construirAvisos, type EventoAviso, type IncidenciaAviso, type RevisionAviso, type ServicioAviso } from "@/lib/dominio/avisosCentral";
 
 const LIMITE = 50;
@@ -9,7 +10,8 @@ const LIMITE = 50;
 export async function vigilarUnaVez(): Promise<number> {
   const sb = clienteAdmin();
   const { data: c, error } = await sb.from("vigilante_push").select("*").eq("id", 1).maybeSingle();
-  if (error || !c) return 0;
+  if (error) throw new Error(`cursor: ${error.message}`); // Supabase caído → el arranque aplica backoff
+  if (!c) return 0;
   const [{ data: ev }, { data: inc }, { data: rev }] = await Promise.all([
     sb.from("eventos_servicio").select("id,servicio_id,tipo,actor_id,motivo").gt("id", c.ultimo_evento_id).order("id").limit(LIMITE),
     sb.from("incidencias").select("conductor_id,servicio_id,tipo,descripcion,creado_en").gt("creado_en", c.ultima_incidencia_en).order("creado_en").limit(LIMITE),
@@ -45,16 +47,22 @@ export async function vigilarUnaVez(): Promise<number> {
   return avisos.length;
 }
 
-let corriendo = false;
-/** Arranca el intervalo (una vez por proceso), sin solapes y sin romper nunca. */
-export function arrancarVigilante(cadaMs = 20_000): void {
+/**
+ * Arranca el vigilante (una vez por proceso). Cadena de setTimeout en vez de setInterval: la siguiente pasada se
+ * programa al TERMINAR la anterior, así que nunca se solapan ni se acumulan. Si falla (Supabase caído), espera con
+ * backoff (40 s, 80 s… hasta 5 min) en vez de insistir cada 20 s. Cada consulta tiene tiempo máximo (clienteAdmin).
+ */
+export function arrancarVigilante(cadaMs = 20_000, pasada: () => Promise<unknown> = vigilarUnaVez): void {
   const g = globalThis as { __vigilantePush?: boolean };
   if (g.__vigilantePush) return;
   g.__vigilantePush = true;
-  setInterval(async () => {
-    if (corriendo) return;
-    corriendo = true;
-    try { await vigilarUnaVez(); } catch (e) { console.error("[vigilante] falló:", e instanceof Error ? e.message : e); } finally { corriendo = false; }
-  }, cadaMs).unref?.();
+  let fallos = 0;
+  const programar = (ms: number) => { setTimeout(correr, ms).unref?.(); };
+  const correr = async () => {
+    try { await pasada(); fallos = 0; }
+    catch (e) { fallos++; console.error(`[vigilante] falló (${fallos} seguidos):`, e instanceof Error ? e.message : e); }
+    programar(fallos ? Math.max(cadaMs, esperaBackoff(fallos, { baseMs: cadaMs * 2, topeMs: 5 * 60_000 })) : cadaMs);
+  };
+  programar(cadaMs);
   console.log("[vigilante] push a la central activo");
 }

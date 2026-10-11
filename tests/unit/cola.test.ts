@@ -17,10 +17,11 @@ test("sin red: conserva la cola y reintenta luego", async () => {
   let red = false;
   const c = new ColaAcciones(memoria(), async () => { if (!red) throw new Error("offline"); return { ok: true }; });
   c.encolar({ idAccion: "1", servicioId: "s", accion: "cargar" });
-  expect(await c.vaciar()).toEqual({ enviadas: 0, errores: [] });
+  expect(await c.vaciar()).toMatchObject({ enviadas: 0, errores: [] });
   expect(c.pendientes()).toHaveLength(1);
   red = true;
-  expect((await c.vaciar()).enviadas).toBe(1);
+  expect((await c.vaciar()).omitida).toBe(true); // dentro del backoff: no se golpea al servidor
+  expect((await c.vaciar(true)).enviadas).toBe(1); // forzado (gesto del usuario o red recuperada)
 });
 
 test("rechazada por el servidor: se descarta y se informa", async () => {
@@ -62,8 +63,8 @@ test("sesión caducada (lanza) o respuesta rara: se conserva; rechazo de negocio
   }, (a, e) => avisos.push(`${a.servicioId}:${e}`));
   c.encolar({ idAccion: "1", servicioId: "s", accion: "salir" });
   await c.vaciar(); expect(c.pendientes()).toHaveLength(1);
-  modo = "rara"; await c.vaciar(); expect(c.pendientes()).toHaveLength(1);
-  modo = "rechazo"; await c.vaciar();
+  modo = "rara"; await c.vaciar(true); expect(c.pendientes()).toHaveLength(1);
+  modo = "rechazo"; await c.vaciar(true);
   expect(c.pendientes()).toEqual([]); expect(avisos).toEqual(["s:No permitido"]);
 });
 
@@ -75,7 +76,7 @@ test("almacén corrupto o no-array: cola vacía", () => {
 test("fallos de red: cuenta intentos y permite descartar la acción atascada", async () => {
   const c = new ColaAcciones(memoria(), async () => { throw new Error("offline"); });
   c.encolar({ idAccion: "1", servicioId: "s", accion: "cargar" });
-  for (let i = 0; i < 3; i++) await c.vaciar();
+  for (let i = 0; i < 3; i++) await c.vaciar(true);
   expect(c.pendientes()[0].intentos).toBe(3);
   c.descartar("1");
   expect(c.pendientes()).toEqual([]);

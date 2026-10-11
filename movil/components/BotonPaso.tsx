@@ -65,7 +65,7 @@ export function BotonPaso({ servicioId, conductorId, estadoServidor, siguienteId
     c.rechazos.delete(servicioId);
     c.cola.encolar({ idAccion: nuevoIdAccion(), servicioId, accion });
     setEstado(SIGUIENTE[accion]); // optimista
-    void drenar(conductorId).catch(() => {});
+    void drenar(conductorId, true).catch(() => {}); // gesto del usuario: intenta ya
   };
   const descartar = () => {
     if (!c || !atascada) return;

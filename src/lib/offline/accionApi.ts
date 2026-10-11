@@ -1,3 +1,5 @@
+import { segundosRetryAfter } from "@/lib/dominio/reintento";
+
 /** Cliente de POST /api/conductor/accion con Bearer (app nativa). Lógica pura: fetch y sesión se inyectan. */
 export type AccionApp = "aceptar" | "rechazar" | "salir" | "cargar" | "descargar";
 export interface PeticionAccion { idAccion: string; servicioId: string; accion: AccionApp; motivo?: string }
@@ -11,8 +13,11 @@ export interface DepsAccion {
   fetch: typeof fetch;
 }
 
-/** Fallo transitorio (red, sesión, 429, 5xx): la acción debe conservarse para reintentarla. */
-export class ErrorTransitorio extends Error {}
+/** Fallo transitorio (red, sesión, 429, 5xx, HTML de un proxy): la acción debe conservarse para reintentarla. */
+export class ErrorTransitorio extends Error {
+  /** Espera mínima pedida por el servidor (Retry-After), en ms. La cola la respeta además de su backoff. */
+  constructor(mensaje: string, public reintentarEnMs?: number) { super(mensaje); }
+}
 
 /**
  * Devuelve {ok:true} o {ok:false,error} (rechazo de negocio: no reintentar).
@@ -36,7 +41,10 @@ export function crearEnviarAccion(d: DepsAccion) {
     let res = await llamar(await d.token(), p);
     if (res.status === 401) res = await llamar(await d.refrescar(), p);
     if (res.status === 401) throw new ErrorTransitorio("Sesión caducada");
-    if (res.status === 429 || res.status >= 500) throw new ErrorTransitorio(`HTTP ${res.status}`);
+    if (res.status === 429 || res.status >= 500) {
+      const s = segundosRetryAfter(res.headers?.get?.("retry-after"));
+      throw new ErrorTransitorio(`HTTP ${res.status}`, s == null ? undefined : s * 1000);
+    }
     let json: unknown;
     try { json = await res.json(); } catch { throw new ErrorTransitorio("Respuesta no válida"); }
     const j = (json ?? {}) as { ok?: unknown; error?: unknown; estado?: unknown; duplicada?: unknown };

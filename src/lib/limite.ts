@@ -18,3 +18,14 @@ export function permitir(clave: string, max: number, ventanaMs: number): boolean
   if (lista.length >= max) { golpes.set(clave, { lista, ventanaMs }); return false; }
   lista.push(ahora); golpes.set(clave, { lista, ventanaMs }); return true;
 }
+
+/**
+ * Como `permitir`, pero si se rechaza dice cuántos segundos faltan para el siguiente hueco (cabecera Retry-After).
+ * Rechazar no cuenta como golpe: un cliente desbocado no alarga su propio bloqueo, pero cada rechazo es barato (sin BD).
+ */
+export function comprobarLimite(clave: string, max: number, ventanaMs: number): { ok: true } | { ok: false; reintentarEnS: number } {
+  if (permitir(clave, max, ventanaMs)) return { ok: true };
+  const lista = golpes.get(clave)?.lista ?? [];
+  const primero = lista[lista.length - max] ?? lista[0] ?? Date.now();
+  return { ok: false, reintentarEnS: Math.max(1, Math.ceil((primero + ventanaMs - Date.now()) / 1000)) };
+}

@@ -43,7 +43,11 @@ export function InterruptorGps({ conductorId }: { conductorId: string }) {
 
   useEffect(() => {
     if (estado === "fuera") return;
-    const t = setInterval(() => { setAhora(Date.now()); void leerUltimoEnvio(conductorId).then(setUltimo); }, 1000);
+    // El contador «hace Xs» avanza cada segundo, pero el disco (AsyncStorage) solo se lee cada 5 s: la tarea envía cada ≥ 12 s.
+    let n = 0;
+    const leer = () => void leerUltimoEnvio(conductorId).then(setUltimo, () => undefined);
+    leer();
+    const t = setInterval(() => { setAhora(Date.now()); if (++n % 5 === 0) leer(); }, 1000);
     return () => clearInterval(t);
   }, [estado, conductorId]);
 

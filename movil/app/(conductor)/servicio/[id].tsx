@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BloqueDireccion } from "~/components/BloqueDireccion";
 import { BotonPaso } from "~/components/BotonPaso";
 import { EstadoBadge } from "~/components/EstadoBadge";
+import { EstadoConexion } from "~/components/EstadoConexion";
 import { BotonIncidencia } from "~/components/ModulosConductor";
 import { MapaServicio } from "~/components/MapaServicio";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
@@ -56,7 +57,8 @@ export default function ServicioEnCurso() {
     return (
       <SafeAreaView style={estilos.pantalla}>
         {volver}
-        <View style={{ padding: 16 }}>
+        <View style={{ padding: 16, gap: 8 }}>
+          <EstadoConexion />
           {cargando ? <Aviso texto="Cargando…" /> : error ? <Aviso tipo="error" texto={`Error al cargar: ${error}`} />
             : <Aviso texto="Este servicio ya no está asignado a ti." />}
         </View>
@@ -73,6 +75,7 @@ export default function ServicioEnCurso() {
     <SafeAreaView style={estilos.pantalla} edges={["top", "bottom"]}>
       {volver}
       <ScrollView contentContainerStyle={estilos.contenido}>
+        <EstadoConexion />
         <View style={estilos.fila}>
           <Text style={estilos.hora}>{fmt(hora, s.fecha_hora_recogida)}</Text>
           <EstadoBadge estado={estado} />

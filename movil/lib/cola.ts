@@ -36,9 +36,11 @@ export function colaDe(conductorId: string): Promise<Compartida> {
 
 export function avisar(c: Compartida) { c.oyentes.forEach((f) => f()); }
 
-export async function drenar(conductorId: string) {
+/** `forzar`: gesto del usuario, red o servidor recuperados (ignora el backoff); el temporizador lo respeta. */
+export async function drenar(conductorId: string, forzar = false) {
   const c = await colaDe(conductorId);
-  const r = await c.cola.vaciar();
-  if (r.enviadas || r.errores.length || c.cola.pendientes().length) avisar(c);
+  const r = await c.cola.vaciar(forzar);
+  // Avisar solo si algo cambió o se intentó y falló (contador de intentos), no en cada vuelta del temporizador.
+  if (r.enviadas || r.errores.length || (c.cola.pendientes().length && !r.omitida)) avisar(c);
   return r;
 }

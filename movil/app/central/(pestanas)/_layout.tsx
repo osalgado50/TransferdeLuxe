@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import { Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EstadoConexion } from "~/components/EstadoConexion";
 import { InterruptorGps } from "~/components/InterruptorGps";
 import { useCentral } from "~/lib/central";
 import { useSesion } from "~/lib/sesion";
@@ -19,6 +20,7 @@ function Cabecera({ conGps }: { conGps?: boolean }) {
           <Text style={estilos.sinRed}>{sinConexion ? "Sin conexión" : `No se pudo actualizar: ${error}`} · tocar para reintentar</Text>
         </Pressable>
       )}
+      <EstadoConexion />
       {conGps && sesion && <InterruptorGps key={sesion.user.id} conductorId={sesion.user.id} />}
     </View>
   );

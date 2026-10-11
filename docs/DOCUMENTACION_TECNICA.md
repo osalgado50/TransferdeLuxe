@@ -193,6 +193,16 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   refresca por Realtime (`servicios` y `posicion_actual`), pull-to-refresh y cada 30 s en primer plano. Tocar un push de
   la central abre la pestaña Central. Lógica pura en `src/lib/dominio/centralMovil.ts` y `marcadoresFlota` en `mapa.ts`.
 
+- **Blindaje de la conexión app ↔ servidor ↔ Supabase (11/10/2026)**: tras el incidente del mismo día (ver
+  «Challenges»), auditoría de bucles y reintentos. App: `movil/lib/red.ts` (todo fetch con tiempo máximo, también el
+  de supabase-js vía `global.fetch`; estado de conexión por destino y sondas con backoff a `/api/salud` y
+  `/auth/v1/health`), aviso «Sin conexión con el servidor · reintentando en Xs» en las cabeceras, cola de acciones con
+  backoff exponencial con tope y `Retry-After`, recargas agrupadas y frenadas. Servidor: límite por IP y por token
+  ANTES de autenticar, caché de la verificación del JWT (60 s, nunca más allá de `exp`), 429/503 con `Retry-After`,
+  `GET /api/salud`, cliente admin con tiempo máximo y vigilante sin solapes y con backoff. Web: un único freno de
+  `router.refresh` en Realtime. Lógica pura en `src/lib/dominio/reintento.ts`; tests en
+  `tests/unit/{reintento,proteccion-servidor}.test.ts`.
+
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
   plano), Mindee, Tabscanner, Azure y Google Document AI. Se elige Claude Haiku 5.5 porque devuelve los datos ya
@@ -276,6 +286,34 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   pestaña «Mis servicios» reexporta la pantalla «Hoy» del conductor, y las rutas de la central viven en `app/central/`
   (no en un grupo) para no chocar con `/` del conductor; si entra un operador en las pestañas del conductor, se le
   redirige a `/central`.
+
+- **Incidente del 11/10: conexión muerta**. La app nativa dejó de funcionar en producción por tres fallos que se
+  realimentaban: (1) la CDN de Hostinger respondía un 403 en HTML («Checking your browser») que la app trataba como
+  error transitorio y reintentaba sin espera; (2) `movil/lib/push.ts` escuchaba `addPushTokenListener` para volver a
+  registrar el token, pero `getExpoPushTokenAsync` dispara ese mismo evento: bucle infinito de ~40 peticiones/s a
+  `/api/conductor/push-token`, cada una con `auth.getUser` + `select perfiles` en Supabase, que calentaba el móvil y
+  saturaba el único proceso Node; (3) `fetch` sin tiempo máximo dejaba botones «enviando» para siempre. Además de
+  corregir los tres, se blindó el sistema para que un cliente defectuoso no lo tumbe y la app se recupere sola:
+  - *Cliente*: todo `fetch` con tope (15 s API, 20 s Supabase, 45 s fotos); la cola de acciones (compartida web/app)
+    guarda `proximoIntento` y reintenta con backoff exponencial con jitter (2 s, 4 s, 8 s… hasta 5 min) y respetando
+    `Retry-After`; solo un gesto del usuario o la vuelta de la red/servidor fuerza el envío. Un estado de conexión
+    por destino (API / Supabase) detecta red caída, 5xx, 429 y HTML donde se esperaba JSON, comprueba con sondas
+    baratas con backoff (tope 60 s, solo en primer plano) y, al volver, vacía la cola y recarga las pantallas. Las
+    recargas nunca se solapan (se agrupan en una), las posiciones en vivo de la flota recargan el resumen de la central
+    como mucho cada 15 s (antes, una vez por posición de cada conductor), el aviso «llegando» reintenta con backoff y
+    deja de insistir ante un rechazo 4xx, y el interruptor GPS lee el disco cada 5 s en vez de cada segundo.
+  - *Servidor*: antes de tocar Supabase, límite por IP (300/min; 1200 si no llega IP) y por token (120/min) con 429 +
+    `Retry-After`; caché en memoria de la verificación del JWT por su hash SHA-256 (60 s, nunca más allá de `exp`,
+    tokens rechazados 30 s, máx. 1000 entradas) con una sola verificación en vuelo por token; un JWT caducado se
+    rechaza sin consultar; si Supabase no responde, 503 + `Retry-After` (sin cachear) en vez de un 401 que forzaba
+    refrescos de sesión. `GET /api/salud` sin auth (la BD se comprueba como mucho cada 30 s para todo el proceso,
+    con tope de 3 s). El cliente admin de Supabase lleva tiempo máximo (20 s) para que ninguna consulta colgada
+    bloquee el proceso, y el vigilante de push encadena `setTimeout` (nunca se solapa) con backoff si falla.
+  - *Web*: los hooks de Realtime comparten un freno de `router.refresh` (1 cada 10 s) para que un socket que
+    «parpadea» no provoque refrescos en cascada; las alertas de módulos agrupan ráfagas (1 recarga cada 3 s).
+  Riesgos que quedan: el 403 de la CDN sigue dependiendo de la configuración de Hostinger (la app ya no lo
+  amplifica); los límites son en memoria de un proceso (suficiente con un solo proceso Node); y la caché de 60 s
+  hace que un cambio de rol o una baja tarde hasta 1 min en aplicarse a la app.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

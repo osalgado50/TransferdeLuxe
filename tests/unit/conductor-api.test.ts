@@ -32,6 +32,7 @@ vi.mock("@/lib/servicios/acciones", () => ({ ejecutarAccion: ej.fn, repoSupabase
 import { POST as accion } from "@/app/api/conductor/accion/route";
 import { DELETE as borrarPushToken, POST as pushToken } from "@/app/api/conductor/push-token/route";
 import { notificarServicioNuevo } from "@/lib/push";
+import { vaciarCacheBearer } from "@/lib/supabase/bearer"; // la verificación del token se cachea 60 s
 
 const U = "11111111-1111-4111-8111-111111111111";
 const S = "22222222-2222-4222-8222-222222222222";
@@ -39,7 +40,7 @@ const req = (body: unknown, auth = "Bearer bueno") =>
   new Request("http://x/api", { method: "POST", headers: auth ? { authorization: auth } : {}, body: JSON.stringify(body) });
 
 beforeEach(() => {
-  st.usuario = { id: U }; st.perfil = { id: U, rol: "conductor" }; st.tokens = []; st.borrados = []; st.upserts = [];
+  st.usuario = { id: U }; vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor" }; st.tokens = []; st.borrados = []; st.upserts = [];
   ej.fn.mockReset(); vi.unstubAllGlobals();
 });
 
@@ -48,11 +49,11 @@ test("sin Bearer o token inválido → 401", async () => {
   expect((await accion(req({}, "Bearer malo"))).status).toBe(401);
 });
 test("no conductor → 403", async () => {
-  st.perfil = { id: U, rol: "operador" };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "operador" };
   expect((await accion(req({}))).status).toBe(403);
 });
 test("operador que también conduce → pasa y actúa con su rol", async () => {
-  st.perfil = { id: U, rol: "operador", conduce: true };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "operador", conduce: true };
   ej.fn.mockResolvedValueOnce({ ok: true, estado: "aceptado" });
   const r = await accion(req({ idAccion: S, servicioId: S, accion: "aceptar" }));
   expect(r.status).toBe(200);
@@ -76,9 +77,9 @@ test("push-token valida y hace upsert", async () => {
   expect(st.upserts[0]).toMatchObject({ token: "ExponentPushToken[abc]", conductor_id: U, plataforma: "ios" });
 });
 test("push-token: la central (operador sin conducir) también registra su móvil", async () => {
-  st.perfil = { id: U, rol: "operador", conduce: false };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "operador", conduce: false };
   expect((await pushToken(req({ token: "ExponentPushToken[op]", plataforma: "android" }))).status).toBe(200);
-  st.perfil = { id: U, rol: "cliente" };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "cliente" };
   expect((await pushToken(req({ token: "ExponentPushToken[x]", plataforma: "android" }))).status).toBe(403);
 });
 test("DELETE push-token borra solo el token del conductor que llama", async () => {

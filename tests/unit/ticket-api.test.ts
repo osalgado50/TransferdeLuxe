@@ -24,6 +24,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import { POST as ticket } from "@/app/api/conductor/ticket/route";
 import { POST as foto } from "@/app/api/conductor/ticket/foto/route";
+import { vaciarCacheBearer } from "@/lib/supabase/bearer"; // la verificación del token se cachea 60 s
 
 const body = { fecha: "2026-10-10", litros: "40,5", importe: "60", km: 1200, gasolinera: "Repsol" };
 const req = (b: unknown, auth = "Bearer bueno") =>
@@ -40,14 +41,14 @@ const reqFoto = async (tipo = "image/jpeg", size = 10, auth = "Bearer bueno", fi
 };
 
 beforeEach(() => {
-  st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V }; st.inserts = []; st.kms = []; st.subidas = [];
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V }; st.inserts = []; st.kms = []; st.subidas = [];
 });
 
 test("ticket: 401 sin token, 403 no conductor, 400 datos inválidos", async () => {
   expect((await ticket(req(body, ""))).status).toBe(401);
-  st.perfil = { id: U, rol: "operador" };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "operador" };
   expect((await ticket(req(body))).status).toBe(403);
-  st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V };
   expect((await ticket(req({ ...body, litros: "" }))).status).toBe(400);
   expect((await ticket(req([1]))).status).toBe(400);
   expect(st.inserts).toHaveLength(0);
@@ -58,7 +59,7 @@ test("ticket: foto de otro conductor rechazada", async () => {
   expect(st.inserts).toHaveLength(0);
 });
 test("ticket: sin vehículo habitual → 400", async () => {
-  st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: null };
+  vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: null };
   expect((await ticket(req(body))).status).toBe(400);
 });
 test("ticket ok: inserta con vehículo del perfil, corregido y actualiza km", async () => {

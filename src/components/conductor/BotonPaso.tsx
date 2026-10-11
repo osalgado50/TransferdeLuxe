@@ -59,7 +59,7 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
     rechazos.delete(servicioId);
     cola.encolar({ idAccion: crypto.randomUUID(), servicioId, accion });
     setEstado(SIGUIENTE[accion]); // optimista
-    void drenar(conductorId);
+    void drenar(conductorId, true).catch(() => {}); // gesto del usuario: intenta ya
   };
   const descartar = () => {
     if (!atascada) return;

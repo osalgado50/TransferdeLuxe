@@ -2,6 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clienteNavegador } from "./navegador";
+import { crearFreno } from "@/lib/dominio/reintento";
+
+// Un solo freno para toda la pestaña: varios hooks (servicios, posiciones, eventos) que se reconectan a la vez, o un
+// socket que «parpadea», piden como mucho UN router.refresh cada 10 s (cada refresh re-renderiza la página en el servidor).
+const frenoRefresh = crearFreno(10_000);
 
 export function useTiempoReal<T extends object>(
   tabla: "servicios" | "posicion_actual" | "eventos_servicio", iniciales: T[], clave: keyof T,
@@ -35,7 +40,7 @@ export function useTiempoReal<T extends object>(
         if (!activo) return;
         if (estado === "SUBSCRIBED") {
           cb.current?.(true);
-          if (conectadoAntes && caido) router.refresh(); // recupera lo perdido durante la caída
+          if (conectadoAntes && caido) frenoRefresh.pedir(() => router.refresh()); // recupera lo perdido durante la caída
           conectadoAntes = true; caido = false;
         } else if (estado === "CHANNEL_ERROR" || estado === "TIMED_OUT" || estado === "CLOSED") {
           caido = true; cb.current?.(false);

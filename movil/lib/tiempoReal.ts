@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
+import { alRecuperar } from "./red";
 import { supabase } from "./supabase";
 
 /** Avisa de cualquier cambio en `servicios` (RLS: solo llegan los míos). Reconexión → `alReconectar`. */
@@ -39,18 +40,32 @@ export function useCambiosTabla(tabla: string, alCambio: (fila: Record<string, u
 
 type Estado<T> = { datos: T | null; error: string | null; cargando: boolean };
 
-/** Carga con Supabase y recarga ante cambios en vivo, reconexión y vuelta a primer plano. */
+/**
+ * Carga con Supabase y recarga ante cambios en vivo, reconexión, vuelta a primer plano y recuperación de la red.
+ * Nunca hay dos cargas a la vez: lo pedido durante una carga se agrupa en UNA recarga al terminar.
+ */
 export function useConsulta<T>(cargar: () => Promise<T>, deps: unknown[]) {
   const [e, setE] = useState<Estado<T>>({ datos: null, error: null, cargando: true });
   const f = useRef(cargar);
   useEffect(() => { f.current = cargar; });
+  const enCurso = useRef<Promise<void> | null>(null);
+  const otraVez = useRef(false);
+  const vivo = useRef(true);
+  useEffect(() => { vivo.current = true; return () => { vivo.current = false; }; }, []);
   const recargar = useCallback(async () => {
-    try {
-      const datos = await f.current();
-      setE({ datos, error: null, cargando: false });
-    } catch (err) {
-      setE((a) => ({ ...a, error: err instanceof Error ? err.message : "Error al cargar", cargando: false }));
-    }
+    if (enCurso.current) { otraVez.current = true; return enCurso.current; }
+    enCurso.current = (async () => {
+      do {
+        otraVez.current = false;
+        try {
+          const datos = await f.current();
+          if (vivo.current) setE({ datos, error: null, cargando: false });
+        } catch (err) {
+          if (vivo.current) setE((a) => ({ ...a, error: err instanceof Error ? err.message : "Error al cargar", cargando: false }));
+        }
+      } while (otraVez.current && vivo.current);
+    })().finally(() => { enCurso.current = null; });
+    return enCurso.current;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   useEffect(() => { void recargar(); }, [recargar]);
@@ -64,7 +79,8 @@ export function useConsulta<T>(cargar: () => Promise<T>, deps: unknown[]) {
   useCambiosServicios(programar, programar);
   useEffect(() => {
     const s = AppState.addEventListener("change", (x) => { if (x === "active") void recargar(); });
-    return () => s.remove();
-  }, [recargar]);
+    const r = alRecuperar((d) => { if (d === "supabase") programar(); });
+    return () => { s.remove(); r(); };
+  }, [recargar, programar]);
   return { ...e, recargar };
 }
