@@ -29,6 +29,7 @@ export function CuentasDemo({ cuentas, clave, onUsar }: { cuentas: string[]; cla
       <Text style={estilos.titulo}>Cuentas de demo</Text>
       {cuentas.map((c) => (
         <View key={c} style={estilos.fila}>
+          {c.startsWith("central@") && <Text style={estilos.rol}>Propietario · central y conductor</Text>}
           <Text style={estilos.mono} selectable>{c}</Text>
           <View style={estilos.botones}>
             <Boton icono texto={copiado === c ? "Copiado ✓" : "Copiar"} etiqueta={`Copiar ${c}`} onPress={() => copiar(c)} />
@@ -47,6 +48,7 @@ export function CuentasDemo({ cuentas, clave, onUsar }: { cuentas: string[]; cla
 }
 
 const estilos = StyleSheet.create({
+  rol: { color: "#5aaee3", fontSize: 14, fontWeight: "800" },
   caja: { borderWidth: 1, borderColor: color.borde, borderRadius: 16, padding: 16, gap: 8 },
   titulo: { color: color.texto, fontSize: 18, fontWeight: "600", marginBottom: 4 },
   fila: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8,
