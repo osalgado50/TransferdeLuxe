@@ -2,6 +2,10 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 import PanelEnVivo from "@/components/central/PanelEnVivo";
 import BotonesDemo from "@/components/central/BotonesDemo";
 import type { Servicio } from "@/lib/dominio/tipos";
+import AvisosMantenimiento from "@/components/central/AvisosMantenimiento";
+import { avisosMantenimiento, type PlanVehiculo } from "@/lib/dominio/mantenimiento";
+import { leerModulos } from "@/lib/dominio/modulos";
+import { diaMadrid } from "@/lib/dominio/geo";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +19,17 @@ export default async function PanelCentral() {
     sb.from("posicion_actual").select("*"),
     sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor"),
     sb.from("vehiculos").select("id,matricula"),
-    sb.from("ajustes").select("umbral_sin_senal_min").eq("id", 1).maybeSingle(),
+    sb.from("ajustes").select("umbral_sin_senal_min,modulos").eq("id", 1).maybeSingle(),
     sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").or(`tipo.eq.rechazado,creado_en.gte.${new Date(Date.now() - 20 * 60_000).toISOString()}`).order("creado_en", { ascending: false }).limit(100),
   ]);
   const fallo = [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos].find((r) => r.error);
   if (fallo?.error) throw new Error(`Panel: ${fallo.error.message}`);
+  let avisosMant: ReturnType<typeof avisosMantenimiento> = [];
+  if (leerModulos(ajustes.data?.modulos).mantenimiento) {
+    const [{ data: vk }, { data: planes }] = await Promise.all([sb.from("vehiculos").select("id,matricula,km_actuales"), sb.from("vehiculos_mantenimiento").select("*")]);
+    const plan = new Map((planes ?? []).map((p) => [p.vehiculo_id as string, p as PlanVehiculo]));
+    avisosMant = avisosMantenimiento((vk ?? []).map((v) => ({ ...v, plan: plan.get(v.id) ?? null })), diaMadrid(new Date()));
+  }
   const porId = new Map<string, Servicio>();
   for (const s of [...(ventana.data ?? []), ...(sinVer.data ?? [])] as Servicio[]) porId.set(s.id, s);
   return (
@@ -28,6 +38,7 @@ export default async function PanelCentral() {
         <h1 className="text-2xl font-semibold">Panel en vivo</h1>
         {process.env.NEXT_PUBLIC_MODO_DEMO === "true" && <BotonesDemo />}
       </div>
+      <AvisosMantenimiento avisos={avisosMant} />
       <PanelEnVivo
         servicios={[...porId.values()]} posiciones={pos.data ?? []} eventos={eventos.data ?? []}
         conductores={perfiles.data ?? []} vehiculos={vehiculos.data ?? []} umbralMin={ajustes.data?.umbral_sin_senal_min ?? 5}

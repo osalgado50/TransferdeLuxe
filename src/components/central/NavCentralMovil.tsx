@@ -17,7 +17,7 @@ function activo(ruta: string, h: string) {
   return ruta === h || ruta.startsWith(h + "/");
 }
 
-export default function NavCentralMovil({ nombre, salir }: { nombre: string; salir: () => Promise<void> }) {
+export default function NavCentralMovil({ nombre, salir, extra = [] }: { nombre: string; salir: () => Promise<void>; extra?: readonly (readonly [string, string])[] }) {
   const ruta = usePathname();
   const [abierto, setAbierto] = useState(false);
   useEffect(() => { setAbierto(false); }, [ruta]);
@@ -46,7 +46,7 @@ export default function NavCentralMovil({ nombre, salir }: { nombre: string; sal
           <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar menú" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-slate-800">✕</button>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
-          {ENLACES_CENTRAL.map(([h, t]) => (
+          {[...ENLACES_CENTRAL, ...extra].map(([h, t]) => (
             <Link key={h} href={h} onClick={() => setAbierto(false)} aria-current={activo(ruta, h) ? "page" : undefined}
               className={`flex min-h-11 items-center rounded-lg px-3 text-base ${activo(ruta, h) ? "bg-marca text-white" : "hover:bg-slate-800 hover:text-marca-claro"}`}>{t}</Link>
           ))}
