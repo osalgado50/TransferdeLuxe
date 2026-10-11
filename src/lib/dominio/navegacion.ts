@@ -71,7 +71,8 @@ export function restanteEnRuta(coords: [number, number][], pos: Punto): Restante
 }
 
 export const EVENTO_LLEGANDO: Record<TipoObjetivo, string> = { recogida: "llegando_recogida", destino: "llegando_destino" };
-const ETIQUETAS: Record<string, string> = { llegando_recogida: "Llegando a la recogida", llegando_destino: "Llegando al destino" };
+const ETIQUETAS: Record<string, string> = { llegando_recogida: "Llegando a la recogida", llegando_destino: "Llegando al destino",
+  llegada_vuelo: "Llegada real del vuelo", recogida_reajustada: "Recogida reajustada por el vuelo" };
 export const etiquetaEvento = (tipo: string) => ETIQUETAS[tipo] ?? tipo;
 
 /**

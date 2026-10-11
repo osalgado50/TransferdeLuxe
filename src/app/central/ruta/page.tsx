@@ -3,6 +3,7 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
 import type { TarjetaRuta } from "@/components/central/TableroRuta";
+import { leerModulos } from "@/lib/dominio/modulos";
 import TableroRuta from "@/components/central/TableroRutaCliente";
 
 function desplazar(dia: string, n: number): string {
@@ -18,13 +19,15 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
   const desdeCtx = madridAUtc(desplazar(dia, -1), "18:00");
   const hastaCtx = madridAUtc(desplazar(dia, 1), "06:00");
   const sb = await clienteServidor();
-  const [{ data: conductores, error: errC }, { data: servicios, error }, { data: vehiculos }] = await Promise.all([
+  const [{ data: conductores, error: errC }, { data: servicios, error }, { data: vehiculos }, { data: aj }] = await Promise.all([
     sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor").order("nombre"),
-    sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng")
+    sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng")
       .gte("fecha_hora_recogida", desdeCtx).lt("fecha_hora_recogida", hastaCtx).neq("estado", "cancelado").order("fecha_hora_recogida"),
     sb.from("vehiculos").select("id,plazas,maletas,estado"),
+    sb.from("ajustes").select("modulos").maybeSingle(),
   ]);
-  const todos = (servicios ?? []) as TarjetaRuta[];
+  const conVuelos = leerModulos(aj?.modulos).vuelos;
+  const todos = ((servicios ?? []) as TarjetaRuta[]).map((x) => (conVuelos ? x : { ...x, numero_vuelo: null }));
   const t0 = Date.parse(desde), t1 = Date.parse(hasta);
   const enDia = (x: TarjetaRuta) => { const t = Date.parse(x.fecha_hora_recogida); return t >= t0 && t < t1; };
   const delDia = todos.filter(enDia);

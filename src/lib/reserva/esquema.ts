@@ -2,9 +2,13 @@ import { z } from "zod";
 import { duracionEstimadaMin } from "@/lib/dominio/geo";
 import { avisoCapacidad, vehiculosAptos, motivoSubcontratar, type VehiculoCapacidad } from "@/lib/dominio/capacidad";
 import type { Servicio } from "@/lib/dominio/tipos";
+import { leerModulos } from "@/lib/dominio/modulos";
+import { normalizarVuelo, vueloVacio, MENSAJE_VUELO } from "@/lib/dominio/vuelos";
 
 const coord = z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().finite().nullable());
 const opcional = z.preprocess((v) => (v === "" || v == null ? null : String(v).trim()), z.string().nullable());
+const vuelo = z.preprocess((v) => (vueloVacio(v as string) ? null : normalizarVuelo(String(v)) ?? String(v)),
+  z.string().nullable().refine((v) => v == null || normalizarVuelo(v) === v, MENSAJE_VUELO));
 const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha obligatoria");
 const hora = z.string().regex(/^\d{2}:\d{2}$/, "Hora obligatoria");
 
@@ -15,7 +19,7 @@ export const esquemaReserva = z.object({
   pasajeros: z.coerce.number().int().min(1).max(19),
   maletas: z.coerce.number().int().min(0).max(19),
   tipo_vehiculo_pedido: z.enum(["sedan", "minivan", "minivan_premium", "microbus", "minibus"]),
-  numero_vuelo: opcional,
+  numero_vuelo: vuelo,
   cliente_nombre: z.string().trim().min(1), cliente_apellidos: z.string().trim().default(""),
   cliente_email: z.string().trim().email(), cliente_telefono: z.string().trim().min(6),
   notas: opcional,
@@ -24,7 +28,7 @@ export const esquemaReserva = z.object({
   con_vuelta: z.literal("on").optional(),
   vuelta_origen_texto: opcional, vuelta_origen_lat: coord.optional(), vuelta_origen_lng: coord.optional(),
   vuelta_destino_texto: opcional, vuelta_destino_lat: coord.optional(), vuelta_destino_lng: coord.optional(),
-  vuelta_fecha: opcional, vuelta_hora: opcional, vuelta_numero_vuelo: opcional,
+  vuelta_fecha: opcional, vuelta_hora: opcional, vuelta_numero_vuelo: vuelo.optional(),
 }).superRefine((r, ctx) => {
   const valida = (f: string | null | undefined, h: string | null | undefined) => {
     const d = f ? new Date(`${f}T00:00:00Z`) : null;
@@ -71,12 +75,14 @@ export function serviciosDesdeReserva(r: Reserva, origen: "web" | "manual"): Nue
 }
 
 export async function crearServicios(sb: import("@supabase/supabase-js").SupabaseClient, nuevos: NuevoServicio[]): Promise<string[]> {
-  const { data: aj, error: eAj } = await sb.from("ajustes").select("plazo_respuesta_min").single();
+  const { data: aj, error: eAj } = await sb.from("ajustes").select("plazo_respuesta_min, modulos").single();
   if (eAj) throw new Error(eAj.message);
   const { data: flota, error: eFlota } = await sb.from("vehiculos").select("plazas, maletas, estado");
   if (eFlota) throw new Error(eFlota.message);
   const propios = (flota ?? []) as VehiculoCapacidad[];
+  const conVuelos = leerModulos((aj as { modulos?: unknown } | null)?.modulos).vuelos;
   const filas = nuevos.map((n) => {
+    if (!conVuelos) n = { ...n, numero_vuelo: null };
     const sinFlota = vehiculosAptos(propios, n.pasajeros, n.maletas).length === 0;
     return {
       ...n, plazo_respuesta_min: aj?.plazo_respuesta_min ?? 15, incidencia_vista: false,

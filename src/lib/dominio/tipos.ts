@@ -15,6 +15,7 @@ export interface Servicio {
   conductor_id: string | null; vehiculo_id: string | null; estado: EstadoServicio;
   asignado_en: string | null; plazo_respuesta_min: number; duracion_estimada_min: number;
   subcontratar: boolean; ultima_incidencia: string | null; incidencia_vista: boolean; creado_en: string;
+  hora_llegada_real?: string | null;
 }
 export interface Vehiculo { id: string; matricula: string; modelo: string; plazas: number; maletas: number; estado: "activo" | "taller"; km_actuales: number }
 export interface Perfil { id: string; rol: Rol; nombre: string; telefono: string | null; vehiculo_habitual_id: string | null }

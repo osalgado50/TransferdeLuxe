@@ -3,6 +3,7 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { VISTAS, atajos, diaValido, rangoPeriodo, type Vista } from "@/lib/dominio/periodo";
 import CalendarioServicios from "@/components/central/CalendarioServicios";
+import { leerModulos } from "@/lib/dominio/modulos";
 import TablaServicios, { type FilaServicio } from "@/components/central/TablaServicios";
 
 const ESTADOS = ["pendiente", "asignado", "aceptado", "en_camino", "recogido", "completado", "cancelado", "subcontratado"];
@@ -39,7 +40,8 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   };
 
   const sb = await clienteServidor();
-  const { data: conductores } = await sb.from("perfiles").select("id,nombre").eq("rol", "conductor").order("nombre");
+  const [{ data: conductores }, { data: aj }] = await Promise.all([sb.from("perfiles").select("id,nombre").eq("rol", "conductor").order("nombre"), sb.from("ajustes").select("modulos").maybeSingle()]);
+  const conVuelos = leerModulos(aj?.modulos).vuelos;
   let q = sb.from("servicios").select("*, conductor:perfiles!servicios_conductor_id_fkey(nombre)", { count: "exact" })
     .gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc).order("fecha_hora_recogida").range(0, cal ? LIMITE_CAL - 1 : pagina * POR_PAGINA - 1);
   if (estado) q = q.eq("estado", estado);
@@ -118,7 +120,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
       {excede && <p className="text-sm text-amber-400">Hay más de {LIMITE_CAL} servicios en el periodo: el calendario muestra solo los primeros {LIMITE_CAL}. Acota el periodo o los filtros.</p>}
       {error ? <p className="text-red-400">Error al cargar: {error.message}</p> : cal
         ? <CalendarioServicios vista={vista} desde={desde} inicio={r.inicio} hoy={hoy} filas={(data ?? []) as FilaServicio[]} />
-        : <TablaServicios filas={(data ?? []) as FilaServicio[]} />}
+        : <TablaServicios filas={((data ?? []) as FilaServicio[]).map((x) => (conVuelos ? x : { ...x, numero_vuelo: null }))} />}
       {hayMas && <div className="text-center"><Link href={href(vista, desde, { pagina: pagina + 1 })} className={chip}>Mostrar más ({(count ?? 0) - pagina * POR_PAGINA} restantes)</Link></div>}
     </div>
   );

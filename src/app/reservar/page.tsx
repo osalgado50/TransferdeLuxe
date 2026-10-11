@@ -1,14 +1,18 @@
 import Link from "next/link";
 import LogoTVL from "@/components/comun/LogoTVL";
 
-// Página pública sin sesión: HTML estático cacheable por la CDN.
-export const dynamic = "force-static";
+import { clienteAdmin } from "@/lib/supabase/admin";
+import { leerModulos } from "@/lib/dominio/modulos";
+
+// Página pública sin sesión: HTML estático cacheable por la CDN, regenerado cada 5 min (módulos activos).
+export const revalidate = 300;
 import PieLegal from "@/components/legal/PieLegal";
 import FormularioReserva from "./FormularioReserva";
 
 export const metadata = { title: "Reservar traslado · TransferdeLuxe" };
 
-export default function PaginaReservar() {
+export default async function PaginaReservar() {
+  const { data: aj } = await clienteAdmin().from("ajustes").select("modulos").maybeSingle();
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8">
       <div className="mx-auto max-w-2xl">
@@ -16,7 +20,7 @@ export default function PaginaReservar() {
           <Link href="/" className="inline-flex flex-col items-center gap-3 text-3xl font-semibold tracking-tight text-marca-claro"><LogoTVL alto={88} prioridad />TransferdeLuxe</Link>
           <p className="mt-2 text-slate-300">Reserva tu traslado VIP en la Costa Dorada</p>
         </header>
-        <FormularioReserva />
+        <FormularioReserva vuelos={leerModulos(aj?.modulos).vuelos} />
         <PieLegal className="mt-8" />
       </div>
     </main>

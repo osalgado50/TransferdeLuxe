@@ -1,4 +1,5 @@
 "use client";
+import EnlaceVuelo from "@/components/vuelos/EnlaceVuelo";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
 import EstadoBadge from "@/components/comun/EstadoBadge";
@@ -9,7 +10,7 @@ import { sugerirConductores } from "@/lib/dominio/sugerencia";
 
 export type TarjetaRuta = {
   id: string; estado: EstadoServicio; conductor_id: string | null; fecha_hora_recogida: string; origen_texto: string; destino_texto: string;
-  pasajeros: number; maletas: number; duracion_estimada_min: number;
+  pasajeros: number; maletas: number; duracion_estimada_min: number; numero_vuelo?: string | null;
   origen_lat: number | null; origen_lng: number | null; destino_lat: number | null; destino_lng: number | null;
 };
 type Conductor = { id: string; nombre: string; vehiculo_habitual_id: string | null };
@@ -53,6 +54,7 @@ function Tarjeta({ s, chip, onAsignar }: { s: TarjetaRuta; chip?: Chip | null; o
       <p className="text-xs text-slate-400">
         {fmtHora(new Date(s.fecha_hora_recogida))} → {fmtHora(finDe(aPlan(s)))} · {fmtDuracion(s.duracion_estimada_min)} · {s.pasajeros} pax
       </p>
+      {s.numero_vuelo && <EnlaceVuelo codigo={s.numero_vuelo} className="text-xs" />}
       {chip && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-marca/10 px-2 py-1 text-xs text-marca-claro">
           <span className="min-w-0 flex-1 break-words">💡 Mejor: {chip.texto}</span>

@@ -134,3 +134,11 @@ test("error al enlazar se propaga y borra lo insertado", async () => {
   await expect(crearServicios(sb, [nuevo, nuevo])).rejects.toThrow("boom");
   expect(llamadas.find((l) => l.op === "delete")?.arg).toEqual(["A", "B"]);
 });
+
+test("nº de vuelo: normaliza, rechaza inválidos y acepta vacío", () => {
+  const r = esquemaReserva.safeParse({ ...base, numero_vuelo: "fr 1234" });
+  expect(r.success && r.data.numero_vuelo).toBe("FR1234");
+  expect(esquemaReserva.safeParse({ ...base, numero_vuelo: "hola" }).success).toBe(false);
+  const v = esquemaReserva.safeParse({ ...base, numero_vuelo: "" });
+  expect(v.success && v.data.numero_vuelo).toBeNull();
+});

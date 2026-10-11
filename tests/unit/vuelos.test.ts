@@ -32,3 +32,11 @@ describe("calcularNuevaRecogida", () => {
     expect(admiteReajuste("cancelado")).toBe(false);
   });
 });
+
+import { utcALocalMadrid, horaMadrid } from "@/lib/dominio/vuelos";
+describe("utcALocalMadrid", () => {
+  it("convierte a hora de Madrid", () => {
+    expect(utcALocalMadrid("2026-10-12T10:25:00Z")).toBe("2026-10-12T12:25");
+    expect(horaMadrid("2026-12-01T23:30:00Z")).toBe("00:30");
+  });
+});

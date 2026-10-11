@@ -32,3 +32,8 @@ export function calcularNuevaRecogida(p: { llegadaReal: Date; margenMin?: number
   const t = Math.round((p.llegadaReal.getTime() + margen * 60_000) / 60_000) * 60_000;
   return t === Math.round(p.recogidaActual.getTime() / 60_000) * 60_000 ? null : new Date(t);
 }
+
+const FMT_LOCAL = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+/** ISO UTC → «YYYY-MM-DDTHH:MM» en hora de Madrid (valor de un input datetime-local). */
+export const utcALocalMadrid = (iso: string | Date) => FMT_LOCAL.format(new Date(iso)).replace(" ", "T");
+export const horaMadrid = (iso: string | Date) => utcALocalMadrid(iso).slice(11, 16);

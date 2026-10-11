@@ -78,3 +78,18 @@ export async function notificarServicioNuevo(servicioId: string): Promise<void> 
     console.error("[push] notificarServicioNuevo falló:", e instanceof Error ? e.message : e);
   }
 }
+
+/** Aviso genérico al conductor asignado a un servicio (p. ej. cambio de hora). Nunca lanza. */
+export async function notificarConductor(servicioId: string, titulo: string, cuerpo: string, tipo: string): Promise<void> {
+  try {
+    const sb = clienteAdmin();
+    const { data: s } = await sb.from("servicios").select("conductor_id").eq("id", servicioId).maybeSingle();
+    if (!s?.conductor_id) return;
+    const { data: disp } = await sb.from("dispositivos_push").select("token").eq("conductor_id", s.conductor_id);
+    const tokens = (disp ?? []).map((d: { token: string }) => d.token);
+    if (!tokens.length) return;
+    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data: { servicioId, tipo }, sound: "default", priority: "high", channelId: "servicios" })));
+  } catch (e) {
+    console.error("[push] notificarConductor falló:", e instanceof Error ? e.message : e);
+  }
+}

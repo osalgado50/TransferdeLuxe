@@ -8,7 +8,7 @@ import { guardarFavoritoDireccion, guardarFavoritoTrayecto, type ResultadoFavori
 import { reservar, type EstadoReserva } from "./actions";
 
 type Accion = (prev: EstadoReserva, fd: FormData) => Promise<EstadoReserva>;
-type Props = { accion?: Accion; modo?: "publico" | "central"; favoritos?: Favorito[] };
+type Props = { accion?: Accion; modo?: "publico" | "central"; favoritos?: Favorito[]; vuelos?: boolean };
 type Res = ResultadoFavorito & { aviso?: string };
 type Valor = { texto: string; lat: string; lng: string };
 const VACIO: Valor = { texto: "", lat: "", lng: "" };
@@ -26,7 +26,7 @@ function ErrorCampo({ e, k }: { e?: Record<string, string[]>; k: string }) {
   return e?.[k]?.[0] ? <p className="mt-1 text-sm text-red-400">{e[k][0]}</p> : null;
 }
 
-export default function FormularioReserva({ accion = reservar, modo = "publico", favoritos = [] }: Props) {
+export default function FormularioReserva({ accion = reservar, modo = "publico", favoritos = [], vuelos = true }: Props) {
   const [estado, enviar, pendiente] = useActionState<EstadoReserva, FormData>(accion, {});
   const [conVuelta, setConVuelta] = useState(false);
   const [pax, setPax] = useState(2);
@@ -135,8 +135,9 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
               {aviso.sugerido && <> <button type="button" onClick={() => setTipo(aviso.sugerido!)} className="ml-1 rounded border border-red-400 px-2 py-0.5 text-red-300 hover:bg-red-950">Usar {NOMBRE_TIPO[aviso.sugerido]}</button></>}
             </p>
           ) : <ErrorCampo e={estado.errores} k="tipo_vehiculo_pedido" />}</label>
-        <label className="block text-sm font-medium">Número de vuelo
-          <input type="text" name="numero_vuelo" className={cls} /></label>
+        {vuelos && <label className="block text-sm font-medium">Número de vuelo <span className="text-slate-400">(opcional)</span>
+          <input type="text" name="numero_vuelo" maxLength={10} placeholder="FR1234" autoCapitalize="characters" className={cls} />
+          <ErrorCampo e={estado.errores} k="numero_vuelo" /></label>}
         {central && trayectoCompleto({ origen_texto: origen.texto, destino_texto: destino.texto }) && (
           <button type="button" onClick={(e) => guardarTrayecto(e.currentTarget.form)}
             className="rounded border border-slate-600 px-3 py-1 text-sm text-amber-300 hover:bg-slate-800">⭐ Guardar trayecto como favorito</button>
@@ -159,8 +160,9 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
             <label className="block text-sm font-medium">Hora de la vuelta
               <input type="time" name="vuelta_hora" required className={cls} /><ErrorCampo e={estado.errores} k="vuelta_hora" /></label>
           </div>
-          <label className="block text-sm font-medium">Número de vuelo de la vuelta
-            <input type="text" name="vuelta_numero_vuelo" className={cls} /></label>
+          {vuelos && <label className="block text-sm font-medium">Número de vuelo de la vuelta <span className="text-slate-400">(opcional)</span>
+            <input type="text" name="vuelta_numero_vuelo" maxLength={10} placeholder="VY8120" autoCapitalize="characters" className={cls} />
+            <ErrorCampo e={estado.errores} k="vuelta_numero_vuelo" /></label>}
         </section>
       )}
 

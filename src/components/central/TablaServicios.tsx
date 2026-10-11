@@ -1,6 +1,7 @@
 import Link from "next/link";
 import EstadoBadge from "@/components/comun/EstadoBadge";
 import type { Servicio } from "@/lib/dominio/tipos";
+import EnlaceVuelo from "@/components/vuelos/EnlaceVuelo";
 import { agruparPorDia } from "@/lib/dominio/periodo";
 
 export type FilaServicio = Servicio & { conductor: { nombre: string } | null };
@@ -25,7 +26,7 @@ export default function TablaServicios({ filas }: { filas: FilaServicio[] }) {
                   return (
                     <tr key={s.id} className="border-t border-slate-800 hover:bg-slate-900/60">
                       <td className="whitespace-nowrap px-3 py-2">{hora.format(new Date(s.fecha_hora_recogida))}</td>
-                      <td className="px-3 py-2">{s.origen_texto} → {s.destino_texto}</td>
+                      <td className="px-3 py-2">{s.origen_texto} → {s.destino_texto}{s.numero_vuelo && <><br /><EnlaceVuelo codigo={s.numero_vuelo} className="text-xs" /></>}</td>
                       <td className="px-3 py-2">{s.pasajeros} / {s.maletas}</td>
                       <td className="px-3 py-2">{s.cliente_nombre} {s.cliente_apellidos}</td>
                       <td className="px-3 py-2">{s.conductor?.nombre ?? "—"}</td>

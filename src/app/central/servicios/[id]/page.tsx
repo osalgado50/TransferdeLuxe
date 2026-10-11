@@ -6,6 +6,8 @@ import MapaTrayecto from "@/components/mapa/MapaTrayectoCarga";
 import AccionesFicha, { MarcarVista } from "@/components/central/AccionesFicha";
 import { etiquetaEvento } from "@/lib/dominio/navegacion";
 import type { Servicio } from "@/lib/dominio/tipos";
+import { leerModulos } from "@/lib/dominio/modulos";
+import PanelVuelo from "@/components/vuelos/PanelVuelo";
 
 const fmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" });
 const punto = (lat: number | null, lng: number | null) => (lat != null && lng != null ? { lat, lng } : null);
@@ -18,6 +20,8 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
   if (!data) notFound();
   const s = data as Servicio & { conductor: { nombre: string } | null; vehiculo: { matricula: string; modelo: string } | null };
   const { data: eventos } = await sb.from("eventos_servicio").select("id,tipo,motivo,creado_en,actor:perfiles(nombre)").eq("servicio_id", id).order("creado_en");
+  const { data: aj } = await sb.from("ajustes").select("modulos, margen_equipaje_min").maybeSingle();
+  const vuelos = leerModulos(aj?.modulos).vuelos;
   const sinVer = !!s.ultima_incidencia && !s.incidencia_vista;
 
   return (
@@ -35,13 +39,15 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
         <div><h2 className="mb-1 font-semibold text-marca-claro">Trayecto</h2>
           <p>Recogida: {s.origen_texto}</p><p>Destino: {s.destino_texto}</p>
           <p>{s.pasajeros} pax · {s.maletas} maletas · {s.tipo_vehiculo_pedido}</p>
-          {s.numero_vuelo && <p>Vuelo: {s.numero_vuelo}</p>}{s.notas && <p>Notas: {s.notas}</p>}
+          {vuelos && s.numero_vuelo && <p>Vuelo: {s.numero_vuelo}</p>}{s.notas && <p>Notas: {s.notas}</p>}
           <p>Origen: {s.origen_pedido}</p></div>
         <div><h2 className="mb-1 font-semibold text-marca-claro">Asignación</h2>
           <p>Conductor: <span data-testid="conductor-asignado">{s.conductor?.nombre ?? "Sin asignar"}</span></p>
           {s.vehiculo && <p>Vehículo: {s.vehiculo.modelo} ({s.vehiculo.matricula})</p>}</div>
         {s.servicio_vuelta_id && <div><Link href={`/central/servicios/${s.servicio_vuelta_id}`} className="text-marca-claro hover:underline">Ver vuelta/ida</Link></div>}
       </section>
+      {vuelos && <PanelVuelo servicioId={s.id} estado={s.estado} numeroVuelo={s.numero_vuelo} llegadaReal={s.hora_llegada_real ?? null}
+        margenMin={aj?.margen_equipaje_min ?? 20} autoDisponible={!!process.env.AERODATABOX_API_KEY?.trim()} />}
       <MapaTrayecto origen={punto(s.origen_lat, s.origen_lng)} destino={punto(s.destino_lat, s.destino_lng)} />
       <section>
         <h2 className="mb-2 font-semibold text-marca-claro">Historial</h2>
