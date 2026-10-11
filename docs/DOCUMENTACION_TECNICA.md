@@ -184,6 +184,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   la central de reservas web nuevas, rechazos, plazos vencidos, incidencias y checklists con fallos (textos en
   `src/lib/dominio/avisosCentral.ts`). Rutas Bearer `/api/central/{resumen,sugerencia,asignar,reasignar,alerta-vista}`
   para el modo central de la app nativa, con la lógica compartida con las Server Actions en `src/lib/central/operaciones.ts`.
+- **Jefe multitarea, modo central en la app nativa (11/10/2026)**: la app «TVL Conductor» deja entrar también a los
+  operadores. El operador aterriza en `movil/app/central/` con pestañas Central (alertas con texto legible y botón
+  «Visto» + mapa MapLibre de la flota con color por estado y umbral «sin señal» de los ajustes), Servicios (sin asignar,
+  en curso, asignados y terminados; ficha con llamar al cliente/conductor, ver vuelo y asignar/reasignar eligiendo entre
+  las sugerencias con su motivo), Mis servicios (solo si `conduce`: monta la misma pantalla «Hoy» y el interruptor GPS
+  del conductor) y Más (central web, privacidad, salir). Un único `ProveedorCentral` carga `/api/central/resumen` y lo
+  refresca por Realtime (`servicios` y `posicion_actual`), pull-to-refresh y cada 30 s en primer plano. Tocar un push de
+  la central abre la pestaña Central. Lógica pura en `src/lib/dominio/centralMovil.ts` y `marcadoresFlota` en `mapa.ts`.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -263,6 +271,11 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Push a la central sin cron externo ni duplicados**: vigilante dentro del proceso Next (un solo proceso en Hostinger)
   con protección contra solapes y un cursor en BD que avanza antes de enviar (ante un fallo se pierde un aviso, nunca se
   repite). No arranca en build, en tests ni sin service role; con `VIGILANTE_PUSH=off` se desactiva.
+- **Modo central sin tocar lo nativo**: la app se actualiza por EAS Update (huella `fingerprint`), así que el modo
+  central usa solo dependencias ya instaladas y se comprueba que la huella no cambia. Para no duplicar pantallas, la
+  pestaña «Mis servicios» reexporta la pantalla «Hoy» del conductor, y las rutas de la central viven en `app/central/`
+  (no en un grupo) para no chocar con `/` del conductor; si entra un operador en las pestañas del conductor, se le
+  redirige a `/central`.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
