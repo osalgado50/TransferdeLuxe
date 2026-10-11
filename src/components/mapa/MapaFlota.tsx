@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { llegandoReciente } from "@/lib/dominio/navegacion";
-import { estadoEnMapa, type EstadoVehiculoMapa } from "@/lib/dominio/mapa";
+import { COLOR_ESTADO_MAPA, estadoEnMapa, type EstadoVehiculoMapa } from "@/lib/dominio/mapa";
 import type { PosicionActual, Servicio, Perfil, Vehiculo } from "@/lib/dominio/tipos";
 
-const COLOR: Record<EstadoVehiculoMapa, string> = { libre: "#16a34a", en_camino: "#7c3aed", con_pasajeros: "#4338ca", sin_senal: "#9ca3af" };
+const COLOR = COLOR_ESTADO_MAPA; // mismos colores que la app
 const TEXTO: Record<EstadoVehiculoMapa, string> = { libre: "Libre", en_camino: "En camino", con_pasajeros: "Con pasajeros", sin_senal: "Sin señal" };
 const ACTIVOS = ["asignado", "aceptado", "en_camino", "recogido"];
 
@@ -43,7 +43,8 @@ export default function MapaFlota({ posiciones, servicios, conductores, vehiculo
   }), [posiciones, servicios, conductores, vehiculos, ahora, umbralMin, eventos]);
 
   return (
-    <MapContainer center={[41.0763, 1.1416]} zoom={11} className="h-[60vh] min-h-[22rem] w-full lg:h-[calc(100vh-13rem)] lg:min-h-[32rem] rounded-lg">
+    <div className="space-y-2">
+    <MapContainer center={[41.0763, 1.1416]} zoom={11} className="h-[60vh] min-h-[22rem] w-full lg:h-[calc(100vh-15rem)] lg:min-h-[32rem] rounded-lg">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
       {marcadores.map((m) => (
         <Marker key={m.p.conductor_id} position={[m.p.lat, m.p.lng]} icon={icono(COLOR[m.estado], m.nombre.charAt(0).toUpperCase())}>
@@ -57,5 +58,11 @@ export default function MapaFlota({ posiciones, servicios, conductores, vehiculo
         </Marker>
       ))}
     </MapContainer>
+    <ul className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm text-slate-300" aria-label="Leyenda de colores">
+      {(Object.keys(TEXTO) as EstadoVehiculoMapa[]).map((e) => (
+        <li key={e} className="flex items-center gap-2"><span className="size-3.5 rounded-full border border-white/70" style={{ background: COLOR[e] }} />{TEXTO[e]}</li>
+      ))}
+    </ul>
+    </div>
   );
 }

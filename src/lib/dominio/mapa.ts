@@ -7,7 +7,8 @@ export function estadoEnMapa(pos: PosicionActual | undefined, activo: Pick<Servi
   return "libre";
 }
 
-export const COLOR_ESTADO_MAPA: Record<EstadoVehiculoMapa, string> = { libre: "#16a34a", en_camino: "#7c3aed", con_pasajeros: "#4338ca", sin_senal: "#9ca3af" };
+// Libre verde · en camino azul · con pasajeros rojo (ocupado) · sin señal gris. Mismos colores en la web y en la app.
+export const COLOR_ESTADO_MAPA: Record<EstadoVehiculoMapa, string> = { libre: "#16a34a", en_camino: "#2563eb", con_pasajeros: "#dc2626", sin_senal: "#9ca3af" };
 export const TEXTO_ESTADO_MAPA: Record<EstadoVehiculoMapa, string> = { libre: "Libre", en_camino: "En camino", con_pasajeros: "Con pasajeros", sin_senal: "Sin señal" };
 const ACTIVOS_MAPA = ["asignado", "aceptado", "en_camino", "recogido"];
 
