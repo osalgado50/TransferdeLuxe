@@ -44,7 +44,7 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
     const motivo = ev?.motivo ?? inc.replace(/^rechazado:\s*/, "");
     return ["Rechazado", `Rechazado por ${nombreConductor(ev?.actor_id ?? s.conductor_id)}: ${motivo}`] as const;
   }
-  if (inc === "expirado") return ["Sin respuesta", "Sin respuesta (plazo vencido)"] as const;
+  if (inc === "expirado") return ["Sin respuesta", "Plazo vencido: sigue asignado, el conductor aún puede aceptarlo o puedes reasignarlo"] as const;
   if (inc === "nuevo") return ["Reserva nueva", "Reserva nueva"] as const;
   return ["Aviso", inc || "Incidencia"] as const;
 }

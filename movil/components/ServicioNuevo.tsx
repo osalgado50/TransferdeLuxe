@@ -49,7 +49,6 @@ export function ServicioNuevo({ yo }: { yo: string }) {
     return () => { clearInterval(t); clearInterval(r); };
   }, [abierta, recargar]);
   // Plazo agotado: cerrar con aviso.
-  useEffect(() => { if (s && restante === 0) { ocultar(clave(s)); setAviso(VUELTA); } }, [s, restante]);
   // Aparece uno nuevo: vibrar; si desaparece sin que yo actúe (reasignado/expirado): aviso.
   useEffect(() => {
     const id = s ? clave(s) : null;
@@ -91,7 +90,8 @@ export function ServicioNuevo({ yo }: { yo: string }) {
           <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
             <Text style={estilos.etiqueta} accessibilityRole="header">SERVICIO NUEVO</Text>
             <Text style={[estilos.cuenta, restante > 86400 && { fontSize: 28 }]}>{formatoCuenta(restante)}</Text>
-            {restante <= 86400 && <Text style={estilos.tenue}>para responder</Text>}
+            {restante > 0 && restante <= 86400 && <Text style={estilos.tenue}>para responder</Text>}
+            {restante === 0 && <Text style={[estilos.tenue, { color: "#fcd34d", fontWeight: "600", textAlign: "center" }]}>Plazo vencido · la central está avisada. Puedes aceptarlo igualmente si sigue siendo tuyo.</Text>}
             <Text style={estilos.fecha}>{fmt(fechaHora, s.fecha_hora_recogida)}</Text>
             <Text style={estilos.ruta}>{s.origen_texto} → {s.destino_texto}</Text>
             <Text style={estilos.meta}>{s.pasajeros} pax · {s.maletas} maletas{s.numero_vuelo ? ` · Vuelo ${s.numero_vuelo}` : ""}</Text>

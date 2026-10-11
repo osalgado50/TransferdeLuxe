@@ -300,3 +300,7 @@ Auditoría de código web, app nativa y pruebas de carga de solo lectura en prod
 Informe completo: `docs/INFORME_AUDITORIA.md`. Aplicado: cabeceras de seguridad HTTP y migración `0009`
 (validación de posiciones en servidor —coordenadas imposibles descartadas, hora futura corregida— y purga diaria
 con pg_cron de posiciones y acciones de más de 30 días: el plan gratuito de 500 MB ya no se llena).
+- **12/10/2026 · Aceptación tardía**: al vencer el plazo de respuesta el servicio ya no vuelve a «pendiente»; sigue
+  asignado, la central recibe la alerta «Sin respuesta» y el conductor aún puede aceptarlo mientras no se reasigne
+  (migración `0016`, `plazo_vencido_en` + trigger que reinicia el plazo al reasignar). Petición del responsable: «igual
+  han pasado 10 minutos y aún se puede hacer».

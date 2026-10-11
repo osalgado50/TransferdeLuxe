@@ -97,10 +97,6 @@ export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: {
     window.addEventListener("pointerdown", f); window.addEventListener("keydown", f);
     return () => { window.removeEventListener("pointerdown", f); window.removeEventListener("keydown", f); };
   }, []);
-  // Plazo agotado: cerrar con aviso.
-  useEffect(() => {
-    if (s && venceYa) { setOcultos((o) => new Set(o).add(clave(s))); setAviso("El servicio ha vuelto a la central"); }
-  }, [s, venceYa]);
   // Aparece uno nuevo: vibrar y sonar; si desaparece sin que yo actúe (reasignado/expirado): aviso.
   useEffect(() => {
     const id = s ? clave(s) : null;
@@ -139,7 +135,8 @@ export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: {
     <div role="dialog" aria-label="Servicio nuevo" className="fixed inset-0 z-[2000] flex flex-col overflow-y-auto bg-slate-950 p-5 text-slate-100">
       <p className="text-sm font-semibold uppercase tracking-wide text-marca-claro">Servicio nuevo</p>
       <p className="mt-1 text-5xl font-bold tabular-nums text-marca-claro" aria-live="off">{ahora ? cuenta(restante) : "\u00a0"}</p>
-      {ahora && restante <= 86400 && <p className="text-xs text-slate-400">para responder</p>}
+      {ahora && restante <= 86400 && !venceYa && <p className="text-xs text-slate-400">para responder</p>}
+      {venceYa && <p className="text-sm font-semibold text-amber-300">Plazo vencido · la central está avisada. Puedes aceptarlo igualmente si sigue siendo tuyo.</p>}
       <p className="mt-5 text-3xl font-bold">{fechaHora.format(new Date(s.fecha_hora_recogida))}</p>
       <p className="mt-2 text-xl">{s.origen_texto} → {s.destino_texto}</p>
       <p className="mt-2 text-base text-slate-300">{s.pasajeros} pax · {s.maletas} maletas{vuelos && s.numero_vuelo ? ` · Vuelo ${s.numero_vuelo}` : ""}</p>
