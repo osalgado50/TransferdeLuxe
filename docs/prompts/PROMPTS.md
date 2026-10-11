@@ -861,3 +861,117 @@ ok, sigue y avísame cuando esté publicado
 
 ---
 
+## 2026-10-11 16:46 · Claude Code · sesión `b3c0e64f`
+
+no quiero botones pequeños de volver a la central
+
+---
+
+## 2026-10-11 16:46 · Claude Code · sesión `b3c0e64f`
+
+el mapa que cubra mas pantalla
+
+---
+
+## 2026-10-11 16:50 · Claude Code · sesión `b3c0e64f`
+
+límpialas tú
+
+---
+
+## 2026-10-11 16:51 · Claude Code · sesión `b3c0e64f`
+
+quítala también
+
+---
+
+## 2026-10-11 17:01 · Claude Code · sesión `b3c0e64f`
+
+que queda por hacer
+
+---
+
+## 2026-10-11 17:09 · Claude Code · sesión `b3c0e64f`
+
+En la aplicación de Android, cuando la abres por primera vez, te salen abajo los usuarios que puedes copiar y pegar o lanzar directamente con, con los datos del login. En, en Apple también quiero que, que salga y añade la cuenta de, del propietario, ¿vale? La que tiene control en el, en el móvil.
+
+---
+
+## 2026-10-11 17:18 · Claude Code · sesión `b3c0e64f`
+
+has enviado las aplicaciones a TestFlight?
+
+---
+
+## 2026-10-11 17:19 · Claude Code · sesión `b3c0e64f`
+
+Sí. Vale, pues acabo de bajar la, la aplicación de nuevo en el iPhone y no me salen las modificaciones de los logins que te he pedido. ¿Lo has hecho o, o qué está fallando aquí?
+
+---
+
+## 2026-10-11 17:25 · Claude Code · sesión `b3c0e64f`
+
+Fíjate que el botón de ver todos está pisando el mapa y no sé qué hay debajo que no se ve bien. Organízamelo todo bien, si acaso el mapa échamelo un poco más abajo, si tienes que ganar sitio para poner iconos, no sé. Organízamelo un poco mejor.
+
+---
+
+## 2026-10-11 17:33 · Claude Code · sesión `b3c0e64f`
+
+tanto en la aplicación del móvil como en el, en la web, donde está el panel de central, eh, cuando reasignes un servicio a, muestra si están online los conductores, ¿vale? Si está el botón de GPS midiendo significa que está online y si no es que algo le pasa, ¿vale? Lo indicas con algún cartelito de online, una antenita o lo pones con luz verde y rojo los que no tienen cobertura ¿vale?
+
+---
+
+## 2026-10-11 18:10 · Claude Code · sesión `b3c0e64f`
+
+Vamos a empezar por esta pantalla. Fíjate que en el mapa arriba a la derecha hay como una especie de estadísticas o FPS Todo esto no me interesa. Si lo puedes eliminar, mejor, que se vea el mapa entero. Los colores de libre, libre es verde, correcto, en camino está bien que sea azul, con pasajeros lo dejas en rojo, y si en señal está bien que esté en gris. ¿Vale? Y actualizas la leyenda de abajo.
+
+---
+
+## 2026-10-11 18:13 · Claude Code · sesión `b3c0e64f`
+
+Vale, luego la pantalla de, de servicios en el móvil se ve como una lista. Eh, pon arriba los filtros para poder seleccionar el listado. ¿Vale? El sin asignar, el que en curso, ¿vale? Que toques unos botoncitos arriba y te filtre para que no tengas que hacer scroll con todos los, servicios que hay. Y haz lo mismo en la versión de escritorio.
+
+---
+
+## 2026-10-11 18:13 · Claude Code · sesión `b3c0e64f`
+
+Genera también sonidos de envío de, de órdenes, de recibir eh, notificación de que se ha aceptado un porte. No sé, una serie de sonidos que al, al oírlos desde la central puedas entender lo que está pasando con los, con los portes y con los trabajos. Y en la app del, conductor haz que que suene una notificación, aparte que se vea en pantalla, que suene una notificación de audio indicando que tienes un porte o, o lo que sea, ¿vale? Para que no se, no se quede nadie despistado.
+
+---
+
+## 2026-10-11 18:17 · Claude Code · sesión `b3c0e64f`
+
+El app de conductor cuando abras un porte que tienes en marcha, los botones de carga o de pasajeros a bordo, estas cosas, ponlas al principio. ¿Vale? En la, arriba de todo, como lo más importante. Después ya el destino, el mapa y todo lo que viene. Porque estos botones son importantes. El de llamar al cliente también. Debajo de, de carga. ¿Vale? Para que tengas todos los botones de control a mano porque piensa que eh, los conductores conducen. Necesitan unas pantallas fáciles y, que no hayan, líos.
+
+---
+
+## 2026-10-11 18:23 · Claude Code · sesión `b3c0e64f`
+
+El panel vivo este, estos botones que hay aquí con los pendientes esperando respuesta en curso, cuando hagas clic encima, abre una pantallita mostrando los pendientes, los estados esperando respuesta, ¿vale? Para que se pueda ir directamente
+
+---
+
+## 2026-10-11 19:00 · Claude Code · sesión `b3c0e64f`
+
+Acabo de aceptar un porte desde el móvil del conductor y debería de salir en la pantalla de control tanto la versión escritorio como la versión de móvil en alertas que el conductor tal ha aceptado este porte. ¿Vale? De hecho, en alertas tendrían que salir todos los movimientos que se están haciendo. Se ha cogido este, este turista o se ha dejado en el hotel, ha quedado libre. ¿Vale? He tenido una avería, ¿vale? Todo lo que sean averías, accidentes o cosas graves, las tendrás que marcar en rojo que destaque y emitir un sonido de alarma o algo para para indicar al, al controlador que hay un problema. ¿Vale? Siempre indica quién es el que le están pasando las cosas, qué conductor y se puedes ubicar la zona con nombre, por ejemplo, está en Reus, está en Falset y le ha pasado esto, todo lo que sea grave que tenga datos, ¿vale?
+
+---
+
+## 2026-10-11 19:05 · Claude Code · sesión `b3c0e64f`
+
+ok, sigue y avísame cuando esté publicado
+
+---
+
+## 2026-10-11 19:11 · Claude Code · sesión `b3c0e64f`
+
+Oye, un pequeño detalle, cuando se abre la aplicación de conductor en Android, el logotipo eh, la línea de costa dorada queda cortada. No está bien cuadrado. Mira ese detalle y compruébalo también en, en Apple. Si la apertura de la aplicación la puedes hacer más chula, rollo que se que aparezca este logo grande y sea un poquito más pequeño o tenga algún movimiento, y luego que haga un fundido perfecto con la aplicación, que le dé un poquito de, de caché, ¿sabes? Que sea premium esto.
+
+---
+
+## 2026-10-11 19:15 · Claude Code · sesión `b3c0e64f`
+
+vale, la compilación al final con los sonidos
+
+---
+
