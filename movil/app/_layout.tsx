@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import "~/lib/gpsTarea";
 import { ProveedorSesion, useSesion } from "~/lib/sesion";
 import { color } from "~/lib/tema";
+import { useActualizaciones } from "~/lib/actualizaciones";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -30,6 +31,7 @@ function Navegacion() {
 }
 
 export default function RootLayout() {
+  useActualizaciones();
   return (
     <ThemeProvider value={tema}>
       <ProveedorSesion>

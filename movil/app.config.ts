@@ -6,6 +6,10 @@ const config: ExpoConfig = {
   slug: "tvl-conductor",
   owner: "osalgado",
   version: "1.0.0",
+  // Actualizaciones automáticas (EAS Update): la huella nativa decide si una actualización es compatible con la
+  // compilación instalada; los cambios nativos (permisos, librerías) exigen una compilación nueva.
+  runtimeVersion: { policy: "fingerprint" },
+  updates: { url: "https://u.expo.dev/c5b7d38c-6dc1-45c7-ad61-dc2190b2ff34", checkAutomatically: "ON_LOAD", fallbackToCacheTimeout: 0 },
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "tvlconductor",
