@@ -82,7 +82,7 @@ r = await llamar(central, "GET", "/api/central/resumen");
 paso(r.status === 200 && r.j?.alertas?.some((s) => s.id === s2), "La central ve la alerta del rechazo", `${r.ms} ms`);
 
 const { data: ev } = await admin.from("eventos_servicio").select("tipo").eq("servicio_id", s1).order("creado_en");
-paso(["asignado", "aceptado", "en_camino", "recogido", "completado"].every((t) => ev.some((e) => e.tipo === t)) || ev.length >= 5,
+paso(["asignado", "aceptado", "en_camino", "recogido", "completado"].every((t) => ev.some((e) => e.tipo === t)),
   "Historial de eventos completo", ev.map((e) => e.tipo).join(" → "));
 const { count } = await admin.from("incidencias").select("id", { count: "exact", head: true }).like("descripcion", `${NOTA}%`);
 paso(count === 2, "Las 2 incidencias llegan a la central", String(count));
