@@ -149,6 +149,12 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   vehículo); semáforo puro en `src/lib/dominio/mantenimiento.ts` y avisos en el panel. Informes: `/central/informes`
   por mes/conductor/vehículo con km estimados, combustible, consumo, rechazos e incidencias, gráfico y export CSV;
   agregaciones puras en `src/lib/dominio/informes.ts`.
+- **Módulo de vuelos (11/10/2026)**: nº de vuelo validado y normalizado (IATA/ICAO + 1-4 dígitos) en `/reservar` y en
+  la central; enlace «Ver vuelo» a Flightradar24 en ficha, lista, hoja de ruta y app del conductor (web y nativa);
+  «Hora real de llegada» en la ficha que propone mover la recogida a llegada + margen de equipaje (ajustes, 20 min por
+  defecto), con confirmación, evento en `eventos_servicio` y push al conductor. Consulta automática preparada
+  (`src/lib/vuelos/`, AeroDataBox) que solo aparece con `AERODATABOX_API_KEY`. Migración 0014; lógica pura en
+  `src/lib/dominio/vuelos.ts`.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -212,6 +218,9 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   pisar un valor mayor. Solución: función SQL `registrar_mantenimiento` (solo service role) que inserta y hace
   `greatest(km_actuales, p_km)` en la misma transacción. En informes no hay ruta guardada: los km se estiman con la
   distancia recta × 1,3, y el consumo mensual usa el último ticket anterior al mes como km de partida.
+- **Reajuste de recogida por vuelo sin sorpresas**: el operador ve la propuesta y confirma; el servidor recalcula la hora
+  con la llegada guardada y rechaza si no coincide con la que vio, y el `update` excluye servicios ya recogidos o
+  cerrados. `/reservar` pasa de estática a ISR (5 min) para respetar el módulo activado sin perder la caché de la CDN.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
