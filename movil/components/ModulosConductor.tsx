@@ -1,7 +1,7 @@
 import { debePedirChecklist, itemsActivos, type ItemChecklist, type RespuestaItem } from "@dominio/checklist";
 import { diaMadrid } from "@dominio/geo";
 import { TIPOS_INCIDENCIA } from "@dominio/incidencias";
-import { formatoDuracion, rangosJornada, resumenConductor, type AccionJornada, type Jornada } from "@dominio/jornada";
+import { rangosJornada, type Jornada } from "@dominio/jornada";
 import { leerModulos } from "@dominio/modulos";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
@@ -15,6 +15,7 @@ import { useSesion } from "~/lib/sesion";
 import { supabase } from "~/lib/supabase";
 import { color } from "~/lib/tema";
 import { useConsulta } from "~/lib/tiempoReal";
+import { alCambiarJornada } from "~/lib/jornada";
 
 async function enviar(ruta: string, body: unknown): Promise<string | null> {
   try {
@@ -26,7 +27,7 @@ async function enviar(ruta: string, body: unknown): Promise<string | null> {
 
 type Vehiculo = { id: string; matricula: string; modelo: string };
 
-/** Jornada, checklist e incidencias en la pantalla principal (solo los módulos activos en la central). */
+/** Checklist e incidencias en la pantalla principal (solo los módulos activos); la jornada va en la cabecera (BotonJornada). */
 export function ModulosConductor() {
   const { sesion, perfil } = useSesion();
   const yo = sesion!.user.id;
@@ -44,6 +45,8 @@ export function ModulosConductor() {
       hechos: new Set(((rev.data ?? []) as { vehiculo_id: string }[]).map((x) => x.vehiculo_id)), vehiculos: exigir(veh) as Vehiculo[],
     };
   }, [yo]);
+  // La jornada se controla desde la cabecera; al cambiar, recargar para pedir el checklist si toca.
+  useEffect(() => alCambiarJornada(() => void recargar()), [recargar]);
   if (!datos) return null;
   const { m, jornadas, items, hechos, vehiculos } = datos;
   const habitual = perfil?.vehiculo_habitual_id ?? null;
@@ -53,45 +56,9 @@ export function ModulosConductor() {
   });
   return (
     <View style={{ gap: 12 }}>
-      {m.jornada && <JornadaTarjeta jornadas={jornadas} alCambiar={recargar} />}
       {pedir && <ChecklistTarjeta items={items} vehiculos={vehiculos} inicial={habitual} alGuardar={recargar} />}
       {m.incidencias && <BotonIncidencia />}
     </View>
-  );
-}
-
-function JornadaTarjeta({ jornadas, alCambiar }: { jornadas: Jornada[]; alCambiar: () => Promise<void> }) {
-  const [ahora, setAhora] = useState(() => new Date());
-  const [ocupado, setOcupado] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { const t = setInterval(() => setAhora(new Date()), 30_000); return () => clearInterval(t); }, []);
-  const r = resumenConductor(jornadas, ahora);
-  const hacer = async (a: AccionJornada) => {
-    setOcupado(true); setError(null);
-    const e = await enviar("/api/conductor/jornada", { accion: a });
-    setOcupado(false);
-    if (e) { setError(e); return; }
-    await alCambiar();
-    if (a === "finalizar") Alert.alert("Jornada finalizada", "Si has terminado, recuerda ponerte «Fuera de servicio» con el interruptor de arriba para dejar de enviar GPS.");
-  };
-  const finalizar = () => Alert.alert("Finalizar jornada", "¿Finalizar la jornada de hoy?", [
-    { text: "Cancelar", style: "cancel" }, { text: "Finalizar", style: "destructive", onPress: () => void hacer("finalizar") },
-  ]);
-  const estadoTxt = r.estado === "fuera" ? "Sin jornada iniciada" : r.estado === "en_pausa" ? "En pausa"
-    : `Trabajando desde las ${new Date(r.abierta!.inicio).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })}`;
-  return (
-    <Tarjeta>
-      <Text style={e.titulo}>Jornada</Text>
-      <Text style={e.texto}>{estadoTxt}</Text>
-      <Text style={e.tenue}>Hoy: {formatoDuracion(r.msHoy)} · Semana: {formatoDuracion(r.msSemana)}</Text>
-      <View style={e.fila}>
-        {r.estado === "fuera" && <Boton texto="Iniciar jornada" onPress={() => void hacer("iniciar")} cargando={ocupado} estilo={{ flex: 1 }} />}
-        {r.estado === "trabajando" && <Boton texto="Pausa" variante="secundario" onPress={() => void hacer("pausa")} cargando={ocupado} estilo={{ flex: 1 }} />}
-        {r.estado === "en_pausa" && <Boton texto="Reanudar" onPress={() => void hacer("reanudar")} cargando={ocupado} estilo={{ flex: 1 }} />}
-        {r.estado !== "fuera" && <Boton texto="Finalizar jornada" variante="secundario" onPress={finalizar} deshabilitado={ocupado} estilo={{ flex: 1 }} />}
-      </View>
-      {error && <Aviso tipo="error" texto={error} />}
-    </Tarjeta>
   );
 }
 

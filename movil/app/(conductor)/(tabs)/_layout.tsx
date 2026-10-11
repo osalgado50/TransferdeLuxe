@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View, type ColorValue } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EstadoConexion } from "~/components/EstadoConexion";
 import { InterruptorGps } from "~/components/InterruptorGps";
+import { BotonJornada } from "~/components/BotonJornada";
 import { useSesion } from "~/lib/sesion";
 import { color } from "~/lib/tema";
 
@@ -18,6 +19,7 @@ function Cabecera() {
         {sinConexion && <Pressable onPress={reintentar} accessibilityRole="button"><Text style={estilos.sinRed}>Sin conexión · tocar para reintentar</Text></Pressable>}
         <EstadoConexion />
       </View>
+      {sesion && <BotonJornada yo={sesion.user.id} />}
       <Pressable onPress={salir} accessibilityRole="button" accessibilityLabel="Cerrar sesión" hitSlop={8}
         style={({ pressed }) => [estilos.salir, pressed && { borderColor: color.marcaClaro }]}>
         <Text style={estilos.salirTexto}>Salir</Text>
