@@ -10,9 +10,9 @@ import { fallos, type ItemChecklist, type Respuestas } from "@/lib/dominio/check
 interface Inc { id: string; conductor_id: string; tipo: string; descripcion: string; creado_en: string }
 interface Rev { id: string; conductor_id: string; vehiculo_id: string; respuestas: Respuestas; observaciones: string; creado_en: string }
 
-/** Alertas de los módulos del conductor (incidencias sin resolver y checklists con fallos), en vivo. */
+/** Alertas de los módulos del conductor (incidencias sin resolver y checklists con fallos), en vivo. `alNuevo`: opcional. */
 export default function AlertasModulos({ conductores, vehiculos, alNuevo }: {
-  conductores: { id: string; nombre: string }[]; vehiculos: { id: string; matricula: string }[]; alNuevo: () => void;
+  conductores: { id: string; nombre: string }[]; vehiculos: { id: string; matricula: string }[]; alNuevo?: () => void;
 }) {
   const [inc, setInc] = useState<Inc[]>([]);
   const [revs, setRevs] = useState<Rev[]>([]);
@@ -32,7 +32,7 @@ export default function AlertasModulos({ conductores, vehiculos, alNuevo }: {
     ]);
     const ni = (i.data ?? []) as Inc[], nr = (r.data ?? []) as Rev[];
     const claves = new Set([...ni.map((x) => x.id), ...nr.map((x) => x.id)]);
-    if (vistos.current && [...claves].some((k) => !vistos.current!.has(k))) aviso.current();
+    if (vistos.current && [...claves].some((k) => !vistos.current!.has(k))) aviso.current?.();
     vistos.current = claves;
     setInc(ni); setRevs(nr); setItems((it.data ?? []) as ItemChecklist[]);
   }, []);

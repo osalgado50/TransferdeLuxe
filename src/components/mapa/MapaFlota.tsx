@@ -2,7 +2,7 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { llegandoReciente } from "@/lib/dominio/navegacion";
 import { COLOR_ESTADO_MAPA, estadoEnMapa, type EstadoVehiculoMapa } from "@/lib/dominio/mapa";
 import type { PosicionActual, Servicio, Perfil, Vehiculo } from "@/lib/dominio/tipos";
@@ -21,10 +21,18 @@ function icono(color: string, inicial: string) {
 }
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 
-export default function MapaFlota({ posiciones, servicios, conductores, vehiculos, umbralMin, eventos = [] }: {
+/** Centra el mapa en un punto (p. ej. «Ver en el mapa» de una avería). `n` cambia en cada petición. */
+function Centrar({ c }: { c?: { lat: number; lng: number; n: number } | null }) {
+  const map = useMap();
+  useEffect(() => { if (c) map.flyTo([c.lat, c.lng], 14); }, [c, map]);
+  return null;
+}
+
+export default function MapaFlota({ posiciones, servicios, conductores, vehiculos, umbralMin, eventos = [], centrar }: {
   posiciones: PosicionActual[]; servicios: Servicio[]; conductores: Pick<Perfil, "id" | "nombre" | "vehiculo_habitual_id">[];
   vehiculos: Pick<Vehiculo, "id" | "matricula">[]; umbralMin: number;
   eventos?: { servicio_id: string; tipo: string; creado_en: string }[];
+  centrar?: { lat: number; lng: number; n: number } | null;
 }) {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setAhora(new Date()), 30_000); return () => clearInterval(t); }, []);
@@ -46,6 +54,7 @@ export default function MapaFlota({ posiciones, servicios, conductores, vehiculo
     <div className="space-y-2">
     <MapContainer center={[41.0763, 1.1416]} zoom={11} className="h-[60vh] min-h-[22rem] w-full lg:h-[calc(100vh-15rem)] lg:min-h-[32rem] rounded-lg">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+      <Centrar c={centrar} />
       {marcadores.map((m) => (
         <Marker key={m.p.conductor_id} position={[m.p.lat, m.p.lng]} icon={icono(COLOR[m.estado], m.nombre.charAt(0).toUpperCase())}>
           <Popup>

@@ -27,11 +27,13 @@ describe("sonidoDeEvento", () => {
 describe("catálogo y gravedad", () => {
   it("todos los sonidos están en el catálogo una vez, con gravedades distintas", () => {
     const ids = SONIDOS.map((s) => s.id);
-    expect(new Set(ids).size).toBe(9);
-    expect(new Set(SONIDOS.map((s) => s.gravedad)).size).toBe(9);
+    expect(new Set(ids).size).toBe(10);
+    expect(new Set(SONIDOS.map((s) => s.gravedad)).size).toBe(10);
     expect(SONIDOS.every((s) => s.nombre && s.significado)).toBe(true);
   });
-  it("la incidencia es lo más grave y el envío lo más leve", () => {
+  it("la alarma (avería/accidente) es lo más grave; luego la incidencia; el envío lo más leve", () => {
+    expect(gravedad("alarma")).toBeGreaterThan(gravedad("incidencia"));
+    expect(masGrave("alarma", "aceptado")).toBe("alarma");
     expect(gravedad("incidencia")).toBeGreaterThan(gravedad("rechazado"));
     expect(gravedad("rechazado")).toBeGreaterThan(gravedad("aceptado"));
     expect(masGrave("enviado", "incidencia")).toBe("incidencia");

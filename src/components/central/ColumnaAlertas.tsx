@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { direccionCorta } from "@/lib/dominio/direccion";
 import { leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
@@ -33,10 +33,13 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
   return ["Aviso", inc || "Incidencia"] as const;
 }
 
-/** `alIncidencia`: sonido de incidencia/checklist nuevos (los de los eventos de servicio los pone el panel). */
-export default function ColumnaAlertas({ servicios, eventos, conductores, vehiculos = [], alIncidencia }: {
+/**
+ * `arriba`: lo grave (avería/accidente), fijado arriba del todo. Los sonidos (eventos, incidencias, checklist y la
+ * alarma de lo grave) los pone el panel.
+ */
+export default function ColumnaAlertas({ servicios, eventos, conductores, vehiculos = [], arriba }: {
   servicios: Servicio[]; eventos: EventoAlerta[]; conductores: { id: string; nombre: string }[]; vehiculos?: { id: string; matricula: string }[];
-  alIncidencia: () => void;
+  arriba?: ReactNode;
 }) {
   const alertas = useMemo(() => servicios.filter(esAlerta).sort((a, b) => a.fecha_hora_recogida.localeCompare(b.fecha_hora_recogida)), [servicios]);
   const nombre = (id: string | null) => conductores.find((c) => c.id === id)?.nombre ?? "conductor";
@@ -59,8 +62,9 @@ export default function ColumnaAlertas({ servicios, eventos, conductores, vehicu
   return (
     <section aria-label="Alertas" className="space-y-3">
       <h2 className="text-lg font-semibold">Alertas ({alertas.length})</h2>
+      {arriba}
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
-      <AlertasModulos conductores={conductores} vehiculos={vehiculos} alNuevo={alIncidencia} />
+      <AlertasModulos conductores={conductores} vehiculos={vehiculos} />
       {llegando.map(({ s, ev }) => (
         <article key={`ll-${s.id}`} data-alerta="Llegando" className="rounded-xl border border-green-600 bg-slate-900 p-3">
           <p className="text-sm font-medium text-green-400">{etiquetaEvento(ev.tipo)} · {nombre(s.conductor_id)}</p>

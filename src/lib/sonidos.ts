@@ -60,6 +60,8 @@ function whoosh(c: AudioContext, destino: AudioNode) {
 }
 
 const RECETAS: Record<Sonido, (c: AudioContext, o: AudioNode) => void> = {
+  // Sirena de dos tonos (grave/agudo alternos, ~2 s): inconfundible con el resto.
+  alarma: (c, o) => [0, 0.5, 1, 1.5].forEach((t, i) => nota(c, o, { f: i % 2 ? 1175 : 880, fFin: i % 2 ? 880 : 1175, t, d: 0.48, onda: "sawtooth", v: 0.16 })),
   reserva_nueva: (c, o) => { nota(c, o, { f: 660, t: 0, d: 0.2 }); nota(c, o, { f: 880, t: 0.2, d: 0.3 }); },
   enviado: whoosh,
   aceptado: (c, o) => {

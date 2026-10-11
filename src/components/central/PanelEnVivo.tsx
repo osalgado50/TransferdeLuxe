@@ -1,30 +1,54 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTiempoReal } from "@/lib/supabase/useTiempoReal";
 import type { PosicionActual, Servicio, Perfil, Vehiculo } from "@/lib/dominio/tipos";
+import type { IncidenciaAct, JornadaAct, RevisionAct, ServicioAct } from "@/lib/dominio/actividad";
 import MapaFlota from "@/components/mapa/MapaFlotaCarga";
 import ColumnaAlertas, { type EventoAlerta } from "./ColumnaAlertas";
 import Contadores from "./Contadores";
+import AlertasGraves from "./AlertasGraves";
+import ActividadEnVivo from "./ActividadEnVivo";
 import { useSonidosCentral } from "./useSonidosCentral";
+import { useActividadCentral } from "./useActividadCentral";
 
-export default function PanelEnVivo({ servicios, posiciones, eventos, conductores, vehiculos, umbralMin }: {
+export default function PanelEnVivo({ servicios, posiciones, eventos, conductores, vehiculos, umbralMin, incidencias, revisiones, jornadas, serviciosExtra }: {
   servicios: Servicio[]; posiciones: PosicionActual[]; eventos: EventoAlerta[];
-  conductores: Pick<Perfil, "id" | "nombre" | "vehiculo_habitual_id">[]; vehiculos: Pick<Vehiculo, "id" | "matricula">[]; umbralMin: number;
+  conductores: (Pick<Perfil, "id" | "nombre" | "vehiculo_habitual_id"> & { telefono?: string | null })[]; vehiculos: Pick<Vehiculo, "id" | "matricula">[]; umbralMin: number;
+  incidencias: IncidenciaAct[]; revisiones: RevisionAct[]; jornadas: JornadaAct[]; serviciosExtra: ServicioAct[];
 }) {
   const [ok, setOk] = useState(true);
   const sv = useTiempoReal<Servicio>("servicios", servicios, "id", setOk);
   const ps = useTiempoReal<PosicionActual>("posicion_actual", posiciones, "conductor_id");
   const ev = useTiempoReal<EventoAlerta>("eventos_servicio", eventos, "id");
+  const inc = useTiempoReal<IncidenciaAct>("incidencias", incidencias, "id");
+  const rev = useTiempoReal<RevisionAct>("checklist_revisiones", revisiones, "id");
+  const jor = useTiempoReal<JornadaAct>("jornadas", jornadas, "id");
   const pedirSonido = useSonidosCentral(ev, sv);
-  const alIncidencia = useCallback(() => pedirSonido("incidencia"), [pedirSonido]);
+  const { movimientos, graves, marcarVisto } = useActividadCentral({
+    eventos: ev, incidencias: inc, revisiones: rev, jornadas: jor, servicios: sv, serviciosExtra,
+    conductores, posiciones: ps, vehiculos, pedir: pedirSonido,
+  });
+  const [centrar, setCentrar] = useState<{ lat: number; lng: number; n: number } | null>(null);
+  const mapa = useRef<HTMLDivElement>(null);
+  const alCentrar = useCallback((p: { lat: number; lng: number }) => {
+    setCentrar((c) => ({ ...p, n: (c?.n ?? 0) + 1 }));
+    mapa.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+  const tarjetasGraves = <AlertasGraves graves={graves} alVisto={marcarVisto} alCentrar={alCentrar} />;
   return (
     <div className="space-y-4">
       {!ok && <p role="status" className="text-xs text-amber-300">Reconectando…</p>}
+      {/* En pantallas estrechas lo grave va arriba del todo (antes del mapa); en escritorio, arriba de la columna de alertas. */}
+      {graves.length > 0 && <div className="lg:hidden">{tarjetasGraves}</div>}
       <Contadores servicios={sv} conductores={conductores} />
       {/* Mapa grande (ocupa casi toda la altura) y alertas al lado con su propio scroll, sin salirse por la derecha. */}
       <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4">
-        <div className="min-w-0 lg:col-span-2 xl:col-span-3"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} /></div>
-        <div className="min-w-0 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto lg:pr-1"><ColumnaAlertas servicios={sv} eventos={ev} conductores={conductores} vehiculos={vehiculos} alIncidencia={alIncidencia} /></div>
+        <div ref={mapa} className="min-w-0 lg:col-span-2 xl:col-span-3"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} centrar={centrar} /></div>
+        <div className="min-w-0 space-y-5 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto lg:pr-1">
+          <ColumnaAlertas servicios={sv} eventos={ev} conductores={conductores} vehiculos={vehiculos}
+            arriba={graves.length > 0 ? <div className="hidden lg:block">{tarjetasGraves}</div> : null} />
+          <ActividadEnVivo movimientos={movimientos} />
+        </div>
       </div>
     </div>
   );
