@@ -10,6 +10,7 @@ import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "r
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BotonPaso } from "~/components/BotonPaso";
 import { EstadoBadge } from "~/components/EstadoBadge";
+import { BotonIncidencia } from "~/components/ModulosConductor";
 import { MapaServicio } from "~/components/MapaServicio";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 import { fechaHora, fmt, hora } from "~/lib/formato";
@@ -39,7 +40,7 @@ export default function ServicioEnCurso() {
         .not("estado", "in", "(cancelado,completado)").neq("id", id).order("fecha_hora_recogida").limit(1),
       supabase.from("ajustes").select("modulos").maybeSingle(),
     ]);
-    return { s: exigir(s) as Servicio | null, siguienteId: (exigir(hoy) as { id: string }[])[0]?.id ?? null, vuelos: leerModulos(aj.data?.modulos).vuelos };
+    return { s: exigir(s) as Servicio | null, siguienteId: (exigir(hoy) as { id: string }[])[0]?.id ?? null, vuelos: leerModulos(aj.data?.modulos).vuelos, incidencias: leerModulos(aj.data?.modulos).incidencias };
   }, [id, yo]);
 
   const s = datos?.s;
@@ -104,6 +105,7 @@ export default function ServicioEnCurso() {
           <BotonPaso key={s.id} servicioId={s.id} conductorId={yo} estadoServidor={estado} siguienteId={datos?.siguienteId ?? null}
             alCambiar={() => void recargar()} resaltar={!!objetivo && fase === "llegado"} />
         </View>
+        {datos?.incidencias && s.estado !== "completado" && <BotonIncidencia servicioId={s.id} />}
       </ScrollView>
     </SafeAreaView>
   );

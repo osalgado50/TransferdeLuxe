@@ -1,6 +1,7 @@
 import { rangosConductor } from "@dominio/dias";
 import { useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
+import { ModulosConductor } from "~/components/ModulosConductor";
 import { TarjetaServicio } from "~/components/TarjetaServicio";
 import { Aviso } from "~/components/ui";
 import { CAMPOS_LISTA, exigir, type ServicioLista } from "~/lib/servicios";
@@ -42,6 +43,7 @@ export default function Hoy() {
   return (
     <ScrollView contentContainerStyle={estilos.contenido}
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={tirar} tintColor={color.marcaClaro} />}>
+      <ModulosConductor />
       <Text style={estilos.titulo} accessibilityRole="header">Hoy</Text>
       {error && <Aviso tipo="error" texto={`Error al cargar: ${error}. Desliza hacia abajo para reintentar.`} />}
       {cargando ? <Aviso texto="Cargando…" />
