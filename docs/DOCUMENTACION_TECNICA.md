@@ -176,6 +176,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   Actions) y app nativa (rutas `/api/conductor/{jornada,incidencia,checklist}` con Bearer). Migración 0012; lógica pura
   en `src/lib/dominio/{jornada,incidencias,checklist}.ts`.
 
+- **Jefe multitarea, parte servidor (11/10/2026)**: el responsable dirige la central desde el coche mientras hace
+  servicios. Migración 0017: `perfiles.conduce` (operador que también conduce) y `vigilante_push` (cursor). Todas las
+  listas de conductores usan `FILTRO_CONDUCEN` (`src/lib/conductores.ts`); las acciones de conductor admiten al operador
+  con `conduce` sobre lo que tiene asignado (`puedeConducir`, `exigirConductor`, `exigirConductorBearer`); casilla
+  «También conduce» en Flota y enlace «Mis servicios». Un vigilante en `src/instrumentation.ts` (cada 20 s) manda push a
+  la central de reservas web nuevas, rechazos, plazos vencidos, incidencias y checklists con fallos (textos en
+  `src/lib/dominio/avisosCentral.ts`). Rutas Bearer `/api/central/{resumen,sugerencia,asignar,reasignar,alerta-vista}`
+  para el modo central de la app nativa, con la lógica compartida con las Server Actions en `src/lib/central/operaciones.ts`.
+
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
   plano), Mindee, Tabscanner, Azure y Google Document AI. Se elige Claude Haiku 5.5 porque devuelve los datos ya
@@ -247,6 +256,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   La jornada es independiente del interruptor GPS «En servicio»: al finalizar solo se sugiere ponerse fuera de servicio.
   El checklist se hace idempotente con `unique (conductor_id, vehiculo_id, fecha)` y «quitar» un ítem lo desactiva
   para no romper revisiones antiguas.
+
+- **Un rol que es dos roles**: en vez de un tercer rol (que obligaba a tocar el enum, la RLS y cada `if`), un booleano
+  `conduce` en el operador. La RLS ya filtraba por `conductor_id = auth.uid()` y no por rol, así que no hubo que
+  cambiarla; la regla de seguridad sigue siendo «el servicio está asignado a quien actúa».
+- **Push a la central sin cron externo ni duplicados**: vigilante dentro del proceso Next (un solo proceso en Hostinger)
+  con protección contra solapes y un cursor en BD que avanza antes de enviar (ante un fallo se pierde un aviso, nunca se
+  repite). No arranca en build, en tests ni sin service role; con `VIGILANTE_PUSH=off` se desactiva.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
