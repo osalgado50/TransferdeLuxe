@@ -20,7 +20,7 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
   return (
     <div className="space-y-4">
       {!ok && <p role="status" className="text-xs text-amber-300">Reconectando…</p>}
-      <Contadores servicios={sv} />
+      <Contadores servicios={sv} conductores={conductores} />
       {/* Mapa grande (ocupa casi toda la altura) y alertas al lado con su propio scroll, sin salirse por la derecha. */}
       <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4">
         <div className="min-w-0 lg:col-span-2 xl:col-span-3"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} /></div>
