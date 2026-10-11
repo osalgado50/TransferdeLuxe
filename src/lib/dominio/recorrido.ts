@@ -189,3 +189,47 @@ export function textoDuracion(min: number | null | undefined): string {
   const m = Math.max(0, Math.round(min ?? 0));
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
 }
+
+/** Fila de la tabla `recorridos` tal como la leen las pantallas. */
+export interface RecorridoGuardado {
+  servicio_id: string; conductor_id: string | null; inicio: string; fin: string; puntos: PuntoLngLat[]; corte: number | null;
+  km: number | string; km_con_pasajeros: number | string | null; duracion_min: number; puntos_originales: number;
+}
+export const CAMPOS_RECORRIDO = "servicio_id,conductor_id,inicio,fin,puntos,corte,km,km_con_pasajeros,duracion_min,puntos_originales";
+/** Colores del recorrido: los mismos del mapa de flota (en camino azul, con pasajeros rojo). */
+export const COLOR_HACIA = "#2563eb", COLOR_CON = "#dc2626";
+
+type XY = [number, number];
+/** Douglas-Peucker en píxeles (miniaturas): quita lo que no se ve. */
+function simplificarPx(xy: XY[], tol: number): XY[] {
+  if (xy.length <= 2) return xy;
+  const keep = new Uint8Array(xy.length);
+  keep[0] = keep[xy.length - 1] = 1;
+  const pila: [number, number][] = [[0, xy.length - 1]];
+  while (pila.length) {
+    const [i, j] = pila.pop()!;
+    const [ax, ay] = xy[i], [bx, by] = xy[j], l2 = (bx - ax) ** 2 + (by - ay) ** 2;
+    let max = -1, k = -1;
+    for (let x = i + 1; x < j; x++) {
+      const [px, py] = xy[x];
+      const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / l2));
+      const d = Math.hypot(px - (ax + t * (bx - ax)), py - (ay + t * (by - ay)));
+      if (d > max) { max = d; k = x; }
+    }
+    if (k > 0 && max > tol) { keep[k] = 1; pila.push([i, k], [k, j]); }
+  }
+  return xy.filter((_, i) => keep[i]);
+}
+
+/** Miniatura lista para pintar (SVG en la web, Views en la app): tramos en píxeles, con lo invisible ya quitado. */
+export function miniaturaRecorrido(puntos: PuntoLngLat[], corte: number | null, ancho: number, alto: number, margen = 6):
+  { hacia: XY[]; con: XY[]; inicio: XY; recogida: XY | null; fin: XY } | null {
+  if (puntos.length < 2) return null;
+  const xy = proyectarRecorrido(puntos, ancho, alto, margen);
+  const { hacia, con } = tramosRecorrido(puntos, corte);
+  const xyHacia = xy.slice(0, hacia.length), xyCon = con.length ? xy.slice(xy.length - con.length) : [];
+  return {
+    hacia: simplificarPx(xyHacia, 0.75), con: simplificarPx(xyCon, 0.75),
+    inicio: xy[0], recogida: corte != null && hacia.length ? xy[hacia.length - 1] : null, fin: xy[xy.length - 1],
+  };
+}

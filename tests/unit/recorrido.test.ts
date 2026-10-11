@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  calcularRecorrido, douglasPeucker, filtrarPosiciones, kmDe, necesitaRecalculo, proyectarRecorrido, textoDuracion, textoKm,
+  calcularRecorrido, douglasPeucker, miniaturaRecorrido, filtrarPosiciones, kmDe, necesitaRecalculo, proyectarRecorrido, textoDuracion, textoKm,
   tramosRecorrido, ventanaRecorrido, type PosicionGps, type PuntoLngLat,
 } from "@/lib/dominio/recorrido";
 
@@ -122,6 +122,17 @@ describe("tramos, recálculo y proyección", () => {
     for (const [x, y] of xy) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(120); expect(y).toBeGreaterThanOrEqual(0); expect(y).toBeLessThanOrEqual(80); }
     expect(xy[1][1]).toBeLessThan(xy[0][1]); // Reus (más al norte) más arriba
     expect(proyectarRecorrido([], 10, 10)).toEqual([]);
+  });
+  it("miniaturaRecorrido: tramos en píxeles, recta reducida a sus extremos", () => {
+    const recta: PuntoLngLat[] = Array.from({ length: 50 }, (_, i) => [1.14 + i * 0.001, 41.076 + i * 0.001]);
+    const m = miniaturaRecorrido(recta, 20, 120, 80)!;
+    expect(m.hacia).toHaveLength(2);
+    expect(m.con).toHaveLength(2);
+    expect(m.recogida).toEqual(m.hacia[1]);
+    expect(m.con[0]).toEqual(m.recogida);
+    expect(m.fin).toEqual(m.con[1]);
+    expect(miniaturaRecorrido(recta.slice(0, 1), null, 120, 80)).toBeNull();
+    expect(miniaturaRecorrido(recta, null, 120, 80)!.con).toEqual([]);
   });
   it("textos y km", () => {
     expect(textoKm(12.345)).toBe("12,3 km");

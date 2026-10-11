@@ -8,6 +8,8 @@ import { etiquetaEvento } from "@/lib/dominio/navegacion";
 import type { Servicio } from "@/lib/dominio/tipos";
 import { leerModulos } from "@/lib/dominio/modulos";
 import PanelVuelo from "@/components/vuelos/PanelVuelo";
+import FichaRecorrido from "@/components/mapa/FichaRecorrido";
+import { CAMPOS_RECORRIDO, type RecorridoGuardado } from "@/lib/dominio/recorrido";
 
 const fmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" });
 const punto = (lat: number | null, lng: number | null) => (lat != null && lng != null ? { lat, lng } : null);
@@ -21,6 +23,8 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
   const s = data as Servicio & { conductor: { nombre: string } | null; vehiculo: { matricula: string; modelo: string } | null };
   const { data: eventos } = await sb.from("eventos_servicio").select("id,tipo,motivo,creado_en,actor:perfiles(nombre)").eq("servicio_id", id).order("creado_en");
   const { data: aj } = await sb.from("ajustes").select("modulos, margen_equipaje_min").maybeSingle();
+  const { data: rec } = await sb.from("recorridos").select(CAMPOS_RECORRIDO).eq("servicio_id", id).maybeSingle();
+  const recorrido = rec as RecorridoGuardado | null;
   const vuelos = leerModulos(aj?.modulos).vuelos;
   const sinVer = !!s.ultima_incidencia && !s.incidencia_vista;
 
@@ -48,7 +52,8 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
       </section>
       {vuelos && <PanelVuelo servicioId={s.id} estado={s.estado} numeroVuelo={s.numero_vuelo} llegadaReal={s.hora_llegada_real ?? null}
         margenMin={aj?.margen_equipaje_min ?? 20} autoDisponible={!!process.env.AERODATABOX_API_KEY?.trim()} />}
-      <MapaTrayecto origen={punto(s.origen_lat, s.origen_lng)} destino={punto(s.destino_lat, s.destino_lng)} />
+      {recorrido && <FichaRecorrido r={recorrido} />}
+      {!(recorrido && recorrido.puntos.length >= 2) && <MapaTrayecto origen={punto(s.origen_lat, s.origen_lng)} destino={punto(s.destino_lat, s.destino_lng)} />}
       <section>
         <h2 className="mb-2 font-semibold text-marca-claro">Historial</h2>
         <ul className="space-y-1 text-sm">
