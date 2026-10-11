@@ -179,10 +179,12 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     if (j.fin) out.push({ ...base(`jor-${j.id}-f`, j.fin, j.conductor_id, undefined), tipo: "jornada_fin", icono: "⏹️", texto: `${nombre(j.conductor_id)} ha terminado la jornada` });
   }
 
-  const orden = (a: Movimiento, b: Movimiento) => b.en.localeCompare(a.en) || b.id.localeCompare(a.id);
+  // Fechas de Supabase/Realtime con formatos distintos («…+00:00», «…Z»): se ordena por instante, no por texto.
+  const t = (m: Movimiento) => Date.parse(m.en) || 0;
+  const orden = (a: Movimiento, b: Movimiento) => t(b) - t(a) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
   const unicos = [...new Map(out.map((m) => [m.id, m])).values()].sort(orden);
-  const desde = e.desde?.toISOString();
-  const movimientos = (desde ? unicos.filter((m) => m.en >= desde) : unicos).slice(0, limite);
+  const desde = e.desde?.getTime();
+  const movimientos = (desde != null ? unicos.filter((m) => t(m) >= desde) : unicos).slice(0, limite);
   return { movimientos, graves: unicos.filter((m) => m.pendiente) };
 }
 
