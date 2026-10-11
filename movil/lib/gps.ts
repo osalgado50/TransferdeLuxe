@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { claveOn, type Permiso } from "@dominio/gpsNativo";
 import * as Crypto from "expo-crypto";
 import * as Location from "expo-location";
+import { fetchConTiempo } from "./api";
 import { API_URL } from "./config";
 import { TAREA_GPS, esperarLoteEnCurso, limpiarDatosGps } from "./gpsTarea";
 import { supabase } from "./supabase";
@@ -59,7 +60,7 @@ async function postFuera(): Promise<boolean> {
   try {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) return false;
-    const r = await fetch(`${API_URL}/api/conductor/fuera-de-servicio`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    const r = await fetchConTiempo(`${API_URL}/api/conductor/fuera-de-servicio`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     return r.ok;
   } catch { return false; }
 }

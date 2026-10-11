@@ -1,5 +1,6 @@
 import { crearEnviarAccion } from "@/lib/offline/accionApi";
 import * as Crypto from "expo-crypto";
+import { fetchConTiempo } from "./api";
 import { API_URL } from "./config";
 import { supabase } from "./supabase";
 
@@ -8,7 +9,7 @@ export const enviarAccion = crearEnviarAccion({
   apiUrl: API_URL,
   token: async () => (await supabase.auth.getSession()).data.session?.access_token ?? null,
   refrescar: async () => (await supabase.auth.refreshSession()).data.session?.access_token ?? null,
-  fetch: (...a) => fetch(...a),
+  fetch: (url, init) => fetchConTiempo(url as string, init),
 });
 
 export const nuevoIdAccion = () => Crypto.randomUUID();
