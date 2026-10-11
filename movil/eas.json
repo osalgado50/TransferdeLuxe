@@ -25,14 +25,6 @@
       },
       "environment": "production",
       "channel": "production"
-    },
-    "simulador": {
-      "extends": "preview",
-      "channel": "simulador",
-      "ios": {
-        "simulator": true
-      },
-      "environment": "preview"
     }
   },
   "submit": {

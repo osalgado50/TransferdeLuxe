@@ -39,24 +39,33 @@ export async function pedirPermisoNotificaciones(): Promise<boolean> {
   return (await Notifications.requestPermissionsAsync()).granted;
 }
 
-/** Registra el token Expo de este dispositivo en la central. Solo en dispositivo físico; nunca lanza. */
-export async function registrarPush(): Promise<void> {
-  try {
-    if (!(await pedirPermisoNotificaciones())) return;
-    if (!Device.isDevice) return; // simulador/emulador: sin token de push
-    const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
-    if (!projectId) return;
-    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-    const r = await llamarApi("/api/conductor/push-token", { method: "POST", body: { token, plataforma: Platform.OS === "ios" ? "ios" : "android" } });
-    if (r.ok) await AsyncStorage.setItem(CLAVE_TOKEN, token);
-  } catch (e) {
-    console.warn("No se pudo registrar el dispositivo para avisos", e);
-  }
-}
+const CLAVE_REGISTRO = "tvl:push:registrado-en";
+const REGISTRO_CADA_MS = 6 * 3600_000; // re-registro como mucho cada 6 h (el upsert es idempotente)
+let registrando: Promise<void> | null = null;
 
-/** Si el SO rota el token, vuelve a registrarlo (upsert idempotente en la central). */
-export function escucharRotacionToken(): { remove: () => void } {
-  return Notifications.addPushTokenListener(() => { void registrarPush(); });
+/**
+ * Registra el token Expo de este dispositivo en la central. Solo en dispositivo físico; nunca lanza.
+ * Una sola llamada a la vez y, si el token no ha cambiado, como mucho una vez cada 6 h.
+ * Ojo: NO escuchar addPushTokenListener para re-registrar: getExpoPushTokenAsync lo dispara y se formaba
+ * un bucle infinito (decenas de llamadas por segundo, móvil caliente y servidor saturado).
+ */
+export function registrarPush(forzar = false): Promise<void> {
+  registrando ??= (async () => {
+    try {
+      if (!(await pedirPermisoNotificaciones())) return;
+      if (!Device.isDevice) return; // simulador/emulador: sin token de push
+      const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
+      if (!projectId) return;
+      const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+      const [previo, cuando] = await Promise.all([AsyncStorage.getItem(CLAVE_TOKEN), AsyncStorage.getItem(CLAVE_REGISTRO)]);
+      if (!forzar && previo === token && cuando && Date.now() - Number(cuando) < REGISTRO_CADA_MS) return;
+      const r = await llamarApi("/api/conductor/push-token", { method: "POST", body: { token, plataforma: Platform.OS === "ios" ? "ios" : "android" } });
+      if (r.ok) await AsyncStorage.multiSet([[CLAVE_TOKEN, token], [CLAVE_REGISTRO, String(Date.now())]]);
+    } catch (e) {
+      console.warn("No se pudo registrar el dispositivo para avisos", e);
+    }
+  })().finally(() => { registrando = null; });
+  return registrando;
 }
 
 /** Al salir: da de baja el token (con la sesión aún válida). Nunca lanza. */
@@ -64,7 +73,7 @@ export async function darDeBajaPush(): Promise<void> {
   try {
     const token = await AsyncStorage.getItem(CLAVE_TOKEN);
     if (!token) return;
-    await AsyncStorage.removeItem(CLAVE_TOKEN);
+    await AsyncStorage.multiRemove([CLAVE_TOKEN, CLAVE_REGISTRO]);
     await llamarApi("/api/conductor/push-token", { method: "DELETE", body: { token } });
   } catch { /* sin red: el backend limpia los tokens caducados */ }
 }
