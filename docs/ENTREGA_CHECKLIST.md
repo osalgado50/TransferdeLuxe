@@ -46,7 +46,8 @@ Bases completas: `docs/Bases-Hackaton-Vibecoding-E7.docx.pdf` (local, no version
 - [x] Auditoría técnica/legal (`docs/INFORME_AUDITORIA.md`) y mejoras aprobadas: seguridad, GPS sin pérdidas, purga
       30 días, páginas legales, módulos (jornada, incidencias, checklist, mantenimiento, informes, vuelos).
 - [x] Guion del vídeo actualizado (sin «Restablecer demo»).
-- [ ] Antes del 20/10: añadir servicios de ejemplo (sin borrar nada) y revisar que no haya datos reales visibles.
+- [x] Servicios de ejemplo del 20 al 27/10 añadidos (32, nota «Servicio de ejemplo para la evaluación»; sin borrar nada).
+- [ ] Revisar que no haya datos reales visibles en la demo.
 
 ## Estado a 10/10/2026 (madrugada)
 - [x] App completa en local: reserva, central (panel en vivo, servicios, asignación, hoja de ruta, flota, combustible),
