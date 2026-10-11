@@ -3,7 +3,8 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
 import GestionFavoritos from "@/components/central/GestionFavoritos";
 import type { Favorito } from "@/lib/dominio/favoritos";
-import { guardarVehiculo, guardarConductor, guardarAjustes } from "./actions";
+import { guardarVehiculo, guardarConductor, guardarAjustes, guardarModulos } from "./actions";
+import { MODULOS, leerModulos } from "@/lib/dominio/modulos";
 import { CampoContrasena } from "@/components/comun/CampoContrasena";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
@@ -111,6 +112,22 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           <button className={boton}>Guardar ajustes</button>
         </form>
         <p className="text-xs text-slate-500">El plazo de respuesta se aplica solo a los servicios nuevos; los ya creados conservan el suyo.</p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Módulos</h2>
+        <p className="text-sm text-slate-400">Activa o desactiva funciones. Un módulo desactivado desaparece de la central y de la app de los conductores.</p>
+        <form action={guardarModulos} className="space-y-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {MODULOS.map((m) => (
+              <label key={m.clave} className="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm">
+                <input type="checkbox" name={`mod_${m.clave}`} defaultChecked={leerModulos(ajustes?.modulos)[m.clave]} className="mt-1 size-4 accent-marca-claro" />
+                <span><span className="font-medium">{m.nombre}</span><br /><span className="text-slate-400">{m.descripcion}</span></span>
+              </label>
+            ))}
+          </div>
+          <button className={boton}>Guardar módulos</button>
+        </form>
       </section>
     </div>
   );

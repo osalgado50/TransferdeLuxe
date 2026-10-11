@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
+import { modulosDesdeFormulario } from "@/lib/dominio/modulos";
 
 const num = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
 const uuidONada = z.string().uuid().or(z.literal("")).transform((v) => v || null);
@@ -97,5 +98,13 @@ export async function guardarAjustes(fd: FormData) {
   const { error } = await clienteAdmin().from("ajustes").update(r.data).eq("id", 1);
   if (error) volver(amigable(error));
   revalidatePath("/central", "layout");
+  volver();
+}
+
+export async function guardarModulos(fd: FormData) {
+  await exigirRol("operador");
+  const { error } = await clienteAdmin().from("ajustes").update({ modulos: modulosDesdeFormulario(fd.entries() as Iterable<[string, unknown]>) }).eq("id", 1);
+  if (error) volver(amigable(error));
+  revalidatePath("/", "layout");
   volver();
 }
