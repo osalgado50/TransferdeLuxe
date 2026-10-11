@@ -116,9 +116,24 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
   });
   const out: Movimiento[] = [];
 
+  // A quién se envió un servicio: el evento no lo guarda (el actor es la central). Se deduce de la respuesta posterior
+  // (aceptado/rechazado…) antes del siguiente envío; si no la hay, el conductor asignado ahora.
+  const porServicio = new Map<string, EventoAct[]>();
+  for (const ev of e.eventos ?? []) porServicio.set(ev.servicio_id, [...(porServicio.get(ev.servicio_id) ?? []), ev]);
+  for (const l of porServicio.values()) l.sort((a, b) => Date.parse(a.creado_en) - Date.parse(b.creado_en) || a.id - b.id);
+  const destinatario = (ev: EventoAct): string | null => {
+    const l = porServicio.get(ev.servicio_id) ?? [];
+    for (const x of l.slice(l.indexOf(ev) + 1)) {
+      if (x.tipo === "asignado" || x.tipo === "reasignado") break;
+      if (DEL_CONDUCTOR.has(x.tipo) && x.actor_id) return x.actor_id;
+    }
+    return servicios.get(ev.servicio_id)?.conductor_id ?? null;
+  };
+
   for (const ev of e.eventos ?? []) {
     const s = servicios.get(ev.servicio_id);
-    const cid = DEL_CONDUCTOR.has(ev.tipo) ? (ev.actor_id ?? s?.conductor_id ?? null) : (s?.conductor_id ?? null);
+    const cid = DEL_CONDUCTOR.has(ev.tipo) ? (ev.actor_id ?? s?.conductor_id ?? null)
+      : ev.tipo === "asignado" || ev.tipo === "reasignado" ? destinatario(ev) : (s?.conductor_id ?? null);
     const m = base(`ev-${ev.id}`, ev.creado_en, cid, s);
     const N = nombre(cid);
     const serv = s ? `el servicio de ${cuando(s, ev.creado_en)}` : "un servicio";
@@ -129,8 +144,8 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     let texto: string;
     switch (ev.tipo) {
       case "creado": texto = s?.origen_pedido === "web" ? `Reserva nueva de la web para ${s ? cuando(s, ev.creado_en) : "un servicio"}${T}` : `Servicio nuevo para ${s ? cuando(s, ev.creado_en) : "—"}${T}`; break;
-      case "asignado": texto = `${Serv} enviado a ${N}${T}`; break;
-      case "reasignado": texto = `${Serv} reasignado a ${N}${T}`; break;
+      case "asignado": texto = `${Serv} enviado a ${cid ? N : "un conductor"}${T}`; break;
+      case "reasignado": texto = `${Serv} reasignado a ${cid ? N : "un conductor"}${T}`; break;
       case "aceptado": texto = `${N} ha aceptado ${serv}${T}`; break;
       case "rechazado": texto = ev.motivo?.trim() ? `${N} ha rechazado: ${recortar(ev.motivo.trim(), 120)}` : `${N} ha rechazado ${serv}`; m.gravedad = "aviso"; break;
       case "expirado": texto = `${N} no ha respondido a tiempo a ${serv}`; m.gravedad = "aviso"; break;

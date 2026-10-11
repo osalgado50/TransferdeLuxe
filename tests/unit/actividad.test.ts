@@ -67,6 +67,17 @@ describe("construirActividad", () => {
     expect(rech).toMatchObject({ texto: "Laia ha rechazado: No llego a tiempo", gravedad: "aviso", conductor: "Laia" });
     expect(exp.gravedad).toBe("aviso");
   });
+  it("envío: a quien respondió después (aunque ya lo haya rechazado) o al asignado ahora", () => {
+    const { movimientos } = construirActividad(entrada({
+      servicios: [{ ...S, conductor_id: null }],
+      eventos: [ev(1, "asignado", { actor_id: "op" }), ev(2, "rechazado", { actor_id: "c2", motivo: "No" }), ev(3, "asignado", { actor_id: "op" })],
+    }));
+    expect(movimientos.map((m) => m.texto)).toEqual([
+      "Servicio de las 15:00 enviado a un conductor · Salou → Aeropuerto de Reus",
+      "Laia ha rechazado: No",
+      "Servicio de las 15:00 enviado a Laia · Salou → Aeropuerto de Reus",
+    ]);
+  });
   it("servicio de otro día: lo indica; servicio desconocido: texto genérico", () => {
     const { movimientos } = construirActividad(entrada({
       servicios: [{ ...S, fecha_hora_recogida: "2026-10-12T13:00:00Z" }],

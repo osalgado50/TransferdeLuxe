@@ -62,7 +62,7 @@ r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), 
 paso(r.status === 409, "Orden incorrecto (DESCARGA sin cargar) → rechazado", r.j?.error ?? "");
 r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s1, accion: "salir" });
 paso(r.status === 200 && (await estado(s1)).estado === "en_camino", "Conductor sale (en camino)", `${r.ms} ms`);
-r = await llamar(yo, "POST", "/api/conductor/incidencia", { tipo: "retraso", descripcion: `${NOTA}: atasco, llego 10 min tarde`, servicio_id: s1 });
+r = await llamar(yo, "POST", "/api/conductor/incidencia", { tipo: "retraso", descripcion: `${NOTA}: atasco, llego 10 min tarde`, servicio_id: s1, lat: 41.0764, lng: 1.1416 });
 paso(r.status === 200, "Conductor avisa: llega tarde (incidencia «retraso»)", `${r.status} ${r.j?.error ?? ""}`);
 r = await llamar(yo, "POST", "/api/conductor/llegando", { servicioId: s1, objetivo: "recogida" });
 paso(r.status === 200, "Aviso «llegando» a la recogida", `${r.status}`);
@@ -73,13 +73,20 @@ paso(r.status === 200 && (await estado(s1)).estado === "completado", "DESCARGA (
 
 r = await llamar(central, "POST", "/api/central/asignar", { idAccion: randomUUID(), servicioId: s2, conductorId: yo.id });
 paso(r.status === 200, "Central asigna un segundo servicio");
-r = await llamar(yo, "POST", "/api/conductor/incidencia", { tipo: "no_presentado", descripcion: `${NOTA}: el cliente no está`, servicio_id: s2 });
+r = await llamar(yo, "POST", "/api/conductor/incidencia", { tipo: "no_presentado", descripcion: `${NOTA}: el cliente no está`, servicio_id: s2, lat: 41.1474, lng: 1.1672 });
 paso(r.status === 200, "Conductor avisa: cliente no presentado");
 r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s2, accion: "rechazar", motivo: "Cliente no presentado" });
 const e2 = await estado(s2);
 paso(r.status === 200 && e2.estado === "pendiente" && /rechaz/.test(e2.ultima_incidencia ?? ""), "Conductor RECHAZA con motivo → vuelve a la central", e2.ultima_incidencia ?? "");
 r = await llamar(central, "GET", "/api/central/resumen");
 paso(r.status === 200 && r.j?.alertas?.some((s) => s.id === s2), "La central ve la alerta del rechazo", `${r.ms} ms`);
+const act = r.j?.actividad ?? [];
+const tiposS1 = act.filter((m) => m.servicioId === s1).map((m) => m.tipo);
+paso(["aceptado", "en_camino", "recogido", "completado"].every((t) => tiposS1.includes(t)), "Actividad en vivo: aceptado, en camino, recogido y completado", tiposS1.join(" ← "));
+paso(act.some((m) => m.servicioId === s2 && m.tipo === "rechazado" && m.gravedad === "aviso"), "Actividad en vivo: el rechazo como aviso");
+const incAct = act.filter((m) => m.incidenciaId && (m.descripcion ?? "").startsWith(NOTA));
+paso(incAct.length === 2 && incAct.every((m) => m.conductor && m.zona), "Actividad en vivo: incidencias con conductor y zona", incAct.map((m) => `${m.zona}`).join(" | "));
+for (const m of act.filter((x) => x.servicioId === s1 || x.servicioId === s2).slice(0, 12)) console.log(`   ${m.hora} [${m.gravedad}] ${m.texto}`);
 
 const { data: ev } = await admin.from("eventos_servicio").select("tipo").eq("servicio_id", s1).order("creado_en");
 paso(["asignado", "aceptado", "en_camino", "recogido", "completado"].every((t) => ev.some((e) => e.tipo === t)),
