@@ -6,6 +6,7 @@ import { VISTAS, atajos, diaValido, rangoPeriodo, type Vista } from "@/lib/domin
 import CalendarioServicios from "@/components/central/CalendarioServicios";
 import { leerModulos } from "@/lib/dominio/modulos";
 import TablaServicios, { type FilaServicio } from "@/components/central/TablaServicios";
+import { FILTROS_GRUPO, contarPorGrupo, esFiltroGrupo, estadosDeGrupo, type FiltroGrupo } from "@/lib/dominio/centralMovil";
 
 const ESTADOS = ["pendiente", "asignado", "aceptado", "en_camino", "recogido", "completado", "cancelado", "subcontratado"];
 const POR_PAGINA = 100;
@@ -26,12 +27,14 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   const estado = f.estado && ESTADOS.includes(f.estado) ? f.estado : "";
   const conductor = f.conductor && UUID.test(f.conductor) ? f.conductor : "";
   const origen = f.origen === "web" || f.origen === "manual" ? f.origen : "";
+  // Grupo (chips): si además se elige un estado exacto en el formulario, manda el estado.
+  const grupo: FiltroGrupo | "" = !estado && esFiltroGrupo(f.grupo) && f.grupo !== "todos" ? f.grupo : "";
   const modo: "lista" | "calendario" = f.modo === "calendario" ? "calendario" : "lista";
   const cal = modo === "calendario";
   const pagina = Math.max(1, Math.min(200, Number.parseInt(f.pagina ?? "1", 10) || 1));
   const r = rangoPeriodo(vista, desde);
 
-  const filtros = { estado, conductor, origen };
+  const filtros = { estado, conductor, origen, grupo };
   const href = (v: Vista, d: string, extra: Partial<typeof filtros & { pagina: number }> = {}) => {
     const u = new URLSearchParams({ vista: v, desde: d });
     if (cal) u.set("modo", "calendario");
@@ -46,6 +49,8 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   let q = sb.from("servicios").select("*, conductor:perfiles!servicios_conductor_id_fkey(nombre)", { count: "exact" })
     .gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc).order("fecha_hora_recogida").range(0, cal ? LIMITE_CAL - 1 : pagina * POR_PAGINA - 1);
   if (estado) q = q.eq("estado", estado);
+  const estGrupo = grupo ? estadosDeGrupo(grupo) : null;
+  if (estGrupo) q = q.in("estado", [...estGrupo]);
   if (conductor) q = q.eq("conductor_id", conductor);
   if (origen) q = q.eq("origen_pedido", origen);
   // Contadores: un count exacto (head) por tarjeta; respetan conductor y origen pero no el estado.
@@ -58,14 +63,21 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
     if (sub) x = x.eq("subcontratar", true).not("estado", "in", "(completado,cancelado)");
     return x;
   };
-  const [{ data, error, count }, ...cs] = await Promise.all([q, cuenta(["pendiente"]), cuenta(["asignado"]), cuenta(["aceptado", "en_camino", "recogido"]),
-    cuenta(["completado"]), cuenta(undefined, true), cuenta(["cancelado"])]);
-  const errCont = cs.some((x) => x.error);
+  // Un count por estado (alimenta tarjetas y chips de grupo) + el de subcontratar.
+  const [{ data, error, count }, csub, ...ce] = await Promise.all([q, cuenta(undefined, true), ...ESTADOS.map((e) => cuenta([e]))]);
+  const errCont = csub.error != null || ce.some((x) => x.error);
+  const porEstado = Object.fromEntries(ESTADOS.map((e, i) => [e, ce[i].count ?? 0]));
+  const n = (...es: string[]) => es.reduce((t, e) => t + (porEstado[e] ?? 0), 0);
+  const cs = [n("pendiente"), n("asignado"), n("aceptado", "en_camino", "recogido"), n("completado"), csub.count ?? 0, n("cancelado")];
+  const contGrupos = contarPorGrupo(porEstado);
   const a = atajos(hoy);
   const hayMas = !cal && (count ?? 0) > pagina * POR_PAGINA;
   const excede = cal && (count ?? 0) > LIMITE_CAL;
   const nombres = ["Pendientes", "Esperando respuesta", "En curso", "Completados", "Subcontratar", "Cancelados"];
-  const kpis: [string, string][] = nombres.map((t, i) => [t, errCont || cs[i].count == null ? "—" : String(cs[i].count)]);
+  const kpis: [string, string][] = nombres.map((t, i) => [t, errCont ? "—" : String(cs[i])]);
+  // Chips de grupo: conservan periodo, modo, conductor y origen; sustituyen el filtro de estado exacto.
+  const grupoActivo: FiltroGrupo | null = grupo || (estado ? null : "todos");
+  const hrefGrupo = (g: FiltroGrupo) => href(vista, desde, { estado: "", grupo: g === "todos" ? "" : g });
 
   return (
     <div className="space-y-4">
@@ -102,6 +114,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
       <form className="grid grid-cols-2 items-end gap-3 text-sm sm:flex sm:flex-wrap">
         <input type="hidden" name="vista" value={vista} />
         {cal && <input type="hidden" name="modo" value="calendario" />}
+        {grupo && <input type="hidden" name="grupo" value={grupo} />}
         <label className="min-w-0">Ir a<br /><input type="date" name="desde" defaultValue={desde} className={cls} /></label>
         <label className="min-w-0">Estado<br /><select name="estado" defaultValue={estado} className={cls}><option value="">Todos</option>{ESTADOS.map((e) => <option key={e}>{e}</option>)}</select></label>
         <label className="min-w-0">Conductor<br /><select name="conductor" defaultValue={conductor} className={cls}><option value="">Todos</option>{(conductores ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select></label>
@@ -117,6 +130,15 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
           </div>
         ))}
       </dl>
+
+      <nav aria-label="Filtrar por grupo" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {FILTROS_GRUPO.map((g) => (
+          <Link key={g.clave} href={hrefGrupo(g.clave)} aria-current={g.clave === grupoActivo ? "true" : undefined}
+            className={`${g.clave === grupoActivo ? chipOn : chip} shrink-0 whitespace-nowrap font-medium`}>
+            {g.titulo} ({errCont ? "—" : contGrupos[g.clave]})
+          </Link>
+        ))}
+      </nav>
 
       {excede && <p className="text-sm text-amber-400">Hay más de {LIMITE_CAL} servicios en el periodo: el calendario muestra solo los primeros {LIMITE_CAL}. Acota el periodo o los filtros.</p>}
       {error ? <p className="text-red-400">Error al cargar: {error.message}</p> : cal

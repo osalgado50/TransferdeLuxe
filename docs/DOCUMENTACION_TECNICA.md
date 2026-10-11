@@ -202,6 +202,12 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   `GET /api/salud`, cliente admin con tiempo máximo y vigilante sin solapes y con backoff. Web: un único freno de
   `router.refresh` en Realtime. Lógica pura en `src/lib/dominio/reintento.ts`; tests en
   `tests/unit/{reintento,proteccion-servidor}.test.ts`.
+- **Filtros por grupo en Servicios (11/10/2026)**: a petición del responsable («que toques unos botoncitos arriba y
+  te filtre»), fila de chips con contador —Todos, Sin asignar, Esperando respuesta, En curso, Terminados— encima de la
+  lista de la app (modo central; por defecto «Sin asignar» si hay alguno, y la elección se conserva mientras la app
+  está abierta) y encima de la tabla/calendario de `/central/servicios` en la web (parámetro `grupo=`, que conserva
+  periodo, modo, conductor y origen). Los grupos, contadores y el filtrado son lógica pura compartida en
+  `src/lib/dominio/centralMovil.ts` (tests en `tests/unit/centralMovil.test.ts`).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto

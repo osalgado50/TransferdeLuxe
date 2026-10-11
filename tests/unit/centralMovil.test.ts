@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { accionAsignacion, agruparServiciosCentral, textoAlertaCentral } from "@/lib/dominio/centralMovil";
+import { accionAsignacion, agruparServiciosCentral, contarPorGrupo, contarServiciosPorGrupo, esFiltroGrupo, estadosDeGrupo, filtrarPorGrupo,
+  filtroInicial, grupoDeEstado, serviciosCentralUnicos, textoAlertaCentral } from "@/lib/dominio/centralMovil";
 import { marcadoresFlota } from "@/lib/dominio/mapa";
 
 const base = { estado: "asignado" as const, conductor_id: "c1", ultima_incidencia: null as string | null, subcontratar: false, pasajeros: 3, maletas: 2 };
@@ -23,15 +24,37 @@ describe("textoAlertaCentral", () => {
   });
 });
 
-describe("agruparServiciosCentral", () => {
+describe("grupos de la central", () => {
   const s = (id: string, estado: string, h: string) => ({ id, estado, fecha_hora_recogida: `2026-10-15T${h}:00Z` }) as never;
-  test("agrupa, ordena, quita duplicados y omite vacíos", () => {
-    const g = agruparServiciosCentral([s("p2", "pendiente", "12:00"), s("p1", "pendiente", "09:00")],
-      [s("p1", "pendiente", "09:00"), s("a", "aceptado", "10:00"), s("r", "recogido", "08:00")]);
-    expect(g.map((x) => x.clave)).toEqual(["pendientes", "en_curso", "proximos"]);
-    expect(g[0].servicios.map((x: { id: string }) => x.id)).toEqual(["p1", "p2"]);
+  const lista = () => serviciosCentralUnicos([s("p2", "pendiente", "12:00"), s("p1", "pendiente", "09:00")],
+    [s("p1", "pendiente", "09:00"), s("a", "aceptado", "10:00"), s("r", "recogido", "08:00"), s("x", "asignado", "11:00"), s("c", "cancelado", "07:00")]);
+  test("une sin duplicados y ordena por hora", () => {
+    expect(lista().map((x: { id: string }) => x.id)).toEqual(["c", "r", "p1", "a", "x", "p2"]);
   });
-  test("sin servicios → sin grupos", () => { expect(agruparServiciosCentral([], [])).toEqual([]); });
+  test("agrupa en el orden de los chips y omite vacíos", () => {
+    const g = agruparServiciosCentral(lista());
+    expect(g.map((x) => x.clave)).toEqual(["sin_asignar", "esperando", "en_curso", "terminados"]);
+    expect(g[2].servicios.map((x: { id: string }) => x.id)).toEqual(["r", "a"]);
+    expect(agruparServiciosCentral([])).toEqual([]);
+  });
+  test("contadores y filtrado", () => {
+    const c = contarServiciosPorGrupo(lista());
+    expect(c).toEqual({ todos: 6, sin_asignar: 2, esperando: 1, en_curso: 2, terminados: 1 });
+    expect(filtrarPorGrupo(lista(), "esperando").map((x: { id: string }) => x.id)).toEqual(["x"]);
+    expect(filtrarPorGrupo(lista(), "todos")).toHaveLength(6);
+  });
+  test("contadores desde recuentos por estado", () => {
+    expect(contarPorGrupo({ pendiente: 3, asignado: 0, aceptado: 1, en_camino: 2, completado: 4, subcontratado: 1 }))
+      .toEqual({ todos: 11, sin_asignar: 3, esperando: 0, en_curso: 3, terminados: 5 });
+  });
+  test("filtro inicial, validación y estados", () => {
+    expect(filtroInicial({ todos: 2, sin_asignar: 1, esperando: 0, en_curso: 1, terminados: 0 })).toBe("sin_asignar");
+    expect(filtroInicial({ todos: 2, sin_asignar: 0, esperando: 1, en_curso: 1, terminados: 0 })).toBe("todos");
+    expect(esFiltroGrupo("en_curso")).toBe(true);
+    expect(esFiltroGrupo("pendiente")).toBe(false);
+    expect(estadosDeGrupo("todos")).toBeNull();
+    expect(grupoDeEstado("aceptado")).toBe("en_curso");
+  });
 });
 
 test("accionAsignacion", () => {
