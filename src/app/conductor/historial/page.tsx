@@ -19,7 +19,9 @@ export default async function Historial() {
       .eq("conductor_id", yo.id).gte("fecha_hora_recogida", madridAUtc(desdeDia, "00:00")).order("fecha_hora_recogida", { ascending: false }),
     sb.from("tickets_combustible").select("id,fecha,litros,importe").eq("conductor_id", yo.id).gte("fecha", desdeDia).order("fecha", { ascending: false }),
   ]);
-  const servicios = (s.data ?? []) as unknown as { id: string; estado: string; fecha_hora_recogida: string; origen_texto: string; destino_texto: string; recorrido: RecorridoGuardado | null }[];
+  // Solo cuenta como ruta si hay al menos 2 posiciones GPS (sin GPS no hay nada que dibujar).
+  const servicios = ((s.data ?? []) as unknown as { id: string; estado: string; fecha_hora_recogida: string; origen_texto: string; destino_texto: string; recorrido: RecorridoGuardado | null }[])
+    .map((x) => ({ ...x, recorrido: (x.recorrido?.puntos.length ?? 0) >= 2 ? x.recorrido : null }));
   const tickets = t.data ?? [];
   return (
     <div className="space-y-6">

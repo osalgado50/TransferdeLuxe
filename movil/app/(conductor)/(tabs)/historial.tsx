@@ -75,7 +75,8 @@ export default function Historial() {
             <View style={estilos.fila}><Text style={estilos.meta}>{fmt(fechaHora, x.fecha_hora_recogida)}</Text><EstadoBadge estado={x.estado} /></View>
             <Text style={estilos.texto}>{x.origen_texto} → {x.destino_texto}</Text>
           </>;
-          const r = x.recorrido;
+          // Solo hay ruta que dibujar con al menos 2 posiciones GPS.
+          const r = (x.recorrido?.puntos.length ?? 0) >= 2 ? x.recorrido : null;
           if (!r) return <Tarjeta key={x.id}>{datos}</Tarjeta>;
           // Completado con recorrido: dibujo de la ruta; al tocar, el mapa grande con km y duración.
           return (

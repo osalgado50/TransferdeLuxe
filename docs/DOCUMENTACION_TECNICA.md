@@ -285,6 +285,27 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   como aviso («↩ Marc ha deshecho la descarga del servicio de las 19:50»), con tres pitidos y push si lo hizo el
   conductor. `scripts/prueba-mision.mjs` lo prueba en producción con servicios de prueba. Sin migración nueva (el
   tipo de evento es texto libre) y sin dependencias nativas nuevas (huella de la app sin cambios).
+- **11/10/2026 · Ruta recorrida e «Historial de viajes»**. Petición del responsable: «cuando finalizas un porte,
+  guarda la ruta que se ha recorrido con el coche, aunque sea un dibujito del mapa… en una pestaña de historial de
+  viajes». Las posiciones GPS se purgan a los 30 días (0009), así que el recorrido se guarda aparte: migración
+  `0021_recorridos.sql` (tabla `recorridos`, una fila por servicio con `puntos` [[lng,lat],…] simplificados, `corte`
+  = índice del punto de recogida, `km`, `km_con_pasajeros`, `duracion_min`, `puntos_originales`; RLS: la central lee
+  todo y el conductor los suyos; escritura solo con service role). Lógica pura `src/lib/dominio/recorrido.ts` (tests
+  en `tests/unit/recorrido.test.ts`): ventana entre el último «en camino» (o «aceptado») y el último «completado»;
+  descarta precisión > 100 m y saltos imposibles (> 200 km/h, con recuperación si el raro era el primer punto);
+  Douglas-Peucker iterativo (15 m, ≤ 500 puntos subiendo la tolerancia) por tramos —hacia la recogida y con
+  pasajeros— unidos en la recogida; km por haversine sobre los puntos filtrados. *Cálculo*: el vigilante
+  (`src/lib/servicios/recorridos.ts`, cada ~20 s, máx. 5 por pasada, upsert idempotente) busca los completados de las
+  últimas 48 h sin recorrido, con uno de un «completado» anterior (se deshizo y se volvió a completar) o recién
+  completados (se refresca cada 2 min durante 15 min: la cola offline del móvil sube posiciones tarde). Al arrancar el
+  proceso, retro-relleno de los completados de los últimos 30 días que falten. *Central*: la ficha del servicio
+  muestra «Recorrido realizado» (Leaflet: azul hacia la recogida, rojo con pasajeros, inicio/recogida/destino, km y
+  duración); nueva página `/central/viajes` («Historial de viajes», en el menú) con filtros de fechas y conductor y
+  miniatura SVG de cada viaje (sin teselas: ligera). *Conductor*: en la PWA, el historial dibuja la ruta de cada
+  viaje completado y abre `/conductor/historial/[id]` con el mapa grande; en la app nativa, miniatura con Views
+  giradas (sin `react-native-svg`: no está instalado) y, al tocar, un modal con el mapa MapLibre
+  (GeoJSONSource + Layer), km y duración. Sin dependencias nativas nuevas (huella de la app sin cambios).
+  `scripts/prueba-recorrido.mjs` lo prueba en producción con un servicio de prueba (Salou → Aeropuerto de Reus).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -432,6 +453,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   en la misma cola ordenada que el paso (DESCARGA y luego deshacer llegan en orden); la cuenta atrás del botón usa la
   hora local del toque, algo más prudente que la del servidor. El origen «central» lo pone solo el servidor en las
   rutas de la central, nunca el cuerpo de la petición.
+- **Guardar la ruta sin depender de que el móvil «cierre» el viaje (11/10/2026)**: las posiciones pueden llegar tarde
+  (cola offline), un viaje puede deshacerse y volver a completarse, y PostgREST devuelve como mucho 1000 filas. Por
+  eso el recorrido lo calcula el servidor a partir de los eventos (siempre el último «completado»), con paginación de
+  posiciones, refresco durante 15 min tras completar y `upsert` por servicio (repetirlo no duplica nada). Los
+  servicios sin GPS también se guardan (vacíos, «Sin GPS»), para no reintentarlos en bucle. Con el filtro de
+  200 km/h, las ráfagas de ruido del GPS con horas casi iguales se toleran (< 50 m) y un primer punto erróneo no
+  arrastra al resto. En la app nativa no había `react-native-svg` (añadirlo exige compilar de nuevo): la miniatura se
+  dibuja con Views giradas, con la línea ya simplificada a nivel de píxel para no crear cientos de vistas.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

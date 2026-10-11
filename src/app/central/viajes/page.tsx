@@ -32,7 +32,7 @@ export default async function HistorialViajes({ searchParams }: { searchParams: 
   if (conductor) q = q.eq("conductor_id", conductor);
   const [{ data, error, count }, { data: conductores }] = await Promise.all([q, sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre")]);
   const filas = (data ?? []) as unknown as Fila[];
-  const conRec = filas.filter((x) => x.recorrido);
+  const conRec = filas.filter((x) => (x.recorrido?.puntos.length ?? 0) >= 2);
   const kmTotal = conRec.reduce((t, x) => t + Number(x.recorrido!.km), 0);
 
   return (
@@ -54,7 +54,7 @@ export default async function HistorialViajes({ searchParams }: { searchParams: 
       </form>
       {error && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">Error al cargar: {error.message}</p>}
       <p className="text-sm text-slate-300">
-        {filas.length} viaje{filas.length === 1 ? "" : "s"}{(count ?? 0) > LIMITE && ` (de ${count}; se muestran los ${LIMITE} más recientes)`} · {textoKm(kmTotal)} recorridos con GPS
+        {filas.length} viaje{filas.length === 1 ? "" : "s"} ({conRec.length} con GPS){(count ?? 0) > LIMITE && ` (de ${count}; se muestran los ${LIMITE} más recientes)`} · {textoKm(kmTotal)} recorridos
       </p>
       {filas.length === 0 ? <p className="text-slate-400">No hay viajes completados en estas fechas.</p> : (
         <ul className="space-y-2">
@@ -67,7 +67,8 @@ export default async function HistorialViajes({ searchParams }: { searchParams: 
                   <div className="min-w-0 flex-1 text-sm">
                     <p className="text-slate-400">{fecha.format(new Date(x.fecha_hora_recogida))} · {x.conductor?.nombre ?? "Sin conductor"}</p>
                     <p className="truncate text-slate-100">{x.origen_texto} → {x.destino_texto}</p>
-                    <p className="text-slate-300">{r ? <><b className="text-marca-claro">{textoKm(r.km)}</b> · {textoDuracion(r.duracion_min)}</> : <span className="text-slate-500">Sin recorrido guardado</span>}</p>
+                    <p className="text-slate-300">{r && r.puntos.length >= 2 ? <><b className="text-marca-claro">{textoKm(r.km)}</b> · {textoDuracion(r.duracion_min)}</>
+                      : <span className="text-slate-500">{r ? "Sin posiciones GPS de este viaje" : "Sin recorrido guardado"}</span>}</p>
                   </div>
                 </Link>
               </li>
