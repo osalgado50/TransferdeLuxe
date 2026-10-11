@@ -759,3 +759,21 @@ ok, adelante
 
 ---
 
+## 2026-10-11 10:39 · Claude Code · sesión `b3c0e64f`
+
+ya he lanzado la compilación de iPhone. Estaba pensado en el caso que el jefe tenga que abandonar la oficina para entrar a los servicios. Un centro de mando completo en el movil seria la suyo no crees?
+
+---
+
+## 2026-10-11 10:41 · Claude Code · sesión `b3c0e64f`
+
+A, vamos a suponer que la central de la ofinica no hay nadie para dirigir y lo hace todo el jefe desde su coche a la vez que tiene servicios de clientes que hacer. Un multitarea como un buen jefe
+
+---
+
+## 2026-10-11 10:44 · Claude Code · sesión `b3c0e64f`
+
+ok, sigue
+
+---
+
