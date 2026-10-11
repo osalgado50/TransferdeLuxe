@@ -47,7 +47,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   taller, cercanía por GPS o por el servicio anterior), geografía, combustible (gasto y L/100 km), plazos.
 - **Tiempo real**: Supabase Realtime sobre `servicios`, `eventos_servicio` y `posicion_actual`, con reconexión y
   recarga si se pierde la conexión.
-- **Plazo de respuesta**: `pg_cron` cada minuto devuelve a la central los servicios no aceptados a tiempo.
+- **Plazo de respuesta**: `pg_cron` cada minuto marca los servicios no aceptados a tiempo y avisa a la central; el conductor aún puede aceptarlos mientras no se reasignen.
 - **Sin cobertura**: cola local por conductor; cada pulsación lleva un `idAccion` y el servidor ignora duplicados.
 - **Tickets**: OCR gratuito en el navegador (Tesseract.js) + reglas de extracción; la foto va a un bucket privado.
 - **Mapas**: Leaflet + OpenStreetMap; geocodificación con Nominatim y lugares frecuentes.
@@ -70,7 +70,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
    recomendado; el conductor recibe la tarjeta con sonido y cuenta atrás.
 4. **Rechazo**: el conductor rechaza por «Avería»; el servicio vuelve a pendiente y la central ve «Rechazado por
    Laia Demo: Avería» para reasignarlo.
-5. **Plazo vencido**: si nadie responde en 15 min (configurable), vuelve solo a la central con alerta.
+5. **Plazo vencido**: si el conductor no responde en 15 min (configurable), la central recibe la alerta «Sin respuesta» y puede reasignarlo; mientras tanto el conductor aún puede aceptarlo.
 6. **Ejecución del servicio**: en camino → CARGA → DESCARGA; si no hay cobertura, se envía al recuperarla.
 7. **Seguimiento en vivo**: la central ve los coches moverse y su estado (libre, en camino, con pasajeros, sin señal).
 8. **Grupo grande**: una reserva de 12 personas se marca para subcontratar un autobús.
@@ -83,6 +83,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 15. **Calendario de servicios**: la central alterna «Lista | Calendario», ve los servicios sobre una rejilla horaria (día/semana) o por chips (mes) coloreados por estado, y abre la ficha con un clic.
 16. **Navegación del conductor**: con el servicio aceptado, en camino o con pasajeros, el conductor ve en la app su posición, la ruta por carretera hasta la recogida o el destino y «Hacia la recogida · 4,2 km · 7 min»; a 500 m suena un aviso «Estás llegando…», la central ve «Llegando» y, al llegar (100 m), se resalta el botón CARGA/DESCARGA.
 17. **Planificación con tiempos**: en la hoja de ruta cada servicio muestra «13:00 → 13:45 · 45 min» y, entre dos servicios del mismo conductor, una franja «🚗 Barcelona T1 → Tarragona · 1 h 10 min · llega 15:20 · 40 min de margen» (verde/ámbar/roja). Al arrastrar un servicio a un conductor que no llegaría a tiempo se pide confirmación con el motivo; los servicios sin asignar proponen «💡 Mejor: …» con botón «Asignar».
+
+19. **Jornada laboral**: el conductor inicia la jornada, hace pausas y la finaliza; la central consulta y exporta a CSV el registro horario por conductor y día.
+20. **Incidencia con foto**: una avería en ruta se notifica con foto y posición; aparece al momento en las alertas de la central, que la marca como resuelta.
+21. **Checklist del vehículo**: al empezar la jornada el conductor revisa el vehículo; un punto «mal» genera aviso en la central. Los puntos se editan desde la central.
+22. **Mantenimiento e informes**: semáforo de ITV, seguro y revisiones por vehículo; informe mensual de servicios, km y consumo con export CSV.
+23. **Vuelo retrasado**: el operador anota la hora real de llegada y la app propone mover la recogida; el conductor recibe un aviso push.
+24. **Módulos**: en Flota y ajustes la empresa activa o desactiva cada módulo y desaparece de la central y de la app.
 
 ## 5. Proceso iterativo con la IA
 - **09/10/2026**: preparación del entorno. Repo nuevo, reglas de las bases en `CLAUDE.md` para que el
@@ -192,8 +199,8 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   al conductor y al bucket privado `tickets`; las miniaturas de la central usan URL firmadas de 1 hora.
 
 - **Contadores de la agenda truncados**: contar filas en JS se topaba con el máximo de 1000 filas de Supabase y ocultaba errores. Ahora cada tarjeta usa un `count` exacto (head) y, si falla, muestra «—» con un aviso.
-- **La demo envejece durante la evaluación**: los datos se crean relativos a «hoy», así que se añade un reinicio
-  diario automático protegido con secreto, que además mantiene activo el plan gratuito de Supabase.
+- **La demo envejece durante la evaluación**: primero se añadió un reinicio diario automático; después, a petición del
+  responsable (sus datos debían conservarse), se eliminó y se insertaron servicios de ejemplo para los días de evaluación sin borrar nada.
 - **Revisiones que encontraban fallos reales**: carreras en la cola offline, pulsaciones duplicadas, fechas
   imposibles, enlaces ida/vuelta sin comprobar errores, rutas de foto de otro conductor, límite de reservas por IP
   falsificable… Todos se corrigieron con tests que los reproducen.
@@ -244,7 +251,6 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
-Pendientes: capturas de la app del conductor en el móvil.
 Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.
 
 ### App nativa N2 — Backend para la app (10/10/2026)

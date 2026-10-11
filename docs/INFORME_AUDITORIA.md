@@ -61,6 +61,12 @@ empresa de 3–10 conductores. Detalle curioso: el Brotli de la CDN pesa ~40 % m
 13. OSRM y teselas OSM públicos: válidos para demo, **no permitidos para uso comercial intensivo** → ver §2.2.
 14. Polyfills de 113 KB que los navegadores modernos no necesitan.
 
+### 1.3 bis · Estado tras aplicar las mejoras aprobadas (11–12/10)
+Corregidos: 1 y 2 (migración 0009), 3 y 4 y 12 (GPS nativo sin pérdidas, aviso «GPS detenido», 1 punto/min parado),
+5 y 6 (geocodificador endurecido, índices 0010), 7 y 8 (firma real de imágenes, recibos push), 11 (purga del límite en
+memoria). Pendientes por bajo impacto con la flota actual: 9 (GPS web), 10 (filtros Realtime) y 13 (mapas comerciales,
+documentado para la implantación real). 14 resultó no aplicar: los navegadores modernos no descargan los polyfills.
+
 ### 1.4 Lo que está bien
 Idempotencia de acciones, cola offline, RLS en todas las tablas, `/api/demo/reset` protegido con secreto,
 validación zod en servidor, fotos en bucket privado, service role nunca en el cliente, ruta OSRM con caché y límite global.
