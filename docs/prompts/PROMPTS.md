@@ -777,3 +777,87 @@ ok, sigue
 
 ---
 
+## 2026-10-11 11:35 · Claude Code · sesión `b3c0e64f`
+
+le he dado a iniciar jornada y sale sin conexion y tiene el gps activado
+
+---
+
+## 2026-10-11 11:44 · Claude Code · sesión `b3c0e64f`
+
+Después de crear un servicio, que pone servicio creado, añade un botón de crear otro servicio.
+
+---
+
+## 2026-10-11 11:45 · Claude Code · sesión `b3c0e64f`
+
+Los botoncitos de calendario y reloj son oscuros y no se ven bien. O los más vistosos. El azul o el naranja.
+
+---
+
+## 2026-10-11 11:48 · Claude Code · sesión `b3c0e64f`
+
+Estoy ahora en, en modo datos, sin wifi, y conecto y desconecto el servicio de GPS, le doy al botón de iniciar jornada sin conexión, inténtalo de nuevo. De hecho, intento abrir uno de los viajes que me han asignado desde la central y, y no puedo abrir. Eh, revisa qué está pasando. Estoy en la aplicación del móvil, en un iPhone.
+
+---
+
+## 2026-10-11 11:50 · Claude Code · sesión `b3c0e64f`
+
+ya lo he desactivado, compruébalo
+
+---
+
+## 2026-10-11 12:01 · Claude Code · sesión `b3c0e64f`
+
+Tengo algún problemilla, estoy en el coche intentando aceptar desde la aplicación del conductor los trabajos y se queda buscando conexión. He apagado el móvil, lo he encendido, he apagado el GPS, no hay manera. A ver si lo revisas.
+
+---
+
+## 2026-10-11 12:32 · Claude Code · sesión `b3c0e64f`
+
+Un desastre se ha colgado la app y ha salido un error que he enviado a Apple. No conecta ni recibe datos
+
+---
+
+## 2026-10-11 13:07 · Claude Code · sesión `b3c0e64f`
+
+Ok
+
+---
+
+## 2026-10-11 13:54 · Claude Code · sesión `b3c0e64f`
+
+Luego te busco el informe y te lo paso, pero nada, he probado todo lo que has dicho. Se queda sin cobertura, no puede enviar ni informes, ni aceptar envíos, todo se queda sin conexión, fallos por todos lados, bueno, un desastre. No sé qué estás haciendo, pero no lo estás haciendo bien.
+
+---
+
+## 2026-10-11 13:56 · Claude Code · sesión `b3c0e64f`
+
+De hecho, si quieres más datos, el teléfono, el iPhone 18 que tengo, está ardiendo. O sea que el, el sistema que, que estás utilizando no está bien optimizado porque satura el teléfono, lo, lo calienta mucho Se me ha vuelto a cerrar la aplicación, mientras estaba aquí enviando eh, datos. De un, de uno de los servicios que me has dado, le doy al botón de iniciar jornada y se queda ahí dando vueltas y vueltas y al rato me dice que sin cobertura. He probado todas las ideas del mundo. He cerrado GPS, he cerrado el modo avión, he abierto la aplicación dos, tres veces, nada, todo esto no funciona. Así que la idea de la aplicación está muy bonita, pero a día de hoy es eh, inútil, no funciona. Dale una vuelta a todo esto y afina.
+
+---
+
+## 2026-10-11 14:01 · Claude Code · sesión `b3c0e64f`
+
+Fíjate en la captura que te, que te he pasado. La distribución, ¿vale? La parte de arriba pisa la isla central del iPhone, con lo cual no está bien distribuido. Y el, las direcciones de recogida y de destino es un chorro de, de, de letras que esto, cuando vas conduciendo, no se diferencia bien. Eh, sepáralo, ponlo en cuadritos, pon, por ejemplo, el, el, la dirección de, de carga, pues la pones en roja, porque significa que, que vas a cargar y te quedarás ocupado. Y, y cuando el destino lo pones en verde. ¿Vale? Un recuadrito, rellenado de esos colores, transparente, con la letra blanca gorda, pero que se vea separado una cosa de la otra. ¿Vale? Y incluso el botoncito de eh, darle para que se te abra el navegador a esa dirección.
+
+---
+
+## 2026-10-11 16:12 · Claude Code · sesión `b3c0e64f`
+
+Revísame bien todo el sistema de conexión de la aplicación central con los dispositivos de los conductores, porque esta mañana no ha dado buen resultado. No funcionaba bien, parecía que estaba como muerta la conexión. Habían cuelgues en la aplicación. No sé, dale un poco de profundidad y haz algunas pruebas para mejorar la robustez. ¿Por qué no vienen con nosotros?
+
+---
+
+## 2026-10-11 16:16 · Claude Code · sesión `b3c0e64f`
+
+Bueno, al final es que pruebes que funcione bien todo el sistema de enviar envíos de misiones o de transportes a los conductores, ¿vale? Y que ellos lo reciban y que puedan dar feedback de que han cargado y, o han tenido algún problema o han llegado tarde o no estaba el usuario, ¿vale? Que todo esto funcione perfectamente.
+
+---
+
+## 2026-10-11 16:23 · Claude Code · sesión `b3c0e64f`
+
+ok, sigue y avísame cuando esté publicado
+
+---
+
