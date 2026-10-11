@@ -1,4 +1,5 @@
 import { exigirRol } from "@/lib/supabase/sesion";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { consumoMedioL100, gastoPorMes, resumenCombustible, ticketsParaConsumo, type TicketCalculo } from "@/lib/dominio/combustible";
 import { euros, litros2, fechaCorta, mesLegible } from "@/lib/dominio/formato";
@@ -19,7 +20,7 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
   const sb = clienteAdmin();
   const [{ data: vehiculos, error: e1 }, { data: conductores, error: e2 }, { data: todos, error }] = await Promise.all([
     sb.from("vehiculos").select("id,matricula,modelo").order("matricula"),
-    sb.from("perfiles").select("id,nombre").eq("rol", "conductor").order("nombre"),
+    sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre"),
     sb.from("tickets_combustible").select("*").order("fecha", { ascending: false }).order("creado_en", { ascending: false }),
   ]);
   const meses = [...new Set((todos ?? []).map((t) => t.fecha.slice(0, 7)))].sort().reverse();

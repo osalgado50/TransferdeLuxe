@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
@@ -20,7 +21,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
   const hastaCtx = madridAUtc(desplazar(dia, 1), "06:00");
   const sb = await clienteServidor();
   const [{ data: conductores, error: errC }, { data: servicios, error }, { data: vehiculos }, { data: aj }] = await Promise.all([
-    sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor").order("nombre"),
+    sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").or(FILTRO_CONDUCEN).order("nombre"),
     sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng")
       .gte("fecha_hora_recogida", desdeCtx).lt("fecha_hora_recogida", hastaCtx).neq("estado", "cancelado").order("fecha_hora_recogida"),
     sb.from("vehiculos").select("id,plazas,maletas,estado"),

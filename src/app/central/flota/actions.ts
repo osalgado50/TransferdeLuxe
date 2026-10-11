@@ -91,6 +91,21 @@ export async function guardarConductor(fd: FormData) {
   volver();
 }
 
+const esquemaOperador = z.object({ id: z.string().uuid(), conduce: z.literal("on").optional(), vehiculo_habitual_id: uuidONada });
+
+/** Usuario de la central: «También conduce» y vehículo habitual (el jefe que hace servicios). */
+export async function guardarOperador(fd: FormData) {
+  await exigirRol("operador");
+  const r = esquemaOperador.safeParse(Object.fromEntries(fd));
+  if (!r.success) volver(primerError(r.error));
+  const { id, conduce, vehiculo_habitual_id } = r.data;
+  const { data, error } = await clienteAdmin().from("perfiles").update({ conduce: conduce === "on", vehiculo_habitual_id }).eq("id", id).eq("rol", "operador").select("id");
+  if (error) volver(amigable(error));
+  if (!data?.length) volver("El usuario ya no existe");
+  revalidatePath("/central", "layout");
+  volver();
+}
+
 export async function guardarAjustes(fd: FormData) {
   await exigirRol("operador");
   const r = esquemaAjustes.safeParse(Object.fromEntries(fd));

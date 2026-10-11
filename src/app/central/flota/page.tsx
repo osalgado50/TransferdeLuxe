@@ -3,7 +3,7 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
 import GestionFavoritos from "@/components/central/GestionFavoritos";
 import type { Favorito } from "@/lib/dominio/favoritos";
-import { guardarVehiculo, guardarConductor, guardarAjustes, guardarModulos } from "./actions";
+import { guardarVehiculo, guardarConductor, guardarOperador, guardarAjustes, guardarModulos } from "./actions";
 import { MODULOS, leerModulos } from "@/lib/dominio/modulos";
 import { CampoContrasena } from "@/components/comun/CampoContrasena";
 
@@ -16,12 +16,13 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
   await exigirRol("operador");
   const f = await searchParams;
   const sb = clienteAdmin();
-  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }, { data: favoritos, error: errFavoritos }] = await Promise.all([
+  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }, { data: favoritos, error: errFavoritos }, { data: operadores }] = await Promise.all([
     sb.from("vehiculos").select("*").order("matricula"),
     sb.from("perfiles").select("*").eq("rol", "conductor").order("nombre"),
     sb.from("ajustes").select("*").eq("id", 1).single(),
     sb.auth.admin.listUsers({ perPage: 1000 }),
     sb.from("favoritos").select("*").order("tipo").order("nombre"),
+    sb.from("perfiles").select("*").eq("rol", "operador").order("nombre"),
   ]);
   const emails = new Map((usuarios?.users ?? []).map((u) => [u.id, u.email ?? ""]));
   const demo = process.env.NEXT_PUBLIC_MODO_DEMO === "true";
@@ -94,6 +95,24 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           <button className={boton}>Añadir conductor</button>
         </form>
         {demo && <p className="text-xs text-slate-500">Modo demo: el conductor nuevo usa la contraseña de demo y su email debe terminar en @transferdeluxe.test.</p>}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Central</h2>
+        <p className="text-sm text-slate-400">Si alguien de la central también hace servicios, marca «También conduce»: aparecerá en la sugerencia, el mapa y los informes, y podrá usar «Mis servicios».</p>
+        {(operadores ?? []).map((o) => (
+          <form key={o.id} action={guardarOperador} className="grid grid-cols-1 gap-2 border-t border-slate-700 py-3 sm:flex sm:flex-wrap sm:items-center sm:py-1">
+            <input type="hidden" name="id" value={o.id} />
+            <span className="text-sm sm:w-40">{o.nombre}</span>
+            <span className="truncate text-sm sm:w-56 text-slate-400" title={emails.get(o.id)}>{emails.get(o.id)}</span>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="conduce" defaultChecked={o.conduce === true} className="size-4 accent-marca-claro" />También conduce</label>
+            <select name="vehiculo_habitual_id" defaultValue={o.vehiculo_habitual_id ?? ""} aria-label="Vehículo habitual" className={campo}>
+              <option value="">Sin vehículo</option>
+              {(vehiculos ?? []).map((v) => <option key={v.id} value={v.id}>{v.matricula} · {v.modelo}{v.estado === "taller" ? " (taller)" : ""}</option>)}
+            </select>
+            <button className={boton}>Guardar</button>
+          </form>
+        ))}
       </section>
 
       <section className="space-y-2">

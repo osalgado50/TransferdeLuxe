@@ -1,4 +1,5 @@
 import "server-only";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { leerModulos } from "@/lib/dominio/modulos";
 import { consumoMedioL100 } from "@/lib/dominio/combustible";
@@ -32,7 +33,7 @@ export async function cargarInforme(f: FiltroInforme) {
   const finMes = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
   const [vs, cs, ss, ts, ev, inc] = await Promise.all([
     sb.from("vehiculos").select("id,matricula").order("matricula"),
-    sb.from("perfiles").select("id,nombre").eq("rol", "conductor").order("nombre"),
+    sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre"),
     sb.from("servicios").select("id,estado,pasajeros,conductor_id,vehiculo_id,fecha_hora_recogida,origen_lat,origen_lng,destino_lat,destino_lng")
       .gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
     // Todos los tickets hasta fin de mes: el consumo necesita el repostaje anterior como referencia.

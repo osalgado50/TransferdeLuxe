@@ -1,4 +1,5 @@
 import { clienteServidor } from "@/lib/supabase/servidor";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import PanelEnVivo from "@/components/central/PanelEnVivo";
 import BotonesDemo from "@/components/central/BotonesDemo";
 import type { Servicio } from "@/lib/dominio/tipos";
@@ -17,7 +18,7 @@ export default async function PanelCentral() {
     sb.from("servicios").select("*").gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
     sb.from("servicios").select("*").eq("incidencia_vista", false),
     sb.from("posicion_actual").select("*"),
-    sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor"),
+    sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").or(FILTRO_CONDUCEN),
     sb.from("vehiculos").select("id,matricula"),
     sb.from("ajustes").select("umbral_sin_senal_min,modulos").eq("id", 1).maybeSingle(),
     sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").or(`tipo.eq.rechazado,creado_en.gte.${new Date(Date.now() - 20 * 60_000).toISOString()}`).order("creado_en", { ascending: false }).limit(100),

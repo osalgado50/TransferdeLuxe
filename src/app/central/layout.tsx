@@ -21,6 +21,7 @@ export default async function LayoutCentral({ children }: { children: React.Reac
   if (mods.checklist) extra.push(["/central/checklist", "Checklist"]);
   if (mods.mantenimiento) extra.push(["/central/mantenimiento", "Mantenimiento"]);
   if (mods.informes) extra.push(["/central/informes", "Informes"]);
+  if (yo.conduce) extra.push(["/conductor", "Mis servicios"]);
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 md:flex">
       <NavCentralMovil nombre={yo.nombre} salir={salir} extra={extra} />

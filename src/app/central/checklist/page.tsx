@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { modulosCentral } from "@/lib/central/modulosConductor";
@@ -17,7 +18,7 @@ export default async function Checklist() {
   const [it, rv, pf, vh] = await Promise.all([
     sb.from("checklist_items").select("id,texto,orden,activo").order("orden"),
     sb.from("checklist_revisiones").select("id,conductor_id,vehiculo_id,fecha,respuestas,observaciones,con_fallos,revisada").order("creado_en", { ascending: false }).limit(60),
-    sb.from("perfiles").select("id,nombre").eq("rol", "conductor"),
+    sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN),
     sb.from("vehiculos").select("id,matricula"),
   ]);
   if (it.error || rv.error) throw new Error(`Checklist: ${(it.error ?? rv.error)!.message}`);

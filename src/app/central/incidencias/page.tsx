@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { notFound } from "next/navigation";
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
@@ -15,7 +16,7 @@ export default async function Incidencias({ searchParams }: { searchParams: Prom
   const sb = clienteAdmin();
   let q = sb.from("incidencias").select("*").order("creado_en", { ascending: false }).limit(200);
   if (!todas) q = q.eq("resuelta", false);
-  const [{ data, error }, { data: perfiles }] = await Promise.all([q, sb.from("perfiles").select("id,nombre").eq("rol", "conductor")]);
+  const [{ data, error }, { data: perfiles }] = await Promise.all([q, sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN)]);
   if (error) throw new Error(`Incidencias: ${error.message}`);
   const lista = (data ?? []) as Incidencia[];
   const nombre = (id: string) => perfiles?.find((p) => p.id === id)?.nombre ?? "Conductor";

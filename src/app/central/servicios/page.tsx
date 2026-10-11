@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { VISTAS, atajos, diaValido, rangoPeriodo, type Vista } from "@/lib/dominio/periodo";
@@ -40,7 +41,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   };
 
   const sb = await clienteServidor();
-  const [{ data: conductores }, { data: aj }] = await Promise.all([sb.from("perfiles").select("id,nombre").eq("rol", "conductor").order("nombre"), sb.from("ajustes").select("modulos").maybeSingle()]);
+  const [{ data: conductores }, { data: aj }] = await Promise.all([sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre"), sb.from("ajustes").select("modulos").maybeSingle()]);
   const conVuelos = leerModulos(aj?.modulos).vuelos;
   let q = sb.from("servicios").select("*, conductor:perfiles!servicios_conductor_id_fkey(nombre)", { count: "exact" })
     .gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc).order("fecha_hora_recogida").range(0, cal ? LIMITE_CAL - 1 : pagina * POR_PAGINA - 1);

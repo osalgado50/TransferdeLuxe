@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { after } from "next/server";
 import { notificarServicioNuevo } from "@/lib/push";
 import { exigirRol } from "@/lib/supabase/sesion";
@@ -45,7 +46,7 @@ export async function obtenerSugerencias(servicioId: string) {
   const desde = new Date(inicio.getTime() - 12 * 3600_000).toISOString();
   const hasta = new Date(inicio.getTime() + 12 * 3600_000).toISOString();
   const [{ data: conductores }, { data: vehiculos }, { data: posiciones }, { data: agenda }] = await Promise.all([
-    sb.from("perfiles").select("id, nombre, vehiculo_habitual_id").eq("rol", "conductor"),
+    sb.from("perfiles").select("id, nombre, vehiculo_habitual_id").or(FILTRO_CONDUCEN),
     sb.from("vehiculos").select("*"),
     sb.from("posicion_actual").select("*"),
     sb.from("servicios").select("id, estado, conductor_id, fecha_hora_recogida, duracion_estimada_min, origen_lat, origen_lng, destino_lat, destino_lng, origen_texto, destino_texto")

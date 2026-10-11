@@ -1,4 +1,5 @@
 import "server-only";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { leerModulos, type EstadoModulos } from "@/lib/dominio/modulos";
 import { diaMadrid } from "@/lib/dominio/geo";
@@ -29,7 +30,7 @@ export async function jornadasEnRango(desde: string, hasta: string) {
   const [j, p] = await Promise.all([
     sb.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)")
       .gte("inicio", madridAUtc(desde, "00:00")).lt("inicio", madridAUtc(sumarDias(hasta, 1), "00:00")).order("inicio"),
-    sb.from("perfiles").select("id,nombre").eq("rol", "conductor"),
+    sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN),
   ]);
   if (j.error) throw new Error(`Jornadas: ${j.error.message}`);
   const nombres = new Map((p.data ?? []).map((x) => [x.id as string, x.nombre as string]));
