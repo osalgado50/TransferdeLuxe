@@ -1,7 +1,7 @@
 import { COLOR_ESTADO_MAPA, TEXTO_ESTADO_MAPA, type EstadoVehiculoMapa, type MarcadorFlota } from "@dominio/mapa";
 import { Camera, Map as MapaLibre, Marker, type CameraRef, type StyleSpecification } from "@maplibre/maplibre-react-native";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { color } from "~/lib/tema";
 
 // Mismo estilo raster de OpenStreetMap que el mapa del servicio (sin claves ni proveedor de pago).
@@ -35,9 +35,21 @@ export function MapaFlota({ marcadores }: { marcadores: MarcadorFlota[] }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marcadores.length]);
 
+  // Mapa grande: ~60 % del alto de la pantalla (mín. 320). Controles fuera del mapa para no tapar nada.
+  const { height } = useWindowDimensions();
+  const alto = Math.max(320, Math.round(height * 0.6));
   return (
     <View style={estilos.caja}>
-      <View style={estilos.mapa}>
+      <View style={estilos.barra}>
+        <Text style={estilos.titulo} accessibilityRole="header">Flota en vivo</Text>
+        {marcadores.length > 0 && (
+          <Pressable onPress={encuadrar} accessibilityRole="button" accessibilityLabel="Ver toda la flota" hitSlop={6}
+            style={({ pressed }) => [estilos.encuadrar, pressed && { opacity: 0.8 }]}>
+            <Text style={estilos.encuadrarTexto}>⤢ Ver todos</Text>
+          </Pressable>
+        )}
+      </View>
+      <View style={[estilos.mapa, { height: alto }]}>
         <MapaLibre style={StyleSheet.absoluteFill} mapStyle={ESTILO} attribution logo={false} onPress={() => setElegido(null)}>
           <Camera ref={camara} initialViewState={{ center: CENTRO_INICIAL, zoom: 10 }} />
           {marcadores.map((m) => (
@@ -50,11 +62,6 @@ export function MapaFlota({ marcadores }: { marcadores: MarcadorFlota[] }) {
             </Marker>
           ))}
         </MapaLibre>
-        {marcadores.length > 0 && (
-          <Pressable onPress={encuadrar} accessibilityRole="button" accessibilityLabel="Ver toda la flota" style={estilos.encuadrar}>
-            <Text style={estilos.encuadrarTexto}>Ver todos</Text>
-          </Pressable>
-        )}
         {sel && (
           <View style={estilos.ficha} accessibilityLiveRegion="polite">
             <Text style={estilos.fichaNombre}>{sel.nombre}</Text>
@@ -76,17 +83,19 @@ export function MapaFlota({ marcadores }: { marcadores: MarcadorFlota[] }) {
 }
 
 const estilos = StyleSheet.create({
-  caja: { gap: 8 },
-  mapa: { height: 340, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: color.borde },
+  caja: { gap: 10 },
+  barra: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  titulo: { color: color.marcaClaro, fontSize: 24, fontWeight: "700" },
+  mapa: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: color.borde },
   punto: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
   puntoSel: { width: 42, height: 42, borderRadius: 21, borderWidth: 3 },
   inicial: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  encuadrar: { position: "absolute", right: 10, top: 10, minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: color.marca, justifyContent: "center" },
+  encuadrar: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: color.marca, justifyContent: "center" },
   encuadrarTexto: { color: "#fff", fontWeight: "700", fontSize: 15 },
   ficha: { position: "absolute", left: 10, right: 10, bottom: 10, backgroundColor: color.tarjeta, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: color.borde },
   fichaNombre: { color: color.texto, fontSize: 18, fontWeight: "700" },
   fichaMeta: { color: color.textoSuave, fontSize: 15 },
-  leyenda: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  leyenda: { flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center" },
   leyendaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   leyendaPunto: { width: 14, height: 14, borderRadius: 7 },
   leyendaTexto: { color: color.textoSuave, fontSize: 14 },

@@ -40,11 +40,14 @@ export default function Central() {
   return (
     <ScrollView contentContainerStyle={estilos.contenido}
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={tirar} tintColor={color.marcaClaro} />}>
-      <Text style={estilos.titulo} accessibilityRole="header">Alertas ({alertas.length})</Text>
+      {/* Sin alertas: una franja verde pequeña (deja sitio al mapa). Con alertas: título y tarjetas. */}
+      {!cargando && alertas.length === 0 && !error
+        ? <View style={estilos.ok} accessibilityRole="text"><Text style={estilos.okTexto}>✓ Sin alertas · todo en orden</Text></View>
+        : <Text style={estilos.titulo} accessibilityRole="header">Alertas ({alertas.length})</Text>}
       {error && !datos && <Aviso tipo="error" texto={`Error al cargar: ${error}. Desliza hacia abajo para reintentar.`} />}
       {errorVisto && <Aviso tipo="error" texto={errorVisto} />}
       {cargando ? <Aviso texto="Cargando…" />
-        : alertas.length === 0 ? <Text style={estilos.vacio}>Sin alertas. Todo en orden.</Text>
+        : alertas.length === 0 ? null
         : alertas.map((s) => (
           <TarjetaAlerta key={s.id} s={s} nombre={nombre} alVisto={async () => {
             const e = await marcarAlertaVista(s.id);
@@ -52,7 +55,6 @@ export default function Central() {
             await recargar();
           }} />
         ))}
-      <Text style={[estilos.titulo, { marginTop: 12 }]} accessibilityRole="header">Flota en vivo</Text>
       <MapaFlota marcadores={marcadores} />
     </ScrollView>
   );
@@ -62,6 +64,8 @@ const estilos = StyleSheet.create({
   contenido: { padding: 16, gap: 12, paddingBottom: 40 },
   titulo: { color: color.marcaClaro, fontSize: 24, fontWeight: "700" },
   vacio: { color: color.textoTenue, fontSize: 16, textAlign: "center", paddingVertical: 16 },
+  ok: { backgroundColor: "rgba(22,163,74,0.18)", borderColor: "#22c55e", borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 },
+  okTexto: { color: "#86efac", fontSize: 16, fontWeight: "700", textAlign: "center" },
   alertaTitulo: { color: "#fcd34d", fontSize: 20, fontWeight: "800" },
   alertaTexto: { color: color.texto, fontSize: 17 },
   meta: { color: color.textoTenue, fontSize: 15 },
