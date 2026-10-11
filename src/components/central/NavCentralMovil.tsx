@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import LogoTVL from "@/components/comun/LogoTVL";
+import InterruptorSonido from "@/components/central/InterruptorSonido";
 
 export const ENLACES_CENTRAL = [
   ["/central", "Panel", "Panel", "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"],
@@ -36,6 +37,7 @@ export default function NavCentralMovil({ nombre, salir, extra = [] }: { nombre:
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
         <Link href="/central" className="flex min-h-11 items-center gap-2"><LogoTVL alto={36} /><span className="text-sm font-semibold text-marca-claro">Centro de control</span></Link>
+        <InterruptorSonido className="ml-auto" />
       </header>
 
       {abierto && <div className="fixed inset-0 z-[2000] bg-black/60" onClick={() => setAbierto(false)} aria-hidden="true" />}

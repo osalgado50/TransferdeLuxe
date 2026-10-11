@@ -2,6 +2,7 @@ import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
 import GestionFavoritos from "@/components/central/GestionFavoritos";
+import AyudaSonidos from "@/components/central/AyudaSonidos";
 import type { Favorito } from "@/lib/dominio/favoritos";
 import { guardarVehiculo, guardarConductor, guardarOperador, guardarAjustes, guardarModulos } from "./actions";
 import { MODULOS, leerModulos } from "@/lib/dominio/modulos";
@@ -133,6 +134,12 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           <button className={boton}>Guardar ajustes</button>
         </form>
         <p className="text-xs text-slate-500">El plazo de respuesta se aplica solo a los servicios nuevos; los ya creados conservan el suyo.</p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Sonidos</h2>
+        <p className="text-sm text-slate-400">Con el panel abierto, cada cambio de un servicio suena distinto para saber qué pasa sin mirar. Se silencian con el botón 🔊/🔇 del menú (se recuerda en este navegador). Si llegan varios a la vez, suena solo el más importante.</p>
+        <AyudaSonidos />
       </section>
 
       <section className="space-y-2">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import LogoTVL from "@/components/comun/LogoTVL";
 import { exigirRol } from "@/lib/supabase/sesion";
 import NavCentralMovil from "@/components/central/NavCentralMovil";
+import InterruptorSonido from "@/components/central/InterruptorSonido";
 import { salir } from "@/app/login/actions";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { leerModulos } from "@/lib/dominio/modulos";
@@ -30,6 +31,7 @@ export default async function LayoutCentral({ children }: { children: React.Reac
         <nav className="flex flex-1 flex-col gap-1">
           {[...ENLACES, ...extra].map(([h, t]) => <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm hover:bg-slate-800 hover:text-marca-claro">{t}</Link>)}
         </nav>
+        <InterruptorSonido className="mb-3 w-full" />
         <p className="mb-2 text-sm text-slate-400">{yo.nombre}</p>
         <form action={salir}><button className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm hover:border-marca-claro">Salir</button></form>
       </aside>

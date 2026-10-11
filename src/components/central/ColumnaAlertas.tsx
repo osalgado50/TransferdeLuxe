@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { direccionCorta } from "@/lib/dominio/direccion";
 import { leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
@@ -12,26 +12,6 @@ import type { Servicio } from "@/lib/dominio/tipos";
 const corta = (t: string) => { const d = direccionCorta(t); return d.localidad ? `${d.principal} · ${d.localidad}` : d.principal; };
 
 export interface EventoAlerta { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string; actor_id?: string | null }
-
-let audioCtx: AudioContext | null = null;
-function ctxAudio() {
-  if (audioCtx) return audioCtx;
-  const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (Ctx) audioCtx = new Ctx();
-  return audioCtx;
-}
-function pitido() {
-  try {
-    const ctx = ctxAudio();
-    if (!ctx) return;
-    void ctx.resume();
-    const osc = ctx.createOscillator();
-    osc.frequency.value = 880;
-    osc.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.15);
-  } catch { /* audio bloqueado: se ignora */ }
-}
 
 export function esAlerta(s: Servicio) {
   return !s.incidencia_vista || (s.subcontratar && s.estado === "pendiente");
@@ -53,8 +33,10 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
   return ["Aviso", inc || "Incidencia"] as const;
 }
 
-export default function ColumnaAlertas({ servicios, eventos, conductores, vehiculos = [] }: {
+/** `alIncidencia`: sonido de incidencia/checklist nuevos (los de los eventos de servicio los pone el panel). */
+export default function ColumnaAlertas({ servicios, eventos, conductores, vehiculos = [], alIncidencia }: {
   servicios: Servicio[]; eventos: EventoAlerta[]; conductores: { id: string; nombre: string }[]; vehiculos?: { id: string; matricula: string }[];
+  alIncidencia: () => void;
 }) {
   const alertas = useMemo(() => servicios.filter(esAlerta).sort((a, b) => a.fecha_hora_recogida.localeCompare(b.fecha_hora_recogida)), [servicios]);
   const nombre = (id: string | null) => conductores.find((c) => c.id === id)?.nombre ?? "conductor";
@@ -67,20 +49,6 @@ export default function ColumnaAlertas({ servicios, eventos, conductores, vehicu
   }), [servicios, eventos, ahora]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const activar = () => { try { void ctxAudio()?.resume(); } catch { /* ignorar */ } };
-    window.addEventListener("click", activar, { once: true });
-    window.addEventListener("keydown", activar, { once: true });
-    return () => { window.removeEventListener("click", activar); window.removeEventListener("keydown", activar); };
-  }, []);
-
-  const vistas = useRef<Set<string> | null>(null);
-  useEffect(() => {
-    const claves = new Set(alertas.map((s) => `${s.id}|${s.ultima_incidencia}|${s.incidencia_vista}|${s.subcontratar}`));
-    if (vistas.current && [...claves].some((k) => !vistas.current!.has(k))) pitido();
-    vistas.current = claves;
-  }, [alertas]);
-
   const subcontratar = (id: string) => ini(async () => {
     setError(null);
     const r = await accionCentral({ idAccion: crypto.randomUUID(), servicioId: id, accion: "subcontratar" });
@@ -92,7 +60,7 @@ export default function ColumnaAlertas({ servicios, eventos, conductores, vehicu
     <section aria-label="Alertas" className="space-y-3">
       <h2 className="text-lg font-semibold">Alertas ({alertas.length})</h2>
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
-      <AlertasModulos conductores={conductores} vehiculos={vehiculos} alNuevo={pitido} />
+      <AlertasModulos conductores={conductores} vehiculos={vehiculos} alNuevo={alIncidencia} />
       {llegando.map(({ s, ev }) => (
         <article key={`ll-${s.id}`} data-alerta="Llegando" className="rounded-xl border border-green-600 bg-slate-900 p-3">
           <p className="text-sm font-medium text-green-400">{etiquetaEvento(ev.tipo)} · {nombre(s.conductor_id)}</p>

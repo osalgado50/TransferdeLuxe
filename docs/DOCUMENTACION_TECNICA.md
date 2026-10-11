@@ -208,6 +208,25 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   está abierta) y encima de la tabla/calendario de `/central/servicios` en la web (parámetro `grupo=`, que conserva
   periodo, modo, conductor y origen). Los grupos, contadores y el filtrado son lógica pura compartida en
   `src/lib/dominio/centralMovil.ts` (tests en `tests/unit/centralMovil.test.ts`).
+- **Sonidos de la central y aviso sonoro al conductor (11/10/2026)**: a petición del responsable («una serie de
+  sonidos que al oírlos desde la central puedas entender lo que está pasando con los portes» y «que suene una
+  notificación… para que nadie se quede despistado»). *Web*: vocabulario de 9 sonidos sintetizados con Web Audio
+  (`src/lib/sonidos.ts`, sin ficheros ni APIs): reserva nueva web (dos tonos ascendentes), enviado/asignado (whoosh),
+  aceptado (ding-ding), rechazado o plazo vencido (dos tonos graves descendentes), en camino (tono suave), cargado
+  (tono doble), completado (arpegio), incidencia/checklist con fallos (alarma de 3 pitidos) y llegando (campanita).
+  El panel en vivo los dispara con cada evento nuevo de `eventos_servicio` que llega por Realtime (los ya presentes
+  al cargar no suenan; nunca dos veces el mismo evento; tras una reconexión, solo los de los últimos 2 min) y con las
+  incidencias/checklists nuevos; anti-ráfaga: como mucho uno cada 1,5 s y, si coinciden, el más grave. Interruptor
+  🔊/🔇 en la barra lateral y en la cabecera móvil (localStorage), desbloqueo del audio en el primer clic/tecla, y
+  apartado «Sonidos» en Flota con ▶ para escuchar cada uno. Un único AudioContext compartido también por la web del
+  conductor (antes había tres). Mapeo tipo→sonido, gravedad y anti-ráfaga son lógica pura en
+  `src/lib/dominio/sonidos.ts` (tests en `tests/unit/sonidos.test.ts`). *App*: con la app abierta, el servicio nuevo
+  (o reasignado a mí) además del modal lanza una notificación local con sonido (canal «servicios» de importancia alta
+  en Android) y se repite cada 20 s (máx. 5) con vibración fuerte mientras no se responda; si la central me lo quita,
+  aviso sonoro. En modo central, cada alerta nueva (rechazo, plazo vencido, subcontratar, reserva web) suena con
+  notificación local y vibración distinta (Error/Warning); los push del servidor (incidencias, checklist) vibran
+  igual. Para no sonar dos veces, un push del servidor de algo que la app acaba de anunciar solo va a la lista.
+  Solo con `expo-notifications` y `expo-haptics` (ya instalados): la huella nativa no cambia y llega por EAS Update.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -320,6 +339,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   Riesgos que quedan: el 403 de la CDN sigue dependiendo de la configuración de Hostinger (la app ya no lo
   amplifica); los límites son en memoria de un proceso (suficiente con un solo proceso Node); y la caché de 60 s
   hace que un cambio de rol o una baja tarde hasta 1 min en aplicarse a la app.
+- **Sonidos sin ficheros ni dependencias nuevas (11/10/2026)**: los navegadores no dejan sonar audio sin un gesto
+  previo y, si se pide sonido con el AudioContext suspendido, los pitidos se acumulan y suenan todos de golpe al
+  primer clic. Solución: desbloqueo en el primer clic/tecla (y en los siguientes si el sistema lo vuelve a suspender)
+  y, si el audio no arranca al momento, el sonido se descarta. En la app no se podía añadir `expo-av`/`expo-audio` ni
+  sonidos propios (cambiaría la huella nativa y obligaría a un build nuevo), así que el «sonido» es una notificación
+  local con el sonido del sistema; el push del servidor de lo mismo llega hasta 20 s después (vigilante), y el
+  manejador de notificaciones lo deja solo en la lista si la app ya lo anunció. Límite conocido: en iOS el
+  interruptor de silencio apaga el sonido de las notificaciones (las «alertas críticas» requieren un permiso
+  especial de Apple); queda la vibración.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

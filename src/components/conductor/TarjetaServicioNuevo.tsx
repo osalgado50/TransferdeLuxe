@@ -8,6 +8,7 @@ import { accionConductor } from "@/app/conductor/actions";
 import { segundosRestantes, claveAsignacion, formatoCuenta as cuenta } from "@/lib/dominio/plazo";
 import { MOTIVOS_RECHAZO } from "@/lib/dominio/estados";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
+import { pitar, prepararDesbloqueo } from "@/lib/sonidos";
 
 export type ServicioNuevo = {
   id: string; estado: EstadoServicio; conductor_id: string | null; asignado_en: string | null; plazo_respuesta_min: number;
@@ -16,28 +17,6 @@ export type ServicioNuevo = {
 };
 const fechaHora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const clave = claveAsignacion;
-
-let audio: AudioContext | null = null;
-function ctx(): AudioContext | null {
-  try {
-    if (!audio) {
-      const C = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (C) audio = new C();
-    }
-    return audio;
-  } catch { return null; }
-}
-function pitar() {
-  try {
-    const c = ctx();
-    if (!c || c.state !== "running") return;
-    [0, 0.35, 0.7].forEach((t) => {
-      const o = c.createOscillator(); const g = c.createGain();
-      o.frequency.value = 880; g.gain.setValueAtTime(0.25, c.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + t + 0.25);
-      o.connect(g); g.connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + 0.3);
-    });
-  } catch { /* sin sonido */ }
-}
 
 export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: { iniciales: ServicioNuevo[]; yo: string; vuelos?: boolean }) {
   const todos = useTiempoReal("servicios", iniciales, "id");
@@ -92,11 +71,7 @@ export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: {
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", v); };
   }, [abierta]);
   // El audio solo se puede reanudar tras un gesto del usuario.
-  useEffect(() => {
-    const f = () => { try { void ctx()?.resume(); } catch { /* nada */ } };
-    window.addEventListener("pointerdown", f); window.addEventListener("keydown", f);
-    return () => { window.removeEventListener("pointerdown", f); window.removeEventListener("keydown", f); };
-  }, []);
+  useEffect(() => prepararDesbloqueo(), []);
   // Aparece uno nuevo: vibrar y sonar; si desaparece sin que yo actúe (reasignado/expirado): aviso.
   useEffect(() => {
     const id = s ? clave(s) : null;
@@ -104,7 +79,7 @@ export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: {
     if (id) {
       setRechazando(false); setOtro(false); setTexto(""); setError(null); setAviso(null); idAccion.current = null;
       try { navigator.vibrate?.([300, 150, 300]); } catch { /* sin vibración */ }
-      pitar();
+      pitar(3, 880, 0.35);
     } else if (mostrado.current && !ocultos.has(mostrado.current)) {
       setAviso("El servicio ha vuelto a la central");
     }

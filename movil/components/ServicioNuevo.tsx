@@ -9,6 +9,7 @@ import { BloqueDireccion } from "./BloqueDireccion";
 import { Boton } from "./ui";
 import { enviarAccion, nuevoIdAccion } from "~/lib/acciones";
 import { fechaHora, fmt } from "~/lib/formato";
+import { avisoInsistente, avisoLocal } from "~/lib/push";
 import { caido } from "~/lib/red";
 import { exigir } from "~/lib/servicios";
 import { supabase } from "~/lib/supabase";
@@ -50,6 +51,25 @@ export function ServicioNuevo({ yo }: { yo: string }) {
     const r = setInterval(() => { if (!caido("supabase")) void recargar(); }, 20_000); // caída: la sonda avisa al volver
     return () => { clearInterval(t); clearInterval(r); };
   }, [abierta, recargar]);
+  // Con la app abierta, además del modal: notificación con sonido (que suene aunque no se mire la pantalla), repetida
+  // cada 20 s (máx. 5) con vibración fuerte mientras siga sin responder. Se para al aceptar/rechazar/ver más tarde.
+  const idAviso = s ? clave(s) : null;
+  const servId = s?.id;
+  const resumen = s ? `${fmt(fechaHora, s.fecha_hora_recogida)} · ${s.origen_texto} → ${s.destino_texto}` : "";
+  const cuerpo = useRef(resumen);
+  const ocupado = useRef(false);
+  useEffect(() => { cuerpo.current = resumen; ocupado.current = rechazando || enviando; });
+  useEffect(() => {
+    if (!idAviso || !servId) return;
+    return avisoInsistente({
+      id: `servicio-nuevo-${servId}`, titulo: "Servicio nuevo · responde en la app", cuerpo: () => cuerpo.current,
+      datos: { tipo: "servicio_nuevo", servicioId: servId }, sigue: () => !ocupado.current,
+      alRepetir: () => {
+        Vibration.vibrate([0, 600, 200, 600, 200, 600]);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      },
+    });
+  }, [idAviso, servId]);
   // Plazo agotado: cerrar con aviso.
   // Aparece uno nuevo: vibrar; si desaparece sin que yo actúe (reasignado/expirado): aviso.
   useEffect(() => {
@@ -59,7 +79,13 @@ export function ServicioNuevo({ yo }: { yo: string }) {
       setRechazando(false); setOtro(false); setTexto(""); setError(null); setAviso(null); idAccion.current = null;
       Vibration.vibrate([0, 300, 150, 300]);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-    } else if (mostrado.current && !ocultos.has(mostrado.current)) setAviso(VUELTA);
+    } else if (mostrado.current && !ocultos.has(mostrado.current)) {
+      // Me lo han quitado (reasignado o retirado por la central) sin que respondiera: que se entere también por sonido.
+      setAviso(VUELTA);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      const servicioId = mostrado.current.split("|")[0];
+      void avisoLocal(`servicio-retirado-${servicioId}`, VUELTA, "Ya no tienes que responder a ese servicio", { tipo: "servicio_retirado", servicioId });
+    }
     mostrado.current = id;
   }, [s, ocultos]);
 

@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { View } from "react-native";
+import { AlertasSonoras } from "~/components/AlertasSonoras";
 import { AvisosPush } from "~/components/AvisosPush";
 import { DrenajeCola } from "~/components/DrenajeCola";
 import { ServicioNuevo } from "~/components/ServicioNuevo";
@@ -20,6 +21,7 @@ export default function LayoutCentral() {
           <Stack.Screen name="ficha/[id]" />
         </Stack>
         {yo && <AvisosPush key={`p-${yo}`} yo={yo} central />}
+        {yo && <AlertasSonoras key={`a-${yo}`} />}
         {yo && conduce && <DrenajeCola key={`d-${yo}`} conductorId={yo} />}
         {yo && conduce && <ServicioNuevo key={`n-${yo}`} yo={yo} />}
       </View>

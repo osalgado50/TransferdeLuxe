@@ -6,35 +6,13 @@ import { EVENTO_RESALTAR, faseProximidad, formatoDistancia, formatoDuracion, res
 import { suscribirGps } from "@/lib/gps/gestor";
 import { avisarLlegando } from "@/app/conductor/actions";
 import type { Punto } from "@/lib/dominio/tipos";
-
+import { pitar, prepararDesbloqueo } from "@/lib/sonidos";
 
 interface Ruta { coords: [number, number][]; distanciaM: number; duracionS: number; fuente: "osrm" | "recta" }
 type Pos = Punto & { precision: number };
 
 const DESVIO_M = 300, REPETIR_MS = 30_000;
 
-let ctx: AudioContext | null = null;
-function audio() {
-  if (ctx) return ctx;
-  const C = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (C) ctx = new C();
-  return ctx;
-}
-function pitar(veces: number, freq: number) {
-  try {
-    const c = audio();
-    if (!c) return;
-    void c.resume();
-    for (let i = 0; i < veces; i++) {
-      const o = c.createOscillator(), g = c.createGain();
-      g.gain.value = 0.4;
-      o.frequency.value = freq;
-      o.connect(g).connect(c.destination);
-      const t = c.currentTime + i * 0.3;
-      o.start(t); o.stop(t + 0.2);
-    }
-  } catch { /* audio bloqueado */ }
-}
 function vibrar(patron: number[]) { try { navigator.vibrate?.(patron); } catch { /* sin vibración */ } }
 function marcado(clave: string): boolean { try { return !!sessionStorage.getItem(clave); } catch { return false; } }
 function marcar(clave: string) { try { sessionStorage.setItem(clave, "1"); } catch { /* sin almacenamiento */ } }
@@ -72,12 +50,7 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
   }, []);
 
   // Desbloquear el audio con el primer gesto del usuario.
-  useEffect(() => {
-    const f = () => { try { void audio()?.resume(); } catch { /* ignorar */ } };
-    window.addEventListener("pointerdown", f, { once: true });
-    window.addEventListener("keydown", f, { once: true });
-    return () => { window.removeEventListener("pointerdown", f); window.removeEventListener("keydown", f); };
-  }, []);
+  useEffect(() => prepararDesbloqueo(), []);
 
   const restante = useMemo(() => (ruta && pos ? restanteEnRuta(ruta.coords, pos) : null), [ruta, pos]);
 

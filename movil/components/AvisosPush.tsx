@@ -1,8 +1,9 @@
+import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
-import { AppState } from "react-native";
-import { registrarPush, type DatosPush } from "~/lib/push";
+import { AppState, Vibration } from "react-native";
+import { registrarPush, yaAnunciadoLocal, type DatosPush } from "~/lib/push";
 
 /**
  * Registra el dispositivo para avisos y abre «Hoy» al tocar un aviso de servicio nuevo (allí sale el modal).
@@ -15,6 +16,19 @@ export function AvisosPush({ yo, central }: { yo: string; central?: boolean }) {
     const app = AppState.addEventListener("change", (e) => { if (e === "active") void registrarPush(); });
     return () => { app.remove(); };
   }, [yo]);
+  // Central con la app abierta: los push del servidor (incidencia, checklist, rechazo…) ya suenan por el handler;
+  // además, vibración distinta según la gravedad. Los avisos locales vibran por su cuenta (AlertasSonoras).
+  useEffect(() => {
+    if (!central) return;
+    const sus = Notifications.addNotificationReceivedListener((n) => {
+      const d = n.request.content.data as DatosPush | undefined;
+      if (d?.local || yaAnunciadoLocal(d)) return;
+      const grave = d?.tipo === "incidencia" || d?.tipo === "checklist" || d?.tipo === "rechazado" || d?.tipo === "expirado";
+      Vibration.vibrate(grave ? [0, 250, 120, 250, 120, 250] : [0, 400]);
+      void Haptics.notificationAsync(grave ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    });
+    return () => sus.remove();
+  }, [central]);
   const ultima = Notifications.useLastNotificationResponse();
   const atendida = useRef<string | null>(null);
   useEffect(() => {
