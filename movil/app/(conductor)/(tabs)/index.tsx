@@ -1,6 +1,6 @@
 import { rangosConductor } from "@dominio/dias";
 import { useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ModulosConductor } from "~/components/ModulosConductor";
 import { TarjetaServicio } from "~/components/TarjetaServicio";
 import { Aviso } from "~/components/ui";
@@ -43,21 +43,26 @@ export default function Hoy() {
   return (
     <ScrollView contentContainerStyle={estilos.contenido}
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={tirar} tintColor={color.marcaClaro} />}>
-      <ModulosConductor />
+      {/* Lo primero, las órdenes de trabajo de hoy; jornada, checklist e incidencias debajo; privacidad al final. */}
       <Text style={estilos.titulo} accessibilityRole="header">Hoy</Text>
       {error && <Aviso tipo="error" texto={`Error al cargar: ${error}. Desliza hacia abajo para reintentar.`} />}
       {cargando ? <Aviso texto="Cargando…" />
         : hoy.length === 0 ? <Text style={estilos.vacio}>No tienes servicios para hoy.</Text>
         : hoy.map((s) => <TarjetaServicio key={s.id} s={s} destacada={s.id === siguiente} />)}
+      <View style={{ marginTop: 12 }}><ModulosConductor /></View>
       <Text style={[estilos.titulo, { marginTop: 16 }]} accessibilityRole="header">Próximos días</Text>
       {!cargando && (prox.length === 0
         ? <Text style={estilos.vacio}>No tienes servicios en los próximos 7 días.</Text>
         : prox.map((s) => <TarjetaServicio key={s.id} s={s} conDia />))}
+      <Text accessibilityRole="link" onPress={() => void Linking.openURL("https://app.transfersvipluxe.com/privacidad")} style={estilos.privacidad}>
+        Política de privacidad
+      </Text>
     </ScrollView>
   );
 }
 
 const estilos = StyleSheet.create({
+  privacidad: { color: color.textoTenue, fontSize: 13, textAlign: "center", textDecorationLine: "underline", marginTop: 32, paddingVertical: 8 },
   contenido: { padding: 16, gap: 12, paddingBottom: 40 },
   titulo: { color: color.marcaClaro, fontSize: 24, fontWeight: "700" },
   vacio: { color: color.textoTenue, fontSize: 16, textAlign: "center", paddingVertical: 24 },
