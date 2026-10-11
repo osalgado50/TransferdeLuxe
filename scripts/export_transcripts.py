@@ -5,6 +5,7 @@ Uso:  python3 -I scripts/export_transcripts.py [--solo-prompts]
 Salida: docs/prompts/transcripciones/<fecha>_<sesion>.md
 """
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +25,20 @@ def texto(content):
     return "\n\n".join(p.strip() for p in partes if p.strip())
 
 
+# Datos personales reales que no deben salir en el historial público (bases del hackathon).
+ANONIMIZAR = [
+    (re.compile(r"Oscar Salgado(?: Sugra[ñn]es)?", re.I), "[responsable]"),
+    (re.compile(r"Dr\.? Eduard Punset[^\n»]*", re.I), "[dirección privada]"),
+    (re.compile(r"Rustical Mont-roig", re.I), "[establecimiento]"),
+]
+
+
+def anonimizar(t):
+    for patron, sust in ANONIMIZAR:
+        t = patron.sub(sust, t)
+    return t
+
+
 def hora(ts):
     try:
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(TZ).strftime("%Y-%m-%d %H:%M")
@@ -40,7 +55,7 @@ def exportar(jsonl, solo_prompts):
             continue
         if ev.get("isMeta") or ev.get("type") not in ("user", "assistant"):
             continue
-        t = texto((ev.get("message") or {}).get("content"))
+        t = anonimizar(texto((ev.get("message") or {}).get("content")))
         if not t or t.startswith("<"):  # avisos del sistema, comandos internos
             continue
         h = hora(ev.get("timestamp", ""))
