@@ -36,6 +36,7 @@ export async function incidenciaConductor(fd: FormData): Promise<Res> {
     tipo: fd.get("tipo"), descripcion: fd.get("descripcion") ?? "", servicio_id: fd.get("servicio_id") || null,
     foto_path, lat: num("lat"), lng: num("lng"),
   });
+  if (!r.ok && foto_path) await sb.storage.from("incidencias").remove([foto_path]); // sin fotos huérfanas
   return r.ok ? r : { ok: false, error: r.error };
 }
 

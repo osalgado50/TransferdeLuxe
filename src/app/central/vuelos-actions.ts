@@ -19,7 +19,7 @@ async function contexto(servicioId: string) {
   if (!ID.test(servicioId)) return null;
   const sb = clienteAdmin();
   const [{ data: aj }, { data: s }] = await Promise.all([
-    sb.from("ajustes").select("modulos, margen_equipaje_min").maybeSingle(),
+    sb.from("ajustes").select("modulos, margen_equipaje_min").eq("id", 1).maybeSingle(),
     sb.from("servicios").select("id, estado, numero_vuelo, fecha_hora_recogida, hora_llegada_real").eq("id", servicioId).maybeSingle(),
   ]);
   if (!s) return null;
