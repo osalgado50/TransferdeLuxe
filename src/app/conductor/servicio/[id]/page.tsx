@@ -12,6 +12,7 @@ import ContadorPuntualidad from "@/components/conductor/ContadorPuntualidad";
 import EnlaceVuelo from "@/components/vuelos/EnlaceVuelo";
 import { leerModulos } from "@/lib/dominio/modulos";
 import { objetivoActual } from "@/lib/dominio/navegacion";
+import { ultimoEventoAccion, type EventoPaso } from "@/lib/dominio/deshacer";
 import type { EstadoServicio, Punto } from "@/lib/dominio/tipos";
 
 const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
@@ -31,6 +32,10 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
     .neq("estado", "cancelado").neq("estado", "completado").neq("id", id).order("fecha_hora_recogida");
   const siguienteId = hoy?.[0]?.id ?? null;
   const { data: aj } = await sb.from("ajustes").select("modulos").eq("id", 1).maybeSingle();
+  // Último paso según el servidor: cuenta atrás de «↩ Deshacer» (10 min) también tras recargar la página.
+  const { data: evs } = await sb.from("eventos_servicio").select("id,tipo,actor_id,creado_en").eq("servicio_id", id)
+    .order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(30);
+  const ultimoPaso = ultimoEventoAccion((evs ?? []) as EventoPaso[]);
   const incidencias = leerModulos(aj?.modulos).incidencias;
   const vuelos = leerModulos(aj?.modulos).vuelos;
 
@@ -50,7 +55,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
       </div>
       <ContadorPuntualidad servicioId={s.id} estado={s.estado} recogida={s.fecha_hora_recogida} />
       {/* Controles primero: el conductor va conduciendo y necesita los botones a mano, sin hacer scroll. */}
-      <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
+      <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} ultimoPaso={ultimoPaso} />
       {s.cliente_telefono && s.estado !== "completado" && (
         <a className="flex min-h-16 items-center justify-center rounded-xl border-2 border-slate-500 text-lg font-semibold" href={`tel:${s.cliente_telefono}`}>📞 Llamar al cliente</a>
       )}

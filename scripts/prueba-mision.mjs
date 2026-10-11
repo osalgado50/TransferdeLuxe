@@ -1,8 +1,8 @@
 // Prueba de punta a punta del ciclo de una misión contra producción, con servicios de PRUEBA creados aquí (nunca toca otros).
 // Central asigna → conductor lo ve (RLS) → acepta (y duplicado idempotente) → orden incorrecto rechazado → en camino →
-// incidencia «retraso» → «llegando» → CARGA → DESCARGA. Segundo servicio: el conductor lo rechaza con motivo.
+// incidencia «retraso» → «llegando» → CARGA → DESCARGA → DESHACER (vuelve a recogido) → DESCARGA otra vez. Segundo servicio: el conductor lo rechaza con motivo.
 // Tercer servicio: recogida hace 5 min, aceptado y sin recoger → el servidor registra «retraso_recogida» (≤ 60 s) y la
-// central lo ve en la actividad; después se completa.
+// central lo ve en la actividad; después se completa, la central deshace la descarga y el conductor ya no puede deshacer.
 // Al final las alertas e incidencias de prueba quedan vistas/resueltas para no ensuciar la central.
 // Uso: set -a; . ./.env.local; set +a; node scripts/prueba-mision.mjs [conductorEmail=conductor3@transferdeluxe.test]
 import { createClient } from "@supabase/supabase-js";
@@ -72,6 +72,23 @@ r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), 
 paso(r.status === 200 && (await estado(s1)).estado === "recogido", "CARGA (pasajeros a bordo)", `${r.ms} ms`);
 r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s1, accion: "descargar" });
 paso(r.status === 200 && (await estado(s1)).estado === "completado", "DESCARGA (servicio completado)", `${r.ms} ms`);
+// DESCARGA pulsada sin querer → «↩ Deshacer» (≤ 10 min, solo su último paso) → vuelve a recogido → DESCARGA de nuevo.
+const idDeshacer = randomUUID();
+r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: idDeshacer, servicioId: s1, accion: "deshacer" });
+paso(r.status === 200 && (await estado(s1)).estado === "recogido", "Conductor DESHACE la descarga → vuelve a recogido", `${r.ms} ms ${r.j?.error ?? ""}`);
+r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: idDeshacer, servicioId: s1, accion: "deshacer" });
+paso(r.status === 200 && r.j?.duplicada === true && (await estado(s1)).estado === "recogido", "Reenvío del mismo «deshacer» → idempotente (no retrocede dos pasos)");
+r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s1, accion: "deshacer" });
+paso(r.status === 409 && (await estado(s1)).estado === "recogido", "Deshacer otra vez (la carga) → rechazado: solo el último paso", r.j?.error ?? "");
+r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s1, accion: "descargar" });
+paso(r.status === 200 && (await estado(s1)).estado === "completado", "DESCARGA otra vez (servicio completado)", `${r.ms} ms`);
+{
+  const { data: evs } = await admin.from("eventos_servicio").select("tipo,actor_id,motivo").eq("servicio_id", s1).order("creado_en").order("id");
+  const cola = evs.filter((e) => ["recogido", "completado", "deshecho"].includes(e.tipo)).map((e) => e.tipo).join(" → ");
+  const d = evs.filter((e) => e.tipo === "deshecho");
+  paso(cola === "recogido → completado → deshecho → completado" && d.length === 1 && d[0].actor_id === yo.id && d[0].motivo === "Deshecho por el conductor: descarga",
+    "Historial: completado → deshecho (por el conductor: descarga) → completado", cola);
+}
 
 r = await llamar(central, "POST", "/api/central/asignar", { idAccion: randomUUID(), servicioId: s2, conductorId: yo.id });
 paso(r.status === 200, "Central asigna un segundo servicio");
@@ -85,6 +102,8 @@ paso(r.status === 200 && r.j?.alertas?.some((s) => s.id === s2), "La central ve 
 const act = r.j?.actividad ?? [];
 const tiposS1 = act.filter((m) => m.servicioId === s1).map((m) => m.tipo);
 paso(["aceptado", "en_camino", "recogido", "completado"].every((t) => tiposS1.includes(t)), "Actividad en vivo: aceptado, en camino, recogido y completado", tiposS1.join(" ← "));
+const md = act.find((m) => m.servicioId === s1 && m.tipo === "deshecho");
+paso(!!md && md.gravedad === "aviso" && /^↩ .+ ha deshecho la descarga del servicio de las \d\d:\d\d/.test(md.texto), "Actividad en vivo: «↩ … ha deshecho la descarga…» como aviso", md?.texto ?? "");
 paso(act.some((m) => m.servicioId === s2 && m.tipo === "rechazado" && m.gravedad === "aviso"), "Actividad en vivo: el rechazo como aviso");
 const incAct = act.filter((m) => m.incidenciaId && (m.descripcion ?? "").startsWith(NOTA));
 paso(incAct.length === 2 && incAct.every((m) => m.conductor && m.zona), "Actividad en vivo: incidencias con conductor y zona", incAct.map((m) => `${m.zona}`).join(" | "));
@@ -114,6 +133,17 @@ paso(!!mr && mr.gravedad === "aviso" && mr.texto.includes("llega tarde a la reco
 for (const a of ["salir", "cargar", "descargar"]) await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s3, accion: a });
 const { count: nRetraso } = await admin.from("eventos_servicio").select("id", { count: "exact", head: true }).eq("servicio_id", s3).eq("tipo", "retraso_recogida");
 paso((await estado(s3)).estado === "completado" && nRetraso === 1, "Tercer servicio completado; el aviso no se repite", `${nRetraso} evento(s)`);
+// La central deshace la descarga desde la ficha (sin límite de tiempo); después el conductor ya no puede deshacer.
+r = await llamar(central, "POST", "/api/central/deshacer", { idAccion: randomUUID(), servicioId: s3 });
+paso(r.status === 200 && (await estado(s3)).estado === "recogido", "Central DESHACE la descarga → recogido", `${r.ms} ms ${r.status} ${r.j?.error ?? ""}`);
+r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s3, accion: "deshacer" });
+paso(r.status === 409 && (await estado(s3)).estado === "recogido", "Tras la central, el conductor no puede deshacer", r.j?.error ?? "");
+r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s3, accion: "descargar" });
+paso(r.status === 200 && (await estado(s3)).estado === "completado", "Conductor DESCARGA de nuevo (completado)");
+{
+  const { data } = await admin.from("eventos_servicio").select("motivo").eq("servicio_id", s3).eq("tipo", "deshecho");
+  paso(data?.length === 1 && data[0].motivo === "Deshecho por la central: descarga", "Historial: «Deshecho por la central: descarga»", data?.[0]?.motivo ?? "");
+}
 
 const { data: ev } = await admin.from("eventos_servicio").select("tipo").eq("servicio_id", s1).order("creado_en");
 paso(["asignado", "aceptado", "en_camino", "recogido", "completado"].every((t) => ev.some((e) => e.tipo === t)),

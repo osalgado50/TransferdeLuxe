@@ -267,6 +267,24 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   parcial = una sola vez por servicio. La llama el vigilante en cada pasada (~20 s) y pg_cron cada minuto. La central
   lo ve en la actividad («⏰ Marc llega tarde a la recogida de las 19:50 · Salou → Reus · cerca de Cambrils», aviso),
   con tres pitidos y push. `scripts/prueba-mision.mjs` lo comprueba con un tercer servicio de prueba.
+- **11/10/2026 · Deshacer un paso pulsado sin querer**. Petición del responsable: «si el conductor sin querer finaliza
+  el servicio y todavía no ha llegado a destino… que exista la opción de volver atrás». Lógica pura en
+  `src/lib/dominio/deshacer.ts` (tests en `tests/unit/deshacer.test.ts`). *Prevención*: CARGA a más de 300 m de la
+  recogida o DESCARGA a más de 300 m del destino (distancia GPS en línea recta que ya calcula la navegación:
+  `MapaServicio` expone `alCambiarDistancia` en la app y `NavegacionConductor` la publica por un evento de ventana en la
+  PWA) piden confirmación: «Aún estás a 2,3 km del destino. ¿Finalizar igualmente?». Sin GPS o sin coordenadas, sin
+  confirmación extra. *Deshacer*: nueva acción `deshacer` en la máquina de estados (completado→recogido,
+  recogido→en_camino, en_camino→aceptado). El conductor asignado (o el jefe que conduce lo suyo) solo puede deshacer
+  SU último paso y durante 10 min desde ese evento; si después hubo otra acción (de la central o un «deshacer» previo)
+  se rechaza con el motivo. Los eventos informativos (llegando, vuelos, retraso) no cuentan. Pasa por la RPC atómica
+  `transicion_servicio` (0019) con evento `deshecho` y motivo «Deshecho por el conductor: descarga»; idempotente por
+  `idAccion` y por la misma cola offline que los demás pasos. En la app y la PWA, tras cada paso y en «¡Servicio
+  terminado!», botón «↩ Deshacer descarga (quedan 9:41)» con confirmación; si el servidor lo rechaza se muestra el
+  motivo. La central (ficha web y modo central de la app, nueva ruta `POST /api/central/deshacer`) puede deshacer el
+  último paso sin límite de tiempo, con confirmación («Deshecho por la central: …»). La Actividad en vivo lo muestra
+  como aviso («↩ Marc ha deshecho la descarga del servicio de las 19:50»), con tres pitidos y push si lo hizo el
+  conductor. `scripts/prueba-mision.mjs` lo prueba en producción con servicios de prueba. Sin migración nueva (el
+  tipo de evento es texto libre) y sin dependencias nativas nuevas (huella de la app sin cambios).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -406,6 +424,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   6 h evita que los servicios antiguos que se quedaron «aceptado» inunden la actividad el día que se activó. En el
   móvil, el envío se marca en memoria antes del `await` (nunca dos a la vez), se persiste solo con respuesta OK y los
   fallos esperan 60 s; la ETA se redondea a 15 s para no re-renderizar la pantalla con cada fix del GPS.
+- **Deshacer sin abrir una puerta trasera (11/10/2026)**: «volver atrás» no puede servir para reescribir el historial ni
+  pisar decisiones de la central (el evento «deshecho» queda registrado). Por eso el servidor (no el móvil) decide con los eventos del servicio: solo el último
+  evento de acción, solo si es el paso del propio conductor y de hace ≤ 10 min. La comprobación se hace antes de
+  consumir el `idAccion` (un rechazo no deja la acción «procesada») y el cambio va por la RPC atómica con el estado
+  esperado, así que si la central actúa a la vez solo gana uno. Con cobertura intermitente, el toque de deshacer entra
+  en la misma cola ordenada que el paso (DESCARGA y luego deshacer llegan en orden); la cuenta atrás del botón usa la
+  hora local del toque, algo más prudente que la del servidor. El origen «central» lo pone solo el servidor en las
+  rutas de la central, nunca el cuerpo de la petición.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

@@ -1,7 +1,7 @@
 import { segundosRetryAfter } from "@/lib/dominio/reintento";
 
 /** Cliente de POST /api/conductor/accion con Bearer (app nativa). Lógica pura: fetch y sesión se inyectan. */
-export type AccionApp = "aceptar" | "rechazar" | "salir" | "cargar" | "descargar";
+export type AccionApp = "aceptar" | "rechazar" | "salir" | "cargar" | "descargar" | "deshacer";
 export interface PeticionAccion { idAccion: string; servicioId: string; accion: AccionApp; motivo?: string }
 export type RespuestaAccion = { ok: true; estado?: string; duplicada?: boolean } | { ok: false; error: string };
 

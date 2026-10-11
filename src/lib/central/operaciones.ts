@@ -10,12 +10,12 @@ import { rangosConductor } from "@/lib/dominio/dias";
 import { construirActividad, HORAS_ACTIVIDAD, TIPOS_GRAVES, type ServicioAct } from "@/lib/dominio/actividad";
 
 /** Lógica de la central compartida por las Server Actions (web) y las rutas /api/central/* (app nativa). */
-export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar";
+export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar" | "deshacer";
 export interface PeticionOperador { idAccion: string; servicioId: string; accion: AccionOperador; conductorId?: string; vehiculoId?: string }
 
 /** Ejecuta la acción como operador. Devuelve además si hay que avisar por push al conductor asignado. */
 export async function ejecutarAccionOperador(operadorId: string, p: PeticionOperador): Promise<{ r: ResultadoAccion; avisar: () => Promise<void> }> {
-  const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...p, actor: { id: operadorId, rol: "operador" } });
+  const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...p, actor: { id: operadorId, rol: "operador", central: true } });
   const toca = r.ok && !r.duplicada && (p.accion === "asignar" || p.accion === "reasignar");
   return { r, avisar: toca ? () => notificarServicioNuevo(p.servicioId) : async () => {} };
 }

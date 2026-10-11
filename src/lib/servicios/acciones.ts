@@ -1,4 +1,5 @@
 import { transicion, type Accion } from "@/lib/dominio/estados";
+import { comprobarDeshacer, type EventoPaso } from "@/lib/dominio/deshacer";
 import type { EstadoServicio, Rol, Servicio } from "@/lib/dominio/tipos";
 
 export interface RepoServicios {
@@ -8,12 +9,16 @@ export interface RepoServicios {
   /** Cambio + evento en una sola transacción (si el repo lo soporta). false = el estado ya no era el esperado. */
   actualizarConEvento?(id: string, cambios: Partial<Servicio>, estadoEsperado: EstadoServicio,
     e: { tipo: string; actor_id: string | null; motivo?: string | null }): Promise<boolean>;
+  /** Eventos del servicio (para «deshacer»: el último paso del conductor y si alguien actuó después). */
+  eventosServicio?(id: string): Promise<EventoPaso[]>;
   registrarAccion(idAccion: string): Promise<boolean>;
   yaProcesada(idAccion: string): Promise<boolean>;
   liberarAccion(idAccion: string): Promise<void>;
 }
 export interface PeticionAccion {
-  idAccion: string; servicioId: string; accion: Accion; actor: { id: string; rol: Rol; conduce?: boolean };
+  idAccion: string; servicioId: string; accion: Accion;
+  /** `central`: solo lo pone el servidor en las rutas de la central (nunca viene del cuerpo de la petición). */
+  actor: { id: string; rol: Rol; conduce?: boolean; central?: boolean };
   motivo?: string; conductorId?: string; vehiculoId?: string;
 }
 export type ResultadoAccion = { ok: true; estado: EstadoServicio; duplicada?: boolean } | { ok: false; error: string };
@@ -28,8 +33,16 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   if (p.accion === "rechazar" && (!p.motivo || p.motivo.trim() === "" || p.motivo === "Otro"))
     return { ok: false, error: "Indica el motivo del rechazo" };
 
-  const t = transicion(s.estado, p.accion, { rol: p.actor.rol, conduce: p.actor.conduce, esAsignado: s.conductor_id === p.actor.id });
+  const t = transicion(s.estado, p.accion, { rol: p.actor.rol, conduce: p.actor.conduce, central: p.actor.central, esAsignado: s.conductor_id === p.actor.id });
   if (!t.ok) return t;
+  let motivo = p.motivo ?? null;
+  if (p.accion === "deshacer") {
+    if (!p.actor.central && !repo.eventosServicio) return { ok: false, error: "No se puede comprobar el último paso" };
+    const evs = p.actor.central ? [] : await repo.eventosServicio!(s.id);
+    const c = comprobarDeshacer(s.estado, evs, { id: p.actor.id, central: p.actor.central }, new Date());
+    if (!c.ok) return c;
+    motivo = c.motivo;
+  }
   if (!(await repo.registrarAccion(p.idAccion))) return { ok: true, estado: s.estado, duplicada: true };
 
   const cambios: Partial<Servicio> = { estado: t.nuevo };
@@ -40,7 +53,7 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
   }
   try {
-    const evento = { tipo: t.evento, actor_id: p.actor.id, motivo: p.motivo ?? null };
+    const evento = { tipo: t.evento, actor_id: p.actor.id, motivo };
     const hecho = repo.actualizarConEvento
       ? await repo.actualizarConEvento(s.id, cambios, s.estado, evento)
       : await repo.actualizar(s.id, cambios, s.estado);
@@ -74,6 +87,12 @@ export function repoSupabase(sb: import("@supabase/supabase-js").SupabaseClient)
       });
       if (error) throw new Error(error.message);
       return data === true;
+    },
+    async eventosServicio(id) {
+      const { data, error } = await sb.from("eventos_servicio").select("id,tipo,actor_id,creado_en").eq("servicio_id", id)
+        .order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(50);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as EventoPaso[];
     },
     async insertarEvento(e) {
       const { error } = await sb.from("eventos_servicio").insert(e);

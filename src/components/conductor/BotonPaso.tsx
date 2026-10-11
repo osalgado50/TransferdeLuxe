@@ -4,22 +4,37 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { colaDe, drenar } from "@/lib/offline/colaConductor";
 import { ACCION_SIGUIENTE_CONDUCTOR } from "@/lib/dominio/estados";
-import { EVENTO_RESALTAR } from "@/lib/dominio/navegacion";
+import { EVENTO_DISTANCIA, EVENTO_RESALTAR, type DetalleDistancia, type TipoObjetivo } from "@/lib/dominio/navegacion";
+import { confirmacionDistancia, DESHACER, formatoCuentaAtras, preguntaDeshacer, restanteDeshacerMs, type EventoPaso, type PasoConductor } from "@/lib/dominio/deshacer";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 
-const SIGUIENTE: Record<"salir" | "cargar" | "descargar", EstadoServicio> = { salir: "en_camino", cargar: "recogido", descargar: "completado" };
+const SIGUIENTE: Record<PasoConductor, EstadoServicio> = { salir: "en_camino", cargar: "recogido", descargar: "completado" };
 
-export default function BotonPaso({ servicioId, conductorId, estadoInicial, siguienteId }: { servicioId: string; conductorId: string; estadoInicial: EstadoServicio; siguienteId: string | null }) {
+/**
+ * `ultimoPaso`: último evento de acción del servicio según el servidor (para la cuenta atrás de «Deshacer»).
+ * Pasos hechos aquí: se usa la hora local del toque (mismo reloj; algo más prudente que la del servidor).
+ */
+export default function BotonPaso({ servicioId, conductorId, estadoInicial, siguienteId, ultimoPaso }: {
+  servicioId: string; conductorId: string; estadoInicial: EstadoServicio; siguienteId: string | null; ultimoPaso: EventoPaso | null;
+}) {
   const router = useRouter();
   const { cola, rechazos, oyentes } = colaDe(conductorId);
   const [estado, setEstado] = useState<EstadoServicio>(estadoInicial);
   const [, forzar] = useState(0);
   const [resaltar, setResaltar] = useState(false);
+  const [local, setLocal] = useState<{ estado: EstadoServicio; en: number } | null>(null);
+  const [ahora, setAhora] = useState(() => Date.now());
+  const distancia = useRef<{ tipo: TipoObjetivo; distanciaM: number } | null>(null);
   useEffect(() => {
     const h = (e: Event) => setResaltar(!!(e as CustomEvent<{ activo: boolean }>).detail?.activo);
+    const d = (e: Event) => {
+      const x = (e as CustomEvent<DetalleDistancia>).detail;
+      if (x?.servicioId === servicioId) distancia.current = x.distanciaM == null ? null : { tipo: x.tipo, distanciaM: x.distanciaM };
+    };
     window.addEventListener(EVENTO_RESALTAR, h);
-    return () => window.removeEventListener(EVENTO_RESALTAR, h);
-  }, []);
+    window.addEventListener(EVENTO_DISTANCIA, d);
+    return () => { window.removeEventListener(EVENTO_RESALTAR, h); window.removeEventListener(EVENTO_DISTANCIA, d); };
+  }, [servicioId]);
   const servidor = useRef(estadoInicial);
   servidor.current = estadoInicial;
   const mias = () => cola.pendientes().filter((p) => p.servicioId === servicioId);
@@ -41,6 +56,36 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
     return () => { oyentes.delete(f); };
   }, [oyentes, cola, rechazos, servicioId, router]);
 
+  // «Deshacer» el último paso: hora local si el paso se hizo aquí; si no, el evento del servidor (si sigue en ese estado).
+  const info = DESHACER[estado];
+  const ultimo: EventoPaso | null = info && local?.estado === estado
+    ? { tipo: info.evento, actor_id: conductorId, creado_en: new Date(local.en).toISOString() }
+    : estado === estadoInicial ? ultimoPaso : null;
+  const restante = restanteDeshacerMs(estado, ultimo, conductorId, new Date(ahora));
+  const yaDeshaciendo = mias().some((p) => p.accion === "deshacer");
+  const hayVentana = restante != null && !yaDeshaciendo;
+  useEffect(() => {
+    if (!hayVentana) return;
+    const t = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [hayVentana]);
+  const deshacer = () => {
+    const pregunta = preguntaDeshacer(estado);
+    if (!info || !pregunta || yaDeshaciendo || !confirm(pregunta)) return;
+    rechazos.delete(servicioId);
+    cola.encolar({ idAccion: crypto.randomUUID(), servicioId, accion: "deshacer" });
+    setLocal(null);
+    setEstado(info.hacia); // optimista
+    void drenar(conductorId, true).catch(() => {});
+  };
+  const botonDeshacer = hayVentana && (
+    <button type="button" onClick={deshacer} data-accion="deshacer"
+      className="min-h-14 w-full rounded-xl border-2 border-amber-400 text-base font-semibold text-amber-200">
+      ↩ Deshacer {info?.nombre} (quedan {formatoCuentaAtras(restante)})
+    </button>
+  );
+  const listaErrores = errores.map((e, i) => <p key={i} role="alert" className="text-sm text-red-400">{e}</p>);
+
   if (estado === "completado") {
     return (
       <div className="space-y-3 text-center">
@@ -48,16 +93,24 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
         <Link href={siguienteId ? `/conductor/servicio/${siguienteId}` : "/conductor"} className="flex min-h-14 items-center justify-center rounded-xl bg-marca text-lg font-semibold text-white">
           {siguienteId ? "Siguiente servicio de hoy" : "Volver a Hoy"}
         </Link>
+        {botonDeshacer}
         {pendientes > 0 && <p className="text-sm text-amber-300">⏳ pendiente de enviar ({pendientes})</p>}
+        {listaErrores}
       </div>
     );
   }
   const paso = ACCION_SIGUIENTE_CONDUCTOR[estado];
   const pulsar = () => {
     if (!paso || mias().length > 0) return; // un toque a la vez: evita saltarse un paso
-    const accion = paso.accion as "salir" | "cargar" | "descargar";
+    const accion = paso.accion as PasoConductor;
+    // ¿Toque sin querer? CARGA/DESCARGA a más de 300 m del objetivo (según el GPS) piden confirmación.
+    const aviso = confirmacionDistancia(accion, distancia.current);
+    if (aviso && !confirm(aviso)) return;
     rechazos.delete(servicioId);
     cola.encolar({ idAccion: crypto.randomUUID(), servicioId, accion });
+    const t = Date.now();
+    setLocal({ estado: SIGUIENTE[accion], en: t });
+    setAhora(t);
     setEstado(SIGUIENTE[accion]); // optimista
     void drenar(conductorId, true).catch(() => {}); // gesto del usuario: intenta ya
   };
@@ -77,7 +130,8 @@ export default function BotonPaso({ servicioId, conductorId, estadoInicial, sigu
           Descartar (no se pudo enviar tras {atascada.intentos} intentos)
         </button>
       )}
-      {errores.map((e, i) => <p key={i} className="text-sm text-red-400">{e}</p>)}
+      {botonDeshacer}
+      {listaErrores}
     </div>
   );
 }

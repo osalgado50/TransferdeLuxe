@@ -1,4 +1,5 @@
 import { accionAsignacion } from "@dominio/centralMovil";
+import { preguntaDeshacer } from "@dominio/deshacer";
 import { COLOR_CONEXION } from "@dominio/conexionConductor";
 import { urlVuelo } from "@dominio/vuelos";
 import { router, useLocalSearchParams } from "expo-router";
@@ -8,7 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BloqueDireccion } from "~/components/BloqueDireccion";
 import { EstadoBadge } from "~/components/EstadoBadge";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
-import { asignarServicio, leerSugerencias, useCentral, type SugerenciaCentral } from "~/lib/central";
+import { asignarServicio, deshacerPaso, leerSugerencias, useCentral, type SugerenciaCentral } from "~/lib/central";
 import { fechaHora, fmt } from "~/lib/formato";
 import { color } from "~/lib/tema";
 
@@ -55,6 +56,7 @@ export default function Ficha() {
   const [enviando, setEnviando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hecho, setHecho] = useState<string | null>(null);
+  const [deshaciendo, setDeshaciendo] = useState(false);
 
   if (!s) {
     return (
@@ -75,6 +77,20 @@ export default function Ficha() {
     try { setSugs(await leerSugerencias(s.id)); }
     catch (e) { setError(e instanceof Error ? e.message : "No se pudieron cargar las sugerencias"); }
     finally { setCargandoSugs(false); }
+  };
+  // La central puede deshacer el último paso del conductor (p. ej. una DESCARGA pulsada sin querer), sin límite de tiempo.
+  const pregunta = preguntaDeshacer(s.estado);
+  const deshacer = () => {
+    if (!pregunta) return;
+    const hacer = async () => {
+      setDeshaciendo(true); setError(null); setHecho(null);
+      const e = await deshacerPaso(s.id);
+      setDeshaciendo(false);
+      if (e) { setError(e); return; }
+      setHecho("Paso deshecho");
+      await recargar();
+    };
+    Alert.alert("Deshacer último paso", pregunta, [{ text: "No", style: "cancel" }, { text: "Sí, deshacer", onPress: () => void hacer() }]);
   };
   const elegir = (g: SugerenciaCentral) => {
     if (!accion) return;
@@ -112,6 +128,7 @@ export default function Ficha() {
         {!!s.cliente_telefono && <Boton texto="Llamar al cliente" alto={60} onPress={() => llamar(s.cliente_telefono)} />}
         {!!conductor?.telefono && <Boton texto={`Llamar a ${conductor.nombre}`} variante="secundario" alto={60} onPress={() => llamar(conductor.telefono!)} />}
         {vuelo && <Boton texto="Ver vuelo" variante="secundario" onPress={() => abrir(urlVuelo(vuelo))} />}
+        {pregunta && <Boton texto="↩ Deshacer último paso" variante="secundario" cargando={deshaciendo} onPress={deshacer} />}
         {accion && !sugs && (
           <Boton texto={accion === "asignar" ? "Asignar" : "Reasignar"} alto={64} cargando={cargandoSugs} onPress={verSugerencias} />
         )}

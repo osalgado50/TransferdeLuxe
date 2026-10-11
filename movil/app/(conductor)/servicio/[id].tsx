@@ -1,3 +1,4 @@
+import { ultimoEventoAccion, type EventoPaso } from "@dominio/deshacer";
 import { rangosConductor } from "@dominio/dias";
 import { objetivoActual, type Fase } from "@dominio/navegacion";
 import { leerModulos } from "@dominio/modulos";
@@ -37,18 +38,22 @@ export default function ServicioEnCurso() {
   const yo = sesion!.user.id;
   const { datos, error, cargando, recargar } = useConsulta(async () => {
     const r = rangosConductor(new Date()).hoy;
-    const [s, hoy, aj] = await Promise.all([
+    const [s, hoy, aj, evs] = await Promise.all([
       supabase.from("servicios").select("*").eq("id", id).eq("conductor_id", yo).maybeSingle(),
       supabase.from("servicios").select("id").eq("conductor_id", yo).gte("fecha_hora_recogida", r.desde).lt("fecha_hora_recogida", r.hasta)
         .not("estado", "in", "(cancelado,completado)").neq("id", id).order("fecha_hora_recogida").limit(1),
       supabase.from("ajustes").select("modulos").maybeSingle(),
+      // Último paso según el servidor: cuenta atrás de «↩ Deshacer» (10 min) también al volver a la pantalla.
+      supabase.from("eventos_servicio").select("id,tipo,actor_id,creado_en").eq("servicio_id", id)
+        .order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(30),
     ]);
-    return { s: exigir(s) as Servicio | null, siguienteId: (exigir(hoy) as { id: string }[])[0]?.id ?? null, vuelos: leerModulos(aj.data?.modulos).vuelos, incidencias: leerModulos(aj.data?.modulos).incidencias };
+    return { s: exigir(s) as Servicio | null, ultimoPaso: ultimoEventoAccion((evs.data ?? []) as EventoPaso[]), siguienteId: (exigir(hoy) as { id: string }[])[0]?.id ?? null, vuelos: leerModulos(aj.data?.modulos).vuelos, incidencias: leerModulos(aj.data?.modulos).incidencias };
   }, [id, yo]);
 
   const s = datos?.s;
   const [fase, setFase] = useState<Fase>("lejos");
   const [eta, setEta] = useState<number | null>(null);
+  const [distM, setDistM] = useState<number | null>(null);
   const volver = (
     <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} accessibilityRole="button" accessibilityLabel="Volver"
       style={estilos.volver} hitSlop={8}>
@@ -88,7 +93,8 @@ export default function ServicioEnCurso() {
         {/* Controles primero: el conductor va conduciendo y necesita los botones a mano, sin hacer scroll. */}
         <View style={{ gap: 10 }}>
           <BotonPaso key={s.id} servicioId={s.id} conductorId={yo} estadoServidor={estado} siguienteId={datos?.siguienteId ?? null}
-            alCambiar={() => void recargar()} resaltar={!!objetivo && fase === "llegado"} />
+            alCambiar={() => void recargar()} resaltar={!!objetivo && fase === "llegado"} ultimoPaso={datos?.ultimoPaso ?? null}
+            distancia={objetivo && distM != null ? { tipo: objetivo.tipo, distanciaM: distM } : null} />
           {!!s.cliente_telefono && s.estado !== "completado" && (
             <Boton texto="📞  Llamar al cliente" alto={64} tamano={19} variante="secundario"
               onPress={() => void abrir(`tel:${s.cliente_telefono.replace(/[^\d+]/g, "")}`)} />
@@ -105,7 +111,7 @@ export default function ServicioEnCurso() {
         </Tarjeta>
         {objetivo && (
           <MapaServicio key={`${s.id}:${objetivo.tipo}`} servicioId={s.id} objetivo={objetivo}
-            origenServicio={pt(s.origen_lat, s.origen_lng)} alCambiarFase={setFase} alCambiarEta={setEta} />
+            origenServicio={pt(s.origen_lat, s.origen_lng)} alCambiarFase={setFase} alCambiarEta={setEta} alCambiarDistancia={setDistM} />
         )}
         {meta && (
           <View style={estilos.dos}>

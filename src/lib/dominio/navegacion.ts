@@ -73,7 +73,7 @@ export function restanteEnRuta(coords: [number, number][], pos: Punto): Restante
 export const EVENTO_LLEGANDO: Record<TipoObjetivo, string> = { recogida: "llegando_recogida", destino: "llegando_destino" };
 const ETIQUETAS: Record<string, string> = { llegando_recogida: "Llegando a la recogida", llegando_destino: "Llegando al destino",
   llegada_vuelo: "Llegada real del vuelo", recogida_reajustada: "Recogida reajustada por el vuelo",
-  retraso_recogida: "Llega tarde a la recogida" };
+  retraso_recogida: "Llega tarde a la recogida", deshecho: "Paso deshecho" };
 export const etiquetaEvento = (tipo: string) => ETIQUETAS[tipo] ?? tipo;
 
 /**
@@ -90,6 +90,9 @@ export function llegandoReciente<E extends { servicio_id: string; tipo: string; 
   return null;
 }
 export const EVENTO_RESALTAR = "tdl-resaltar-paso";
+/** La navegación publica la distancia en línea recta al objetivo (null sin GPS) para confirmar CARGA/DESCARGA lejos. */
+export const EVENTO_DISTANCIA = "tdl-distancia-objetivo";
+export interface DetalleDistancia { servicioId: string; tipo: TipoObjetivo; distanciaM: number | null }
 
 /** Recalcular ruta: si se desvía más de DESVIO_M de la polilínea, como mucho una vez cada REPETIR_RUTA_MS. */
 export const DESVIO_M = 300, REPETIR_RUTA_MS = 30_000, REINTENTO_LLEGANDO_MS = 15_000;

@@ -1,5 +1,6 @@
 import { nombreTipoIncidencia } from "./incidencias";
 import { esIncidenciaGrave } from "./actividad";
+import { leerDeshecho } from "./deshacer";
 import { zonaCercana } from "./zonas";
 
 /** Lógica pura de los avisos push a la central (vigilante del servidor). */
@@ -39,6 +40,11 @@ export function construirAvisos(e: Entrada): AvisoCentral[] {
     else if (ev.tipo === "rechazado") out.push({ titulo: `Rechazado por ${nombre(ev.actor_id)}${ev.motivo ? `: ${recortar(ev.motivo, 60)}` : ""}`, cuerpo: trayecto(s), data });
     else if (ev.tipo === "expirado") out.push({ titulo: "Sin respuesta del conductor", cuerpo: trayecto(s), data });
     else if (ev.tipo === "aceptado") out.push({ titulo: `${nombre(ev.actor_id)} ha aceptado`, cuerpo: trayecto(s), data });
+    else if (ev.tipo === "deshecho") {
+      // Solo lo que deshace el conductor (lo de la central lo ha hecho ella misma).
+      const d = leerDeshecho(ev.motivo);
+      if (!d.central) out.push({ titulo: `↩ ${nombre(ev.actor_id)} ha deshecho ${d.nombre ? `la ${d.nombre}` : "su último paso"}`, cuerpo: trayecto(s), data });
+    }
     else if (ev.tipo === "retraso_recogida") {
       // Lo detecta el servidor (actor null): conductor asignado y zona de su última posición.
       const cid = s.conductor_id ?? null;

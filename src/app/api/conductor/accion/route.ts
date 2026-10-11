@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const cuerpo = z.object({
   idAccion: z.string().uuid(),
   servicioId: z.string().uuid(),
-  accion: z.enum(["aceptar", "rechazar", "salir", "cargar", "descargar"]),
+  accion: z.enum(["aceptar", "rechazar", "salir", "cargar", "descargar", "deshacer"]),
   motivo: z.string().trim().max(300).optional(),
 });
 

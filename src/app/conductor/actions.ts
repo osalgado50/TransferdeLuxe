@@ -5,7 +5,7 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import { ejecutarAccion, repoSupabase } from "@/lib/servicios/acciones";
 import { marcarFueraDeServicio, registrarLlegando } from "@/lib/servicios/llegando";
 
-export async function accionConductor(p: { idAccion: string; servicioId: string; accion: "aceptar" | "rechazar" | "salir" | "cargar" | "descargar"; motivo?: string }) {
+export async function accionConductor(p: { idAccion: string; servicioId: string; accion: "aceptar" | "rechazar" | "salir" | "cargar" | "descargar" | "deshacer"; motivo?: string }) {
   const yo = await exigirConductor();
   const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...p, actor: { id: yo.id, rol: yo.rol, conduce: yo.conduce } });
   revalidatePath("/conductor", "layout");

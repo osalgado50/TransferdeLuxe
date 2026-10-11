@@ -1,3 +1,4 @@
+import { leerDeshecho } from "./deshacer";
 import { direccionCorta } from "./direccion";
 import { nombreTipoIncidencia } from "./incidencias";
 import { etiquetaEvento } from "./navegacion";
@@ -96,7 +97,7 @@ function cuando(s: ServicioAct, en: string) {
 const ICONO: Record<string, string> = {
   creado: "🆕", asignado: "📤", reasignado: "🔁", aceptado: "✅", rechazado: "❌", expirado: "⏰", en_camino: "🚗",
   llegando_recogida: "📍", llegando_destino: "📍", recogido: "🧳", completado: "🏁", cancelado: "🚫", subcontratado: "🤝",
-  llegada_vuelo: "✈️", recogida_reajustada: "🕒", retraso_recogida: "🔴",
+  llegada_vuelo: "✈️", recogida_reajustada: "🕒", retraso_recogida: "🔴", deshecho: "↩️",
 };
 /** Eventos que hace el propio conductor (el actor es él). En el resto se nombra al conductor asignado. */
 const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido", "completado", "llegando_recogida", "llegando_destino"]);
@@ -132,7 +133,8 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
 
   for (const ev of e.eventos ?? []) {
     const s = servicios.get(ev.servicio_id);
-    const cid = DEL_CONDUCTOR.has(ev.tipo) ? (ev.actor_id ?? s?.conductor_id ?? null)
+    const deshecho = ev.tipo === "deshecho" ? leerDeshecho(ev.motivo) : null;
+    const cid = DEL_CONDUCTOR.has(ev.tipo) || (deshecho && !deshecho.central) ? (ev.actor_id ?? s?.conductor_id ?? null)
       : ev.tipo === "asignado" || ev.tipo === "reasignado" ? destinatario(ev) : (s?.conductor_id ?? null);
     const m = base(`ev-${ev.id}`, ev.creado_en, cid, s);
     const N = nombre(cid);
@@ -162,6 +164,16 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
         m.zona = p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null;
         m.lat = p?.lat ?? null; m.lng = p?.lng ?? null;
         texto = [`⏰ ${N} llega tarde a la recogida de ${s ? cuando(s, ev.creado_en) : "un servicio"}`, s ? trayectoBreve(s) : null, m.zona].filter(Boolean).join(" · ");
+        m.gravedad = "aviso";
+        break;
+      }
+      case "deshecho": {
+        // Botón «Deshacer» del conductor (≤ 10 min tras su último paso) o de la central desde la ficha.
+        const paso = deshecho?.nombre ? `la ${deshecho.nombre}` : "el último paso";
+        const deServ = s ? `del servicio de ${cuando(s, ev.creado_en)}` : "de un servicio";
+        texto = deshecho?.central
+          ? `↩ La central ha deshecho ${paso} ${deServ}${cid ? ` (${N})` : ""}`
+          : `↩ ${N} ha deshecho ${paso} ${deServ}`;
         m.gravedad = "aviso";
         break;
       }

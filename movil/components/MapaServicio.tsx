@@ -29,10 +29,12 @@ const VERDE = "#22c55e", ROJO = "#ef4444", AZUL = "#3b82f6";
 const lngLat = (p: Punto): [number, number] => [p.lng, p.lat];
 const linea = (coords: [number, number][]) => ({ type: "Feature" as const, properties: {}, geometry: { type: "LineString" as const, coordinates: coords } });
 
-export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFase, alCambiarEta }: {
+export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFase, alCambiarEta, alCambiarDistancia }: {
   servicioId: string; objetivo: Objetivo; origenServicio: Punto | null; alCambiarFase?: (f: Fase) => void;
   /** Segundos restantes de la ruta (los del banner), redondeados a 15 s; null sin ruta. Al desmontar, null. */
   alCambiarEta?: (s: number | null) => void;
+  /** Distancia en línea recta al objetivo (m, redondeada a 10 m); null sin GPS. Al desmontar, null. Para confirmar CARGA/DESCARGA lejos. */
+  alCambiarDistancia?: (m: number | null) => void;
 }) {
   const [pos, setPos] = useState<Punto | null>(null);
   const [avisoGps, setAvisoGps] = useState<string | null>(null);
@@ -97,6 +99,9 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
   useEffect(() => { setFase("lejos"); }, [claveObj]);
   useEffect(() => { if (distObj != null) setFase((f) => faseProximidad(distObj, f)); }, [distObj]);
   useEffect(() => { alCambiarFase?.(fase); }, [fase, alCambiarFase]);
+  const distRedondeada = distObj == null ? null : Math.round(distObj / 10) * 10;
+  useEffect(() => { alCambiarDistancia?.(distRedondeada); }, [distRedondeada, alCambiarDistancia]);
+  useEffect(() => () => alCambiarDistancia?.(null), [alCambiarDistancia]);
   distRef.current = distObj;
   const claves = useMemo(() => ({
     cerca: claveAvisoNav(servicioId, objetivo.tipo, "cerca"),

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapaNavegacion from "@/components/mapa/MapaNavegacionCarga";
 import { distanciaKm } from "@/lib/dominio/geo";
-import { EVENTO_RESALTAR, faseProximidad, formatoDistancia, formatoDuracion, restanteEnRuta, type Fase, type Objetivo } from "@/lib/dominio/navegacion";
+import { EVENTO_DISTANCIA, EVENTO_RESALTAR, faseProximidad, formatoDistancia, formatoDuracion, restanteEnRuta, type DetalleDistancia, type Fase, type Objetivo } from "@/lib/dominio/navegacion";
 import { suscribirGps } from "@/lib/gps/gestor";
 import { avisarLlegando } from "@/app/conductor/actions";
 import type { Punto } from "@/lib/dominio/tipos";
@@ -79,6 +79,14 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
   // Fase de proximidad (distancia en línea recta al objetivo, con histéresis).
   const distObj = pos ? distanciaKm(pos, objetivo.punto) * 1000 : null;
   useEffect(() => { setFase("lejos"); }, [claveObj]);
+  // Para BotonPaso: CARGA/DESCARGA a más de 300 m del objetivo piden confirmación (redondeado a 10 m: menos renders).
+  const distRedondeada = distObj == null ? null : Math.round(distObj / 10) * 10;
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent<DetalleDistancia>(EVENTO_DISTANCIA, { detail: { servicioId, tipo: objetivo.tipo, distanciaM: distRedondeada } }));
+  }, [distRedondeada, servicioId, objetivo.tipo]);
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent<DetalleDistancia>(EVENTO_DISTANCIA, { detail: { servicioId, tipo: objetivo.tipo, distanciaM: null } }));
+  }, [servicioId, objetivo.tipo]);
   useEffect(() => {
     if (distObj == null) return;
     setFase((f) => faseProximidad(distObj, f));
