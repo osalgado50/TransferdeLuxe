@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { clienteAdmin } from "@/lib/supabase/admin";
-import { datosNoValidos, demasiadas, exigirConductorBearer, leerJson } from "@/lib/supabase/bearer";
+import { datosNoValidos, demasiadas, exigirUsuarioAppBearer, leerJson } from "@/lib/supabase/bearer";
 import { permitir } from "@/lib/limite";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ const cuerpo = z.object({
 });
 
 export async function POST(req: Request) {
-  const a = await exigirConductorBearer(req);
+  const a = await exigirUsuarioAppBearer(req);
   if (!a.ok) return a.res;
   if (!permitir(`app-push:${a.yo.id}`, 10, 60_000)) return demasiadas();
   const b = cuerpo.safeParse(await leerJson(req));
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
 /** Al cerrar sesión: borra el token de este dispositivo, solo si pertenece al conductor que llama. */
 export async function DELETE(req: Request) {
-  const a = await exigirConductorBearer(req);
+  const a = await exigirUsuarioAppBearer(req);
   if (!a.ok) return a.res;
   if (!permitir(`app-push:${a.yo.id}`, 10, 60_000)) return demasiadas();
   const b = cuerpo.pick({ token: true }).safeParse(await leerJson(req));

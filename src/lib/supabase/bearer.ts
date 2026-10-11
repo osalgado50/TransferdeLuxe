@@ -30,6 +30,14 @@ export async function exigirOperadorBearer(req: Request): Promise<Resultado> {
   return { ok: true, yo };
 }
 
+/** 401 sin sesión válida, 403 si no es conductor ni operador (registro de avisos push: la central también los recibe). */
+export async function exigirUsuarioAppBearer(req: Request): Promise<Resultado> {
+  const yo = await perfilDesdeBearer(req);
+  if (!yo) return { ok: false, res: Response.json({ error: "Sesión no válida. Vuelve a iniciar sesión." }, { status: 401 }) };
+  if (yo.rol !== "operador" && !puedeConducir(yo)) return { ok: false, res: Response.json({ error: "Esta cuenta no tiene acceso a la app." }, { status: 403 }) };
+  return { ok: true, yo };
+}
+
 export async function leerJson(req: Request): Promise<unknown> {
   try { return await req.json(); } catch { return null; }
 }

@@ -75,6 +75,12 @@ test("push-token valida y hace upsert", async () => {
   expect((await pushToken(req({ token: "ExponentPushToken[abc]", plataforma: "ios" }))).status).toBe(200);
   expect(st.upserts[0]).toMatchObject({ token: "ExponentPushToken[abc]", conductor_id: U, plataforma: "ios" });
 });
+test("push-token: la central (operador sin conducir) también registra su móvil", async () => {
+  st.perfil = { id: U, rol: "operador", conduce: false };
+  expect((await pushToken(req({ token: "ExponentPushToken[op]", plataforma: "android" }))).status).toBe(200);
+  st.perfil = { id: U, rol: "cliente" };
+  expect((await pushToken(req({ token: "ExponentPushToken[x]", plataforma: "android" }))).status).toBe(403);
+});
 test("DELETE push-token borra solo el token del conductor que llama", async () => {
   const del = (body: unknown, auth = "Bearer bueno") =>
     new Request("http://x/api", { method: "DELETE", headers: auth ? { authorization: auth } : {}, body: JSON.stringify(body) });
