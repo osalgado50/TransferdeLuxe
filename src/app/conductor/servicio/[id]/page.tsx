@@ -47,6 +47,12 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
         <h1 className="text-2xl font-semibold text-marca-claro">{hora.format(new Date(s.fecha_hora_recogida))}</h1>
         <EstadoBadge estado={s.estado as EstadoServicio} />
       </div>
+      {/* Controles primero: el conductor va conduciendo y necesita los botones a mano, sin hacer scroll. */}
+      <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
+      {s.cliente_telefono && s.estado !== "completado" && (
+        <a className="flex min-h-16 items-center justify-center rounded-xl border-2 border-slate-500 text-lg font-semibold" href={`tel:${s.cliente_telefono}`}>📞 Llamar al cliente</a>
+      )}
+      {incidencias && s.estado !== "completado" && <BotonIncidencia servicioId={s.id} />}
       <div className="space-y-1 rounded-xl border border-slate-700 bg-slate-900 p-4">
         <p><span className="text-slate-400">Recogida:</span> {s.origen_texto}</p>
         <p><span className="text-slate-400">Destino:</span> {s.destino_texto}</p>
@@ -59,10 +65,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
       <div className="grid grid-cols-2 gap-3 text-center font-semibold">
         {meta && <a className="flex min-h-12 items-center justify-center rounded-xl border border-slate-600 py-3" href={`https://www.google.com/maps/dir/?api=1&destination=${meta.lat},${meta.lng}`} target="_blank" rel="noreferrer">Abrir en Google Maps</a>}
         {meta && <a className="flex min-h-12 items-center justify-center rounded-xl border border-slate-600 py-3" href={`https://waze.com/ul?ll=${meta.lat},${meta.lng}&navigate=yes`} target="_blank" rel="noreferrer">Abrir en Waze</a>}
-        <a className="col-span-2 flex min-h-12 items-center justify-center rounded-xl border border-slate-600 py-3" href={`tel:${s.cliente_telefono}`}>Llamar al cliente</a>
       </div>
-      <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
-      {incidencias && <BotonIncidencia servicioId={s.id} />}
     </div>
   );
 }
