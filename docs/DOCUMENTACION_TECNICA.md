@@ -227,6 +227,29 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   notificación local y vibración distinta (Error/Warning); los push del servidor (incidencias, checklist) vibran
   igual. Para no sonar dos veces, un push del servidor de algo que la app acaba de anunciar solo va a la lista.
   Solo con `expo-notifications` y `expo-haptics` (ya instalados): la huella nativa no cambia y llega por EAS Update.
+- **Actividad en vivo y alarma de lo grave (11/10/2026)**: a petición del responsable («acabo de aceptar un porte
+  desde el móvil del conductor y debería salir en la pantalla de control… en alertas tendrían que salir TODOS los
+  movimientos… averías, accidentes o cosas graves en ROJO con alarma… indica SIEMPRE qué conductor y la zona»).
+  *Dominio* (`src/lib/dominio/actividad.ts`, tests en `tests/unit/actividad.test.ts`): feed unificado con eventos de
+  servicio, incidencias, checklists y jornadas en frases naturales («Marc ha aceptado el servicio de las 15:00 ·
+  Salou → Aeropuerto de Reus», «Laia ha recogido a Lucía en Salou – Plaza Europa», «Jordi ha dejado a … en
+  Aeropuerto de Reus · queda libre», «⚠ AVERÍA · Laia · cerca de Reus · …»), con gravedad (grave: avería y accidente;
+  aviso: rechazo, plazo vencido, retraso, no presentado, checklist con fallos; info: el resto), conductor, teléfono,
+  servicio y zona. La zona se calcula SIN APIs (`src/lib/dominio/zonas.ts`): ~60 localidades del Camp de Tarragona,
+  Costa Daurada, Terres de l'Ebre, Penedès, Barcelona y Lleida → «en Reus» (< 3 km), «cerca de Reus» (< 15 km) o «a
+  23 km de Reus»; la incidencia usa sus coordenadas y, si no tiene, la última posición del conductor. *Web*
+  (`/central`): sección «Actividad en vivo» (últimos 40 movimientos de 12 h, lo nuevo arriba, con icono y hora;
+  Realtime en `eventos_servicio`, `incidencias`, `checklist_revisiones` y `jornadas`) bajo «Alertas», y lo GRAVE en
+  tarjeta roja fija arriba del todo (en móvil, antes del mapa) con conductor, zona, hora, servicio y descripción,
+  «📞 Llamar» (`tel:`), «Ver en el mapa» (centra el mapa en el punto), «Visto» (este navegador) y «Marcar resuelta».
+  Sonido nuevo «sirena» para lo grave: suena al aparecer y se repite cada 30 s (máx. 5) mientras haya graves sin ver
+  (lógica pura `pasoAlarma`), respetando 🔇; tres pitidos para los avisos; el resto, el sonido de su evento (aceptado
+  = ding-ding). *App* (modo central): `/api/central/resumen` trae `actividad` y `graves` ya redactados con la misma
+  lógica; tarjeta roja fija arriba (Llamar, Visto, Marcar resuelta → nuevo `POST /api/central/incidencia-resuelta`
+  con Bearer de operador), luego Alertas y luego «Actividad en vivo» compacta. Cada grave nueva lanza una
+  notificación local con sonido y vibración Error que insiste cada 30 s (máx. 5) hasta «Visto»/«Resuelta»; el resto
+  de movimientos solo vibra suave. *Push*: el vigilante avisa también de «aceptado» y de lo grave con tipo,
+  conductor y zona (primero, para que nunca se pierda en el resumen de muchos avisos).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -348,6 +371,17 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   manejador de notificaciones lo deja solo en la lista si la app ya lo anunció. Límite conocido: en iOS el
   interruptor de silencio apaga el sonido de las notificaciones (las «alertas críticas» requieren un permiso
   especial de Apple); queda la vibración.
+- **«Zona con nombre» sin geocodificación inversa (11/10/2026)**: Nominatim/Google para cada movimiento serían
+  llamadas externas (límites de uso, latencia, coste o datos enviados fuera). Solución: lista local de ~60 localidades
+  y puntos frecuentes con su centro y la más cercana por distancia (Haversine), con artículo para aeropuertos y
+  estaciones («cerca del Aeropuerto de Reus»). Es aproximado pero suficiente para que la central sepa dónde está el
+  problema; si no hay coordenadas en la incidencia se usa la última posición del conductor.
+- **Un mismo feed en la web y en la app sin duplicar lógica (11/10/2026)**: la web construye la actividad en el
+  navegador con los datos de Realtime (cero peticiones extra por movimiento) y la app la recibe ya construida en el
+  resumen (el servidor llama a la misma función pura). Las fechas llegan con formatos distintos desde la API REST y
+  desde Realtime, así que se ordena por instante (`Date.parse`) y no por texto. Para no crear bucles de red en la
+  app, los cambios de eventos, incidencias, checklists y jornadas se agrupan en la misma recarga diferida (800 ms)
+  que ya tenían los servicios; la alarma insistente se para en cuanto la grave deja de estar pendiente.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
