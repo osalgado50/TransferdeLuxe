@@ -4,6 +4,7 @@ import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { ejecutarAccion, repoSupabase, type ResultadoAccion } from "@/lib/servicios/acciones";
 import { notificarServicioNuevo } from "@/lib/push";
 import { sugerirConductores, type Candidato } from "@/lib/dominio/sugerencia";
+import { conexionConductor } from "@/lib/dominio/conexionConductor";
 import { ESTADOS_AGENDA, construirCandidatos } from "@/lib/dominio/planificacion";
 import { rangosConductor } from "@/lib/dominio/dias";
 
@@ -30,13 +31,15 @@ export async function sugerenciasServicio(servicioId: string) {
   const inicio = new Date(s.fecha_hora_recogida);
   const desde = new Date(inicio.getTime() - 12 * 3600_000).toISOString();
   const hasta = new Date(inicio.getTime() + 12 * 3600_000).toISOString();
-  const [{ data: conductores }, { data: vehiculos }, { data: posiciones }, { data: agenda }] = await Promise.all([
+  const [{ data: conductores }, { data: vehiculos }, { data: posiciones }, { data: agenda }, { data: aj }] = await Promise.all([
     sb.from("perfiles").select("id, nombre, vehiculo_habitual_id").or(FILTRO_CONDUCEN),
     sb.from("vehiculos").select("*"),
     sb.from("posicion_actual").select("*"),
     sb.from("servicios").select("id, estado, conductor_id, fecha_hora_recogida, duracion_estimada_min, origen_lat, origen_lng, destino_lat, destino_lng, origen_texto, destino_texto")
       .in("estado", [...ESTADOS_AGENDA]).gte("fecha_hora_recogida", desde).lte("fecha_hora_recogida", hasta),
+    sb.from("ajustes").select("umbral_sin_senal_min").eq("id", 1).maybeSingle(),
   ]);
+  const ahora = new Date();
   const gps: Record<string, Candidato["posicion"]> = {};
   for (const p of posiciones ?? []) if (p.en_servicio) gps[p.conductor_id] = { punto: { lat: p.lat, lng: p.lng }, registradoEn: new Date(p.registrado_en) };
   const candidatos = construirCandidatos(conductores ?? [], vehiculos ?? [], agenda ?? [], gps);
@@ -46,7 +49,8 @@ export async function sugerenciasServicio(servicioId: string) {
     destino, origenTexto: s.origen_texto, destinoTexto: s.destino_texto }, candidatos, new Date())
     .map((sg) => {
       const v = vehiculos?.find((x) => x.id === conductores?.find((c) => c.id === sg.conductorId)?.vehiculo_habitual_id);
-      return { ...sg, vehiculoId: v?.id ?? null, matricula: v?.matricula ?? null };
+      const conexion = conexionConductor(posiciones?.find((p) => p.conductor_id === sg.conductorId), ahora, aj?.umbral_sin_senal_min ?? 5);
+      return { ...sg, vehiculoId: v?.id ?? null, matricula: v?.matricula ?? null, conexion };
     });
 }
 

@@ -1,4 +1,5 @@
 import { accionAsignacion } from "@dominio/centralMovil";
+import { COLOR_CONEXION } from "@dominio/conexionConductor";
 import { urlVuelo } from "@dominio/vuelos";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -28,6 +29,14 @@ function Sugerencias({ lista, alElegir, enviando }: { lista: SugerenciaCentral[]
               <Text style={estilos.sugNombre}>{s.nombre}</Text>
               <Text style={[estilos.apto, { color: s.apto ? "#86efac" : "#fca5a5" }]}>{enviando === s.conductorId ? "Enviando…" : s.apto ? "Apto" : "No recomendado"}</Text>
             </View>
+            {s.conexion && (
+              // Verde = GPS activo y reciente (en línea); rojo = sin señal; gris = fuera de servicio.
+              <View style={[estilos.conexion, { borderColor: COLOR_CONEXION[s.conexion.estado] }]}
+                accessibilityLabel={s.conexion.texto}>
+                <View style={[estilos.luz, { backgroundColor: COLOR_CONEXION[s.conexion.estado] }]} />
+                <Text style={[estilos.conexionTexto, { color: COLOR_CONEXION[s.conexion.estado] }]}>{s.conexion.texto}</Text>
+              </View>
+            )}
             {!!detalle && <Text style={estilos.meta}>{detalle}</Text>}
             {s.motivos.map((m) => <Text key={m} style={estilos.motivo}>· {m}</Text>)}
           </Pressable>
@@ -119,6 +128,9 @@ export default function Ficha() {
 }
 
 const estilos = StyleSheet.create({
+  conexion: { flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start", borderWidth: 1.5, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10, backgroundColor: "rgba(0,0,0,0.25)" },
+  luz: { width: 12, height: 12, borderRadius: 6 },
+  conexionTexto: { fontSize: 15, fontWeight: "800" },
   pantalla: { flex: 1, backgroundColor: color.fondo },
   contenido: { padding: 16, gap: 12, paddingBottom: 40 },
   cabFila: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },

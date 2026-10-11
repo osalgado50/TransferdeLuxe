@@ -53,6 +53,12 @@ export default function DialogoAsignar({ servicioId, reasignar = false, onHecho 
                     <div>
                       <p className="font-medium">{s.nombre}</p>
                       <p className="text-xs text-neutral-400">{s.matricula ?? "Sin vehículo"}</p>
+                      {/* Conexión: verde = GPS activo y reciente; rojo = sin señal; gris = fuera de servicio. */}
+                      <p data-conexion={s.conexion.estado} className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        s.conexion.estado === "en_linea" ? "bg-green-900/60 text-green-300" : s.conexion.estado === "sin_senal" ? "bg-red-900/60 text-red-300" : "bg-slate-800 text-slate-400"}`}>
+                        <span className={`size-2.5 rounded-full ${s.conexion.estado === "en_linea" ? "animate-pulse bg-green-400" : s.conexion.estado === "sin_senal" ? "bg-red-500" : "bg-slate-500"}`} />
+                        {s.conexion.texto}
+                      </p>
                     </div>
                     {i === primeraApta && <span className="rounded bg-green-600 px-2 py-0.5 text-xs text-white">Recomendado</span>}
                   </div>

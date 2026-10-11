@@ -1,3 +1,4 @@
+import type { Conexion } from "@dominio/conexionConductor";
 import { crearFreno } from "@dominio/reintento";
 import type { Sugerencia } from "@dominio/sugerencia";
 import type { PosicionActual, Rol, Servicio } from "@dominio/tipos";
@@ -16,7 +17,7 @@ export interface ResumenCentral {
   generadoEn: string; alertas: ServicioCentral[]; pendientes: ServicioCentral[]; hoy: ServicioCentral[];
   posiciones: (PosicionActual & { nombre?: string })[]; conductores: ConductorCentral[];
 }
-export type SugerenciaCentral = Sugerencia & { vehiculoId: string | null; matricula: string | null };
+export type SugerenciaCentral = Sugerencia & { vehiculoId: string | null; matricula: string | null; conexion?: Conexion };
 
 async function json<T>(r: Response): Promise<T> {
   const d = (await r.json().catch(() => null)) as (T & { error?: string }) | null;
