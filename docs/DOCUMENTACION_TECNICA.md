@@ -144,6 +144,11 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   TypeScript), proyecto EAS `@osalgado/tvl-conductor`, identidad (bundle `com.transfersvipluxe.conductor`, icono
   VIP LUXE generado con sharp, tema oscuro de marca), permisos de ubicación en segundo plano, perfiles `eas.json`,
   cliente Supabase con AsyncStorage y login con guardia de rol conductor y cuentas de demo (Copiar/Usar).
+- **11/10/2026**: **módulos Mantenimiento e Informes** (activables). Mantenimiento: plan por vehículo (ITV, seguro,
+  próxima revisión por fecha/km) y registro de intervenciones (migración 0013, RLS de lectura operador/conductor de su
+  vehículo); semáforo puro en `src/lib/dominio/mantenimiento.ts` y avisos en el panel. Informes: `/central/informes`
+  por mes/conductor/vehículo con km estimados, combustible, consumo, rechazos e incidencias, gráfico y export CSV;
+  agregaciones puras en `src/lib/dominio/informes.ts`.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -203,6 +208,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   analizasen `movil/`. Solución: `movil/` excluido en la raíz; en la app, Metro vigila `../src` y los alias
   `@dominio/*` y `@/*` (este último para las importaciones internas de dominio) salen de `movil/tsconfig.json`.
   `eas init` no puede escribir en `app.config.ts` dinámico: el `projectId` se añadió a mano.
+- **Km del vehículo sin carreras al registrar mantenimientos**: leer y escribir `km_actuales` desde la app podía
+  pisar un valor mayor. Solución: función SQL `registrar_mantenimiento` (solo service role) que inserta y hace
+  `greatest(km_actuales, p_km)` en la misma transacción. En informes no hay ruta guardada: los km se estiman con la
+  distancia recta × 1,3, y el consumo mensual usa el último ticket anterior al mes como km de partida.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
