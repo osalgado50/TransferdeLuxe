@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { Movimiento } from "@dominio/actividad";
 import type { Conexion } from "@dominio/conexionConductor";
 import { crearFreno } from "@dominio/reintento";
 import type { Sugerencia } from "@dominio/sugerencia";
@@ -16,6 +18,8 @@ export interface ConductorCentral { id: string; nombre: string; telefono: string
 export interface ResumenCentral {
   generadoEn: string; alertas: ServicioCentral[]; pendientes: ServicioCentral[]; hoy: ServicioCentral[];
   posiciones: (PosicionActual & { nombre?: string })[]; conductores: ConductorCentral[];
+  /** Últimos movimientos (12 h) ya redactados y lo grave sin resolver (opcionales: servidores anteriores no los traen). */
+  actividad?: Movimiento[]; graves?: Movimiento[];
 }
 export type SugerenciaCentral = Sugerencia & { vehiculoId: string | null; matricula: string | null; conexion?: Conexion };
 
@@ -51,6 +55,16 @@ export async function marcarAlertaVista(servicioId: string): Promise<string | nu
   }
 }
 
+/** «Resuelta» de una incidencia (tarjeta roja de lo grave). Devuelve null si fue bien o el mensaje de error. */
+export async function resolverIncidencia(incidenciaId: string): Promise<string | null> {
+  try {
+    const r = await llamarApi("/api/central/incidencia-resuelta", { method: "POST", body: { incidenciaId } });
+    return r.ok ? null : ((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "No se pudo marcar como resuelta";
+  } catch {
+    return "Sin conexión. Inténtalo de nuevo.";
+  }
+}
+
 function nuevoId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c?.randomUUID) return c.randomUUID();
@@ -69,6 +83,7 @@ async function leerUmbral(): Promise<number> {
 }
 
 const CADA_MS = 30_000;
+const CLAVE_VISTOS = "tdl-graves-vistos";
 /** Las posiciones llegan cada ~12 s por conductor: recargar el resumen en cada una saturaba el servidor. Como mucho 1 / 15 s. */
 const FRENO_POSICIONES_MS = 15_000;
 
@@ -100,6 +115,12 @@ function useResumenCentral() {
   useEffect(() => () => { if (t.current) clearTimeout(t.current); freno.current.cancelar(); }, []);
   useCambiosTabla("servicios", programar, programar);
   useCambiosTabla("posicion_actual", posicion, programar);
+  // «Actividad en vivo»: eventos sin cambio de servicio (llegando…), incidencias, checklists y jornadas. Son pocos y
+  // `programar` agrupa la ráfaga (servicio + evento de la misma acción) en UNA recarga.
+  useCambiosTabla("eventos_servicio", programar, programar);
+  useCambiosTabla("incidencias", programar, programar);
+  useCambiosTabla("checklist_revisiones", programar, programar);
+  useCambiosTabla("jornadas", programar, programar);
   useEffect(() => alRecuperar(() => programar()), [programar]);
 
   useEffect(() => {
@@ -115,7 +136,18 @@ function useResumenCentral() {
     return () => { s.remove(); if (intervalo) clearInterval(intervalo); };
   }, [recargar]);
 
-  return { datos, umbral, error, cargando, recargar };
+  // Graves marcadas «Visto» en este móvil (dejan de insistir y salen de la tarjeta roja; siguen en la actividad).
+  const [vistos, setVistos] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    void AsyncStorage.getItem(CLAVE_VISTOS).then((v) => { if (v) setVistos(new Set(JSON.parse(v) as string[])); }).catch(() => undefined);
+  }, []);
+  const marcarGraveVista = useCallback((id: string) => setVistos((prev) => {
+    const n = new Set(prev).add(id);
+    void AsyncStorage.setItem(CLAVE_VISTOS, JSON.stringify([...n].slice(-100))).catch(() => undefined);
+    return n;
+  }), []);
+
+  return { datos, umbral, error, cargando, recargar, vistos, marcarGraveVista };
 }
 
 type Central = ReturnType<typeof useResumenCentral>;

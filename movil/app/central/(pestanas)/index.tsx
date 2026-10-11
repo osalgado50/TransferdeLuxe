@@ -1,11 +1,13 @@
+import type { Movimiento } from "@dominio/actividad";
 import { textoAlertaCentral } from "@dominio/centralMovil";
+import { nombreTipoIncidencia } from "@dominio/incidencias";
 import { marcadoresFlota } from "@dominio/mapa";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MapaFlota } from "~/components/MapaFlota";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
-import { marcarAlertaVista, useCentral, type ServicioCentral } from "~/lib/central";
+import { marcarAlertaVista, resolverIncidencia, useCentral, type ServicioCentral } from "~/lib/central";
 import { fechaHora, fmt } from "~/lib/formato";
 import { color } from "~/lib/tema";
 
@@ -26,8 +28,53 @@ function TarjetaAlerta({ s, nombre, alVisto }: { s: ServicioCentral; nombre: (id
   );
 }
 
+/** Lo GRAVE (avería, accidente): rojo, fijo arriba, con conductor, zona y datos, hasta «Visto» o «Resuelta». */
+function TarjetaGrave({ g, alVisto, alResuelta }: { g: Movimiento; alVisto: () => void; alResuelta: () => Promise<void> }) {
+  const [enviando, setEnviando] = useState(false);
+  const tipo = nombreTipoIncidencia(g.tipo.replace(/^incidencia_/, "")).toUpperCase();
+  return (
+    <View style={estilos.grave} accessibilityRole="alert">
+      <Text style={estilos.graveTitulo}>⚠ {tipo} · {g.conductor ?? "Conductor"}</Text>
+      <Text style={estilos.graveZona}>{g.zona ?? "Zona desconocida (sin GPS)"} · {g.hora}</Text>
+      {!!g.descripcion && <Text style={estilos.graveTexto}>{g.descripcion}</Text>}
+      {!!g.detalle && <Text style={estilos.graveMeta}>Servicio: {g.detalle}</Text>}
+      <View style={estilos.fila}>
+        {!!g.telefono && <Boton texto="📞 Llamar" variante="peligro" estilo={{ flex: 1 }} etiqueta={`Llamar a ${g.conductor ?? "conductor"}`}
+          onPress={() => { void Linking.openURL(`tel:${g.telefono}`).catch(() => undefined); }} />}
+        <Boton texto="Visto" variante="secundario" estilo={{ flex: 1 }} etiqueta={`Marcar vista: ${tipo}`} onPress={alVisto} />
+      </View>
+      {!!g.incidenciaId && <Boton texto="Marcar resuelta" cargando={enviando} etiqueta={`Marcar resuelta: ${tipo}`}
+        onPress={async () => { setEnviando(true); await alResuelta(); setEnviando(false); }} />}
+    </View>
+  );
+}
+
+const COLOR_MOV = { grave: "#fca5a5", aviso: "#fcd34d", info: color.texto } as const;
+const VISIBLES = 8;
+
+/** Lista compacta de la actividad en vivo (12 h): los 8 más nuevos y «Ver todo». */
+function Actividad({ movimientos }: { movimientos: Movimiento[] }) {
+  const [todo, setTodo] = useState(false);
+  const lista = todo ? movimientos : movimientos.slice(0, VISIBLES);
+  return (
+    <View style={estilos.actividad}>
+      <Text style={estilos.subtitulo} accessibilityRole="header">Actividad en vivo</Text>
+      {movimientos.length === 0 ? <Text style={estilos.meta}>Sin movimientos en las últimas 12 h.</Text> : lista.map((m) => (
+        <View key={m.id} style={[estilos.mov, m.gravedad === "grave" && estilos.movGrave]}>
+          <Text style={estilos.movIcono}>{m.icono}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[estilos.movTexto, { color: COLOR_MOV[m.gravedad] }]}><Text style={estilos.movHora}>{m.hora}  </Text>{m.texto}</Text>
+            {!!m.detalle && <Text style={estilos.movDetalle} numberOfLines={1}>{m.detalle}</Text>}
+          </View>
+        </View>
+      ))}
+      {movimientos.length > VISIBLES && <Boton texto={todo ? "Ver menos" : `Ver todo (${movimientos.length})`} variante="texto" alto={44} tamano={16} onPress={() => setTodo(!todo)} />}
+    </View>
+  );
+}
+
 export default function Central() {
-  const { datos, umbral, cargando, error, recargar } = useCentral();
+  const { datos, umbral, cargando, error, recargar, vistos, marcarGraveVista } = useCentral();
   const [refrescando, setRefrescando] = useState(false);
   const [errorVisto, setErrorVisto] = useState<string | null>(null);
   const [ahora, setAhora] = useState(() => new Date());
@@ -36,12 +83,21 @@ export default function Central() {
   const nombre = (id: string | null) => datos?.conductores.find((c) => c.id === id)?.nombre ?? "conductor";
   const marcadores = useMemo(() => (datos ? marcadoresFlota(datos.posiciones, datos.hoy, datos.conductores, ahora, umbral) : []), [datos, ahora, umbral]);
   const alertas = datos?.alertas ?? [];
+  const graves = (datos?.graves ?? []).filter((g) => !vistos.has(g.id));
 
   return (
     <ScrollView contentContainerStyle={estilos.contenido}
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={tirar} tintColor={color.marcaClaro} />}>
+      {graves.map((g) => (
+        <TarjetaGrave key={g.id} g={g} alVisto={() => marcarGraveVista(g.id)} alResuelta={async () => {
+          const e = await resolverIncidencia(g.incidenciaId!);
+          setErrorVisto(e);
+          if (!e) marcarGraveVista(g.id);
+          await recargar();
+        }} />
+      ))}
       {/* Sin alertas: una franja verde pequeña (deja sitio al mapa). Con alertas: título y tarjetas. */}
-      {!cargando && alertas.length === 0 && !error
+      {!cargando && alertas.length === 0 && graves.length === 0 && !error
         ? <View style={estilos.ok} accessibilityRole="text"><Text style={estilos.okTexto}>✓ Sin alertas · todo en orden</Text></View>
         : <Text style={estilos.titulo} accessibilityRole="header">Alertas ({alertas.length})</Text>}
       {error && !datos && <Aviso tipo="error" texto={`Error al cargar: ${error}. Desliza hacia abajo para reintentar.`} />}
@@ -55,6 +111,7 @@ export default function Central() {
             await recargar();
           }} />
         ))}
+      {datos?.actividad && <Actividad movimientos={datos.actividad} />}
       <MapaFlota marcadores={marcadores} />
     </ScrollView>
   );
@@ -70,4 +127,17 @@ const estilos = StyleSheet.create({
   alertaTexto: { color: color.texto, fontSize: 17 },
   meta: { color: color.textoTenue, fontSize: 15 },
   fila: { flexDirection: "row", gap: 10, marginTop: 8 },
+  grave: { backgroundColor: "#450a0a", borderColor: "#ef4444", borderWidth: 3, borderRadius: 14, padding: 14, gap: 6 },
+  graveTitulo: { color: "#fee2e2", fontSize: 24, fontWeight: "900" },
+  graveZona: { color: "#fecaca", fontSize: 18, fontWeight: "700" },
+  graveTexto: { color: "#fff", fontSize: 18 },
+  graveMeta: { color: "#fecaca", fontSize: 15 },
+  actividad: { gap: 6 },
+  subtitulo: { color: color.marcaClaro, fontSize: 20, fontWeight: "700", marginTop: 4 },
+  mov: { flexDirection: "row", gap: 8, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10, backgroundColor: color.tarjeta, borderWidth: 1, borderColor: color.borde },
+  movGrave: { borderColor: "#ef4444", backgroundColor: "rgba(127,29,29,0.5)" },
+  movIcono: { fontSize: 16, width: 22, textAlign: "center" },
+  movTexto: { fontSize: 15 },
+  movHora: { color: color.textoTenue, fontSize: 13, fontVariant: ["tabular-nums"] },
+  movDetalle: { color: color.textoTenue, fontSize: 13 },
 });

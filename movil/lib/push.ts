@@ -11,7 +11,11 @@ export const CANAL_SERVICIOS = "servicios";
 
 // ── Avisos ya anunciados (para no sonar dos veces por lo mismo: aviso local inmediato + push del servidor) ──
 const anunciados = new Map<string, { local: number; remoto: number }>();
-const claveAviso = (d: DatosPush | undefined) => (d?.tipo && d.servicioId ? `${d.tipo}:${d.servicioId}` : null);
+// Una incidencia se identifica por su id (el push del servidor y el aviso local de la app llevan el mismo).
+const claveAviso = (d: DatosPush | undefined) => {
+  const ref = d?.incidenciaId ?? d?.servicioId;
+  return d?.tipo && ref ? `${d.tipo}:${ref}` : null;
+};
 function anotar(clave: string, campo: "local" | "remoto") {
   const a = anunciados.get(clave) ?? { local: 0, remoto: 0 };
   a[campo] = Date.now();
@@ -114,7 +118,7 @@ export async function notificarLocal(titulo: string, cuerpo: string): Promise<vo
   } catch { /* sin permiso: queda el banner y la vibración */ }
 }
 
-export type DatosPush = { tipo?: string; servicioId?: string; local?: boolean };
+export type DatosPush = { tipo?: string; servicioId?: string; incidenciaId?: string; grave?: boolean; local?: boolean };
 
 /**
  * Aviso local con sonido (canal de alta importancia en Android) para algo que la app acaba de detectar con la
