@@ -11,6 +11,14 @@
     "test:e2e": "playwright test",
     "seed": "tsx scripts/seed.ts"
   },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 ChromeAndroid versions",
+    "last 2 Edge versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "iOS >= 15"
+  ],
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
     "@dnd-kit/core": "^6.3.1",
