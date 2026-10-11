@@ -5,6 +5,9 @@ export interface RepoServicios {
   obtener(id: string): Promise<Servicio | null>;
   actualizar(id: string, cambios: Partial<Servicio>, estadoEsperado: EstadoServicio): Promise<boolean>;
   insertarEvento(e: { servicio_id: string; tipo: string; actor_id: string | null; motivo?: string | null }): Promise<void>;
+  /** Cambio + evento en una sola transacción (si el repo lo soporta). false = el estado ya no era el esperado. */
+  actualizarConEvento?(id: string, cambios: Partial<Servicio>, estadoEsperado: EstadoServicio,
+    e: { tipo: string; actor_id: string | null; motivo?: string | null }): Promise<boolean>;
   registrarAccion(idAccion: string): Promise<boolean>;
   yaProcesada(idAccion: string): Promise<boolean>;
   liberarAccion(idAccion: string): Promise<void>;
@@ -37,11 +40,15 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
   }
   try {
-    if (!(await repo.actualizar(s.id, cambios, s.estado))) {
+    const evento = { tipo: t.evento, actor_id: p.actor.id, motivo: p.motivo ?? null };
+    const hecho = repo.actualizarConEvento
+      ? await repo.actualizarConEvento(s.id, cambios, s.estado, evento)
+      : await repo.actualizar(s.id, cambios, s.estado);
+    if (!hecho) {
       await repo.liberarAccion(p.idAccion);
       return { ok: false, error: "El servicio cambió mientras tanto; recarga" };
     }
-    await repo.insertarEvento({ servicio_id: s.id, tipo: t.evento, actor_id: p.actor.id, motivo: p.motivo ?? null });
+    if (!repo.actualizarConEvento) await repo.insertarEvento({ servicio_id: s.id, ...evento });
   } catch (e) {
     try { await repo.liberarAccion(p.idAccion); } catch { /* best effort */ }
     throw e;
@@ -60,6 +67,13 @@ export function repoSupabase(sb: import("@supabase/supabase-js").SupabaseClient)
       const { data, error } = await sb.from("servicios").update(cambios).eq("id", id).eq("estado", esperado).select("id");
       if (error) throw new Error(error.message);
       return (data?.length ?? 0) > 0;
+    },
+    async actualizarConEvento(id, cambios, esperado, e) {
+      const { data, error } = await sb.rpc("transicion_servicio", {
+        p_id: id, p_esperado: esperado, p_cambios: cambios, p_tipo: e.tipo, p_actor: e.actor_id, p_motivo: e.motivo ?? null,
+      });
+      if (error) throw new Error(error.message);
+      return data === true;
     },
     async insertarEvento(e) {
       const { error } = await sb.from("eventos_servicio").insert(e);

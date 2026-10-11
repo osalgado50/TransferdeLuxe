@@ -78,3 +78,17 @@ test("actualizar lanza: se relanza y la idAccion se libera", async () => {
   expect(acciones.has("t")).toBe(false);
   expect(await ejecutarAccion(repo, p)).toEqual({ ok: true, estado: "aceptado" });
 });
+
+test("con actualizarConEvento: cambio y evento en una sola llamada (sin insertarEvento aparte)", async () => {
+  const llamadas: string[] = [];
+  const repo: RepoServicios = {
+    obtener: async () => ({ id: "s1", estado: "aceptado", conductor_id: "c1" } as never),
+    actualizar: async () => { llamadas.push("actualizar"); return true; },
+    insertarEvento: async () => { llamadas.push("insertarEvento"); },
+    actualizarConEvento: async (_id, cambios, esperado, e) => { llamadas.push(`atomica:${esperado}->${cambios.estado}:${e.tipo}`); return true; },
+    registrarAccion: async () => true, yaProcesada: async () => false, liberarAccion: async () => {},
+  };
+  const r = await ejecutarAccion(repo, { idAccion: "a1", servicioId: "s1", accion: "salir", actor: { id: "c1", rol: "conductor" } });
+  expect(r.ok).toBe(true);
+  expect(llamadas).toEqual(["atomica:aceptado->en_camino:en_camino"]);
+});
