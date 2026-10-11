@@ -975,3 +975,63 @@ vale, la compilación al final con los sonidos
 
 ---
 
+## 2026-10-11 19:40 · Claude Code · sesión `b3c0e64f`
+
+Oye, que he visto que la aplicación de, del conductor arriba pone un botoncito de privacidad. Eh, no le interesa al conductor esto, échalo abajo de todo en la pantalla, ¿vale? Más importante las órdenes de trabajo
+
+---
+
+## 2026-10-11 19:43 · Claude Code · sesión `b3c0e64f`
+
+Y luego el botoncito de iniciar o terminar jornada, ponlo abajo en un menú, ¿vale? No lo pongas aquí en medio. Eh, en la pantalla principal empieza ya con el hoy, los trabajos que tiene listos. Y preparados, o los que tiene por aceptar. El botón de jornada, si quieres lo pones arriba, ¿no? Un botoncito al lado de salir.
+
+---
+
+## 2026-10-11 19:55 · Claude Code · sesión `b3c0e64f`
+
+Oye, cuando un servicio al que yo voy de camino ya llego tarde, notifícalo a central y a mí me pones un contador en la aplicación, ¿vale? Si es en verde, pues es que voy a tiempo, y si es en rojo es que no he llegado a tiempo, ¿vale? Ahora mismo tengo un activo que a las 19:50 tendría que estar en posición y todavía estoy de camino.
+
+---
+
+## 2026-10-11 19:56 · Claude Code · sesión `b3c0e64f`
+
+Planifícame también la opción automática de informar al pasajero. Cuando estoy de camino, pues le mandamos algún tipo de mensaje. Si llego retraso, pues también.
+
+---
+
+## 2026-10-11 20:02 · Claude Code · sesión `b3c0e64f`
+
+B y seguimiento? Se puede enviar una acción real del WhatsApp al cliente?
+
+---
+
+## 2026-10-11 20:05 · Claude Code · sesión `b3c0e64f`
+
+Si
+
+---
+
+## 2026-10-11 20:06 · Claude Code · sesión `b3c0e64f`
+
+Valora la opción también de que el conductor pueda generar servicios. Yo, por ejemplo, estoy en un hotel y hay un señor que quiere un taxi. Vale, pues el origen sería mi ubicación GPS. Intentas encontrar en la base de datos la dirección donde estoy, o si no, pues se lo dejas elegir al conductor. Y el conductor también escribirá la dirección de destino, rellenando los portes, los paquetes y ejecutando ya el porte, porque habrá cargado al cliente. Yeah.
+
+---
+
+## 2026-10-11 20:12 · Claude Code · sesión `b3c0e64f`
+
+Vale, sí, tienes razón sobre la normativa del VTC. No te he dicho nada de este aspecto, pero vamos a añadir una función de si el conductor sin querer finaliza el servicio y todavía no ha llegado a destino, porque le ha dado sin querer al botón o algo, que exista la opción de volver atrás.
+
+---
+
+## 2026-10-11 20:16 · Claude Code · sesión `b3c0e64f`
+
+Cuando finalizas un porte, guarda la ruta que se ha recorrido con el coche, aunque sea un dibujito del mapa, para que se vea o se pueda consultar la ruta que ha hecho el chofer para ese servicio, y lo guardas en una pestaña de historial de viajes.
+
+---
+
+## 2026-10-11 20:36 · Claude Code · sesión `b3c0e64f`
+
+ok, avísame cuando esté publicado
+
+---
+
