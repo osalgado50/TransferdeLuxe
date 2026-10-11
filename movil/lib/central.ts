@@ -1,0 +1,123 @@
+import type { Sugerencia } from "@dominio/sugerencia";
+import type { PosicionActual, Rol, Servicio } from "@dominio/tipos";
+import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { AppState } from "react-native";
+import { llamarApi } from "./api";
+import { supabase } from "./supabase";
+import { useCambiosTabla } from "./tiempoReal";
+
+export type ServicioCentral = Pick<Servicio, "id" | "estado" | "conductor_id" | "vehiculo_id" | "fecha_hora_recogida" | "origen_texto"
+  | "destino_texto" | "pasajeros" | "maletas" | "numero_vuelo" | "notas" | "cliente_nombre" | "cliente_telefono" | "origen_pedido"
+  | "ultima_incidencia" | "incidencia_vista" | "subcontratar" | "asignado_en" | "plazo_respuesta_min">;
+export interface ConductorCentral { id: string; nombre: string; telefono: string | null; rol: Rol; conduce: boolean | null; vehiculo_habitual_id: string | null }
+export interface ResumenCentral {
+  generadoEn: string; alertas: ServicioCentral[]; pendientes: ServicioCentral[]; hoy: ServicioCentral[];
+  posiciones: (PosicionActual & { nombre?: string })[]; conductores: ConductorCentral[];
+}
+export type SugerenciaCentral = Sugerencia & { vehiculoId: string | null; matricula: string | null };
+
+async function json<T>(r: Response): Promise<T> {
+  const d = (await r.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!r.ok) throw new Error(d?.error ?? `Error ${r.status}`);
+  return d as T;
+}
+
+export const leerResumen = async () => json<ResumenCentral>(await llamarApi("/api/central/resumen"));
+export const leerSugerencias = async (servicioId: string) =>
+  (await json<{ sugerencias: SugerenciaCentral[] }>(await llamarApi(`/api/central/sugerencia?servicio=${encodeURIComponent(servicioId)}`))).sugerencias;
+
+/** Asigna o reasigna. Devuelve null si fue bien o el mensaje de error (409 incluido). Nunca lanza. */
+export async function asignarServicio(tipo: "asignar" | "reasignar", servicioId: string, conductorId: string, vehiculoId?: string | null): Promise<string | null> {
+  try {
+    const r = await llamarApi(`/api/central/${tipo}`, {
+      method: "POST", body: { idAccion: nuevoId(), servicioId, conductorId, ...(vehiculoId ? { vehiculoId } : {}) },
+    });
+    const d = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+    return r.ok && d?.ok !== false ? null : (d?.error ?? `No se pudo ${tipo} (error ${r.status})`);
+  } catch {
+    return "Sin conexión. Inténtalo de nuevo.";
+  }
+}
+
+export async function marcarAlertaVista(servicioId: string): Promise<string | null> {
+  try {
+    const r = await llamarApi("/api/central/alerta-vista", { method: "POST", body: { servicioId } });
+    return r.ok ? null : ((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "No se pudo marcar como vista";
+  } catch {
+    return "Sin conexión. Inténtalo de nuevo.";
+  }
+}
+
+function nuevoId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (x) => {
+    const r = (Math.random() * 16) | 0;
+    return (x === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+/** Umbral «sin señal» de los ajustes de la central (5 min si no se puede leer). */
+async function leerUmbral(): Promise<number> {
+  try {
+    const { data } = await supabase.from("ajustes").select("umbral_sin_senal_min").limit(1).maybeSingle();
+    return (data as { umbral_sin_senal_min?: number } | null)?.umbral_sin_senal_min ?? 5;
+  } catch { return 5; }
+}
+
+const CADA_MS = 30_000;
+
+/** Resumen de la central: carga, Realtime (servicios y posiciones), cada 30 s en primer plano y al volver a la app. */
+function useResumenCentral() {
+  const [datos, setDatos] = useState<ResumenCentral | null>(null);
+  const [umbral, setUmbral] = useState(5);
+  const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const enCurso = useRef(false);
+
+  const recargar = useCallback(async () => {
+    if (enCurso.current) return;
+    enCurso.current = true;
+    try { setDatos(await leerResumen()); setError(null); }
+    catch (e) { setError(e instanceof Error ? e.message : "Error al cargar"); }
+    finally { enCurso.current = false; setCargando(false); }
+  }, []);
+
+  useEffect(() => { void recargar(); void leerUmbral().then(setUmbral); }, [recargar]);
+
+  const t = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const programar = useCallback(() => {
+    if (t.current) clearTimeout(t.current);
+    t.current = setTimeout(() => void recargar(), 800);
+  }, [recargar]);
+  useEffect(() => () => { if (t.current) clearTimeout(t.current); }, []);
+  useCambiosTabla("servicios", programar, programar);
+  useCambiosTabla("posicion_actual", programar, programar);
+
+  useEffect(() => {
+    let intervalo: ReturnType<typeof setInterval> | null = setInterval(() => void recargar(), CADA_MS);
+    const s = AppState.addEventListener("change", (e) => {
+      if (e === "active") {
+        void recargar();
+        if (!intervalo) intervalo = setInterval(() => void recargar(), CADA_MS);
+      } else if (intervalo) { clearInterval(intervalo); intervalo = null; }
+    });
+    return () => { s.remove(); if (intervalo) clearInterval(intervalo); };
+  }, [recargar]);
+
+  return { datos, umbral, error, cargando, recargar };
+}
+
+type Central = ReturnType<typeof useResumenCentral>;
+const Contexto = createContext<Central | null>(null);
+
+/** Una sola carga/suscripción compartida por todas las pestañas del modo central. */
+export function ProveedorCentral({ children }: { children: ReactNode }) {
+  return createElement(Contexto.Provider, { value: useResumenCentral() }, children);
+}
+
+export function useCentral(): Central {
+  const c = useContext(Contexto);
+  if (!c) throw new Error("useCentral fuera de ProveedorCentral");
+  return c;
+}
