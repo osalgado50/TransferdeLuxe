@@ -21,18 +21,18 @@ interface EstadoSesion {
 const Contexto = createContext<EstadoSesion | null>(null);
 
 export const ERROR_CREDENCIALES = "Email o contraseña incorrectos";
-export const ERROR_ROL = "Esta app es solo para conductores. La central usa la web.";
+export const ERROR_ROL = "Esta cuenta no tiene acceso a la app.";
 export const ERROR_RED = "Sin conexión. Comprueba la cobertura e inténtalo de nuevo.";
 
 type Lectura = { tipo: "ok"; perfil: Perfil } | { tipo: "no_conductor" } | { tipo: "red" };
 
-// Distingue «no es conductor» (fila inexistente o rol distinto → cerrar sesión) de un fallo de red (mantener sesión).
+// Distingue «sin acceso» (fila inexistente o rol que no es conductor ni operador → cerrar sesión) de un fallo de red (mantener sesión).
 async function leerPerfil(id: string): Promise<Lectura> {
   try {
     const { data, error } = await supabase.from("perfiles").select("*").eq("id", id).maybeSingle();
     if (error) return { tipo: "red" };
     const p = data as Perfil | null;
-    return p?.rol === "conductor" ? { tipo: "ok", perfil: p } : { tipo: "no_conductor" };
+    return p?.rol === "conductor" || p?.rol === "operador" ? { tipo: "ok", perfil: p } : { tipo: "no_conductor" };
   } catch {
     return { tipo: "red" };
   }
@@ -42,7 +42,7 @@ function esErrorDeRed(mensaje: string | undefined, estado?: number): boolean {
   return !estado || /network|fetch|timed? ?out/i.test(mensaje ?? "");
 }
 
-// Guardia de rol: solo los perfiles con rol «conductor» mantienen la sesión abierta.
+// Guardia de rol: conductores (app del conductor) y operadores (modo central) mantienen la sesión abierta.
 export function ProveedorSesion({ children }: { children: ReactNode }) {
   const [cargando, setCargando] = useState(true);
   const [sesion, setSesion] = useState<Session | null>(null);

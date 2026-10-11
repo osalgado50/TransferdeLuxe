@@ -4,8 +4,11 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { escucharRotacionToken, registrarPush, type DatosPush } from "~/lib/push";
 
-/** Registra el dispositivo para avisos y abre «Hoy» al tocar un aviso de servicio nuevo (allí sale el modal). */
-export function AvisosPush({ yo }: { yo: string }) {
+/**
+ * Registra el dispositivo para avisos y abre «Hoy» al tocar un aviso de servicio nuevo (allí sale el modal).
+ * En modo central (operador) cualquier aviso tocado abre la pestaña «Central».
+ */
+export function AvisosPush({ yo, central }: { yo: string; central?: boolean }) {
   // Re-registro idempotente al iniciar sesión, al volver a primer plano y si el token rota.
   useEffect(() => {
     void registrarPush();
@@ -21,8 +24,9 @@ export function AvisosPush({ yo }: { yo: string }) {
     if (atendida.current === id) return;
     atendida.current = id;
     const d = ultima.notification.request.content.data as DatosPush | undefined;
-    if (d?.tipo === "servicio_nuevo") router.navigate("/");
+    if (central) router.navigate(d?.tipo === "servicio_nuevo" ? "/central/mis" : "/central");
+    else if (d?.tipo === "servicio_nuevo") router.navigate("/");
     void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
-  }, [ultima]);
+  }, [ultima, central]);
   return null;
 }

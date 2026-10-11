@@ -4,6 +4,11 @@ import { supabase } from "./supabase";
 
 /** Avisa de cualquier cambio en `servicios` (RLS: solo llegan los míos). Reconexión → `alReconectar`. */
 export function useCambiosServicios(alCambio: (fila: Record<string, unknown> | null) => void, alReconectar: () => void) {
+  useCambiosTabla("servicios", alCambio, alReconectar);
+}
+
+/** Igual que `useCambiosServicios` para cualquier tabla publicada en Realtime (p. ej. `posicion_actual` para la central). */
+export function useCambiosTabla(tabla: string, alCambio: (fila: Record<string, unknown> | null) => void, alReconectar: () => void) {
   const cb = useRef({ alCambio, alReconectar });
   useEffect(() => { cb.current = { alCambio, alReconectar }; });
   useEffect(() => {
@@ -13,8 +18,8 @@ export function useCambiosServicios(alCambio: (fila: Record<string, unknown> | n
     void supabase.auth.getSession().then(({ data }) => {
       if (cancelado) return;
       if (data.session) supabase.realtime.setAuth(data.session.access_token);
-      canal = supabase.channel(`rt-servicios-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "servicios" }, (p) => {
+      canal = supabase.channel(`rt-${tabla}-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: tabla }, (p) => {
           cb.current.alCambio(p.eventType === "DELETE" ? null : (p.new as Record<string, unknown>));
         })
         .subscribe((estado) => {
@@ -29,7 +34,7 @@ export function useCambiosServicios(alCambio: (fila: Record<string, unknown> | n
       if (s && (ev === "TOKEN_REFRESHED" || ev === "SIGNED_IN")) supabase.realtime.setAuth(s.access_token);
     });
     return () => { cancelado = true; activo = false; sus.subscription.unsubscribe(); if (canal) void supabase.removeChannel(canal); };
-  }, []);
+  }, [tabla]);
 }
 
 type Estado<T> = { datos: T | null; error: string | null; cargando: boolean };

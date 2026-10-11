@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { Linking, Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { InterruptorGps } from "~/components/InterruptorGps";
@@ -33,6 +33,9 @@ function Cabecera() {
 const icono = (n: keyof typeof Ionicons.glyphMap) => ({ color: c, size }: { color: ColorValue; size: number }) => <Ionicons name={n} color={c as string} size={size + 2} />;
 
 export default function LayoutPestanas() {
+  const { perfil } = useSesion();
+  // El operador (jefe) entra en el modo central; sus servicios están en la pestaña «Mis servicios».
+  if (perfil?.rol === "operador") return <Redirect href="/central" />;
   return (
     <Tabs screenOptions={{
       header: () => <Cabecera />,

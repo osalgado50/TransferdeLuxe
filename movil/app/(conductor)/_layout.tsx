@@ -7,8 +7,9 @@ import { useSesion } from "~/lib/sesion";
 import { color } from "~/lib/tema";
 
 export default function LayoutConductor() {
-  const { sesion } = useSesion();
-  const yo = sesion?.user.id;
+  const { sesion, perfil } = useSesion();
+  // Para el operador, la cola, los avisos y el modal de servicio nuevo los monta el layout de la central (sin duplicar).
+  const yo = perfil?.rol === "operador" ? undefined : sesion?.user.id;
   return (
     <View style={{ flex: 1, backgroundColor: color.fondo }}>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.fondo } }}>

@@ -15,13 +15,17 @@ SplashScreen.preventAutoHideAsync();
 const tema = { ...DarkTheme, colors: { ...DarkTheme.colors, primary: color.marcaClaro, background: color.fondo, card: color.fondo } };
 
 function Navegacion() {
-  const { cargando, sesion } = useSesion();
+  const { cargando, sesion, perfil } = useSesion();
   useEffect(() => { if (!cargando) SplashScreen.hideAsync(); }, [cargando]);
   if (cargando) return null;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.fondo } }}>
       <Stack.Protected guard={!!sesion}>
         <Stack.Screen name="(conductor)" />
+      </Stack.Protected>
+      {/* Modo central para operadores (el jefe); si además conduce, usa también las pantallas del conductor. */}
+      <Stack.Protected guard={!!sesion && perfil?.rol === "operador"}>
+        <Stack.Screen name="central" />
       </Stack.Protected>
       <Stack.Protected guard={!sesion}>
         <Stack.Screen name="login" />
