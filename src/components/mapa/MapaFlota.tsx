@@ -43,7 +43,7 @@ export default function MapaFlota({ posiciones, servicios, conductores, vehiculo
   }), [posiciones, servicios, conductores, vehiculos, ahora, umbralMin, eventos]);
 
   return (
-    <MapContainer center={[41.0763, 1.1416]} zoom={11} className="h-[32rem] w-full rounded-lg">
+    <MapContainer center={[41.0763, 1.1416]} zoom={11} className="h-[60vh] min-h-[22rem] w-full lg:h-[calc(100vh-13rem)] lg:min-h-[32rem] rounded-lg">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
       {marcadores.map((m) => (
         <Marker key={m.p.conductor_id} position={[m.p.lat, m.p.lng]} icon={icono(COLOR[m.estado], m.nombre.charAt(0).toUpperCase())}>

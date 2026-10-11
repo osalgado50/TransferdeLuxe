@@ -1,11 +1,15 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { direccionCorta } from "@/lib/dominio/direccion";
 import { leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
 import { etiquetaEvento, llegandoReciente } from "@/lib/dominio/navegacion";
 import DialogoAsignar from "@/components/central/DialogoAsignar";
 import AlertasModulos from "@/components/central/AlertasModulos";
 import type { Servicio } from "@/lib/dominio/tipos";
+
+/** Dirección corta para la columna: «Calle, barrio · Localidad». */
+const corta = (t: string) => { const d = direccionCorta(t); return d.localidad ? `${d.principal} · ${d.localidad}` : d.principal; };
 
 export interface EventoAlerta { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string; actor_id?: string | null }
 
@@ -44,7 +48,7 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
     const motivo = ev?.motivo ?? inc.replace(/^rechazado:\s*/, "");
     return ["Rechazado", `Rechazado por ${nombreConductor(ev?.actor_id ?? s.conductor_id)}: ${motivo}`] as const;
   }
-  if (inc === "expirado") return ["Sin respuesta", "Plazo vencido: sigue asignado, el conductor aún puede aceptarlo o puedes reasignarlo"] as const;
+  if (inc === "expirado") return ["Sin respuesta", "Sin respuesta · aún puede aceptarlo o reasígnalo"] as const;
   if (inc === "nuevo") return ["Reserva nueva", "Reserva nueva"] as const;
   return ["Aviso", inc || "Incidencia"] as const;
 }
@@ -93,7 +97,7 @@ export default function ColumnaAlertas({ servicios, eventos, conductores, vehicu
         <article key={`ll-${s.id}`} data-alerta="Llegando" className="rounded-xl border border-green-600 bg-slate-900 p-3">
           <p className="text-sm font-medium text-green-400">{etiquetaEvento(ev.tipo)} · {nombre(s.conductor_id)}</p>
           <p className="text-xs text-slate-400">
-            {new Date(ev.creado_en).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })} · {s.cliente_nombre} · {ev.tipo === "llegando_destino" ? s.destino_texto : s.origen_texto}
+            {new Date(ev.creado_en).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })} · {s.cliente_nombre} · {corta(ev.tipo === "llegando_destino" ? s.destino_texto : s.origen_texto)}
           </p>
         </article>
       ))}
@@ -104,7 +108,7 @@ export default function ColumnaAlertas({ servicios, eventos, conductores, vehicu
           <article key={s.id} data-alerta={tipo} className="rounded-xl border border-slate-700 bg-slate-900 p-3">
             <p className="text-sm font-medium text-amber-300">{texto}</p>
             <p className="text-xs text-slate-400">
-              {new Date(s.fecha_hora_recogida).toLocaleString("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" })} · {s.cliente_nombre} · {s.origen_texto} → {s.destino_texto}
+              {new Date(s.fecha_hora_recogida).toLocaleString("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" })} · {s.cliente_nombre} · {corta(s.origen_texto)} → {corta(s.destino_texto)}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {s.estado !== "completado" && s.estado !== "cancelado" && s.estado !== "subcontratado" && <DialogoAsignar servicioId={s.id} reasignar={!!s.conductor_id} />}

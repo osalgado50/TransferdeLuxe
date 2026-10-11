@@ -18,9 +18,10 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
     <div className="space-y-4">
       {!ok && <p role="status" className="text-xs text-amber-300">Reconectando…</p>}
       <Contadores servicios={sv} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} /></div>
-        <ColumnaAlertas servicios={sv} eventos={ev} conductores={conductores} vehiculos={vehiculos} />
+      {/* Mapa grande (ocupa casi toda la altura) y alertas al lado con su propio scroll, sin salirse por la derecha. */}
+      <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="min-w-0 lg:col-span-2 xl:col-span-3"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} /></div>
+        <div className="min-w-0 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto lg:pr-1"><ColumnaAlertas servicios={sv} eventos={ev} conductores={conductores} vehiculos={vehiculos} /></div>
       </div>
     </div>
   );
