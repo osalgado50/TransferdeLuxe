@@ -41,6 +41,12 @@ Complejidad y funcionalidad · Innovación y originalidad · Calidad del vibe co
 Utilidad y aplicabilidad. Proceso: revisión inicial → testing funcional → evaluación técnica → deliberación.
 Bases completas: `docs/Bases-Hackaton-Vibecoding-E7.docx.pdf` (local, no versionado).
 
+## Compilación nativa final (pendiente, acordada el 11/10)
+- [ ] Imagen de arranque con margen (`movil/assets/images/splash-icon-v2.png` → `app.config.ts` expo-splash-screen).
+- [ ] Sonidos propios de notificación (servicio nuevo, alarma de incidencia…) como ficheros en la app.
+- [ ] Compilar Android (Claude) e iOS (responsable) y avisar a los conductores para que instalen; después las
+      actualizaciones automáticas siguen funcionando con la nueva huella.
+
 ## Estado a 12/10/2026
 - [x] App nativa TVL Conductor: APK Android funcionando, iOS en TestFlight.
 - [x] Auditoría técnica/legal (`docs/INFORME_AUDITORIA.md`) y mejoras aprobadas: seguridad, GPS sin pérdidas, purga
