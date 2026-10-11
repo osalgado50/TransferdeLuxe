@@ -14,19 +14,31 @@ describe("construirAvisos", () => {
     const manual = new Map([["s1", { ...S, origen_pedido: "manual" }]]);
     expect(construirAvisos(base({ servicios: manual, eventos: [{ id: 1, servicio_id: "s1", tipo: "creado", actor_id: null, motivo: null }] }))).toEqual([]);
   });
-  test("rechazado con nombre y motivo; expirado; otros eventos se ignoran", () => {
+  test("rechazado con nombre y motivo; expirado; aceptado; otros eventos se ignoran", () => {
     const r = construirAvisos(base({ eventos: [
       { id: 1, servicio_id: "s1", tipo: "rechazado", actor_id: "c1", motivo: "Avería" },
       { id: 2, servicio_id: "s1", tipo: "expirado", actor_id: null, motivo: null },
       { id: 3, servicio_id: "s1", tipo: "aceptado", actor_id: "c1", motivo: null },
       { id: 4, servicio_id: "zz", tipo: "rechazado", actor_id: "c1", motivo: "x" },
+      { id: 5, servicio_id: "s1", tipo: "en_camino", actor_id: "c1", motivo: null },
     ] }));
-    expect(r.map((a) => a.titulo)).toEqual(["Rechazado por Laia Demo: Avería", "Sin respuesta del conductor"]);
+    expect(r.map((a) => a.titulo)).toEqual(["Rechazado por Laia Demo: Avería", "Sin respuesta del conductor", "Laia Demo ha aceptado"]);
+    expect(r[2]).toEqual({ titulo: "Laia Demo ha aceptado", cuerpo: "Reus → Salou 15:00", data: { tipo: "aceptado", servicioId: "s1" } });
   });
-  test("incidencia y checklist con fallos", () => {
-    const r = construirAvisos(base({ incidencias: [{ conductor_id: "c1", servicio_id: null, tipo: "averia", descripcion: "Pinchazo" }], revisiones: [{ conductor_id: "c1", vehiculo_id: "v1" }] }));
+  test("avería/accidente: GRAVE primero, con tipo, conductor y zona (de la incidencia o de su GPS); leves con zona", () => {
+    const r = construirAvisos(base({
+      revisiones: [{ conductor_id: "c1", vehiculo_id: "v1" }],
+      incidencias: [
+        { id: "i0", conductor_id: "c1", servicio_id: null, tipo: "retraso", descripcion: "Atasco", lat: 41.0764, lng: 1.1416 },
+        { id: "i1", conductor_id: "c1", servicio_id: null, tipo: "averia", descripcion: "Pinchazo" },
+        { id: "i2", conductor_id: "c1", servicio_id: "s1", tipo: "accidente", descripcion: "", lat: 41.145, lng: 0.82 },
+      ],
+      posiciones: new Map([["c1", { lat: 41.156, lng: 1.107 }]]),
+    }));
     expect(r).toEqual([
-      { titulo: "Incidencia: Avería", cuerpo: "Laia Demo · Pinchazo", data: { tipo: "incidencia" } },
+      { titulo: "⚠ AVERÍA · Laia Demo · en Reus", cuerpo: "Pinchazo", data: { tipo: "incidencia", incidenciaId: "i1", grave: true } },
+      { titulo: "⚠ ACCIDENTE · Laia Demo · en Falset", cuerpo: "Reus → Salou 15:00", data: { tipo: "incidencia", servicioId: "s1", incidenciaId: "i2", grave: true } },
+      { titulo: "Incidencia: Retraso", cuerpo: "Laia Demo · en Salou · Atasco", data: { tipo: "incidencia", incidenciaId: "i0" } },
       { titulo: "Checklist con fallos", cuerpo: "Laia Demo · 0002-TDL", data: { tipo: "checklist" } },
     ]);
   });

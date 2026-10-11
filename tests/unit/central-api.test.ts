@@ -9,9 +9,10 @@ vi.mock("@/lib/supabase/admin", () => ({
     from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: st.perfil }) }) }) }),
   }),
 }));
-const op = vi.hoisted(() => ({ ejecutar: vi.fn(), vista: vi.fn(), sugerencias: vi.fn(), resumen: vi.fn(), avisar: vi.fn() }));
+const op = vi.hoisted(() => ({ ejecutar: vi.fn(), vista: vi.fn(), sugerencias: vi.fn(), resumen: vi.fn(), avisar: vi.fn(), resolver: vi.fn() }));
 vi.mock("@/lib/central/operaciones", () => ({
   ejecutarAccionOperador: op.ejecutar, marcarAlertaVista: op.vista, sugerenciasServicio: op.sugerencias, resumenCentral: op.resumen,
+  resolverIncidenciaOperador: op.resolver,
 }));
 
 import { GET as resumen } from "@/app/api/central/resumen/route";
@@ -19,6 +20,7 @@ import { GET as sugerencia } from "@/app/api/central/sugerencia/route";
 import { POST as asignar } from "@/app/api/central/asignar/route";
 import { POST as reasignar } from "@/app/api/central/reasignar/route";
 import { POST as alertaVista } from "@/app/api/central/alerta-vista/route";
+import { POST as incidenciaResuelta } from "@/app/api/central/incidencia-resuelta/route";
 import { vaciarCacheBearer } from "@/lib/supabase/bearer"; // la verificación del token se cachea 60 s
 
 const U = "11111111-1111-4111-8111-111111111111";
@@ -36,8 +38,9 @@ test("401 sin Bearer o token malo; 403 si es conductor (aunque conduzca)", async
   expect((await resumen(get("", ""))).status).toBe(401);
   expect((await asignar(post({}, "Bearer malo"))).status).toBe(401);
   vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor" };
-  for (const r of [await resumen(get()), await sugerencia(get(`?servicio=${S}`)), await asignar(post({})), await reasignar(post({})), await alertaVista(post({}))]) expect(r.status).toBe(403);
+  for (const r of [await resumen(get()), await sugerencia(get(`?servicio=${S}`)), await asignar(post({})), await reasignar(post({})), await alertaVista(post({})), await incidenciaResuelta(post({ incidenciaId: S }))]) expect(r.status).toBe(403);
   expect(op.ejecutar).not.toHaveBeenCalled();
+  expect(op.resolver).not.toHaveBeenCalled();
 });
 test("resumen ok", async () => {
   op.resumen.mockResolvedValue({ alertas: [], pendientes: [], hoy: [], posiciones: [], conductores: [] });
@@ -68,4 +71,20 @@ test("alerta-vista: 400 y ok", async () => {
   const r = await alertaVista(post({ servicioId: S }));
   expect(await r.json()).toEqual({ ok: true });
   expect(op.vista).toHaveBeenCalledWith(S);
+});
+test("incidencia-resuelta: 401 sin token; 400 id no válido; 404 si no existe; 200 ok", async () => {
+  expect((await incidenciaResuelta(post({ incidenciaId: S }, ""))).status).toBe(401);
+  expect((await incidenciaResuelta(post({ incidenciaId: "x" }))).status).toBe(400);
+  expect((await incidenciaResuelta(post({}))).status).toBe(400);
+  op.resolver.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  expect((await incidenciaResuelta(post({ incidenciaId: S }))).status).toBe(404);
+  const r = await incidenciaResuelta(post({ incidenciaId: S }));
+  expect(r.status).toBe(200);
+  expect(await r.json()).toEqual({ ok: true });
+  expect(op.resolver).toHaveBeenCalledWith(S);
+});
+test("resumen incluye la actividad y lo grave", async () => {
+  op.resumen.mockResolvedValue({ alertas: [], actividad: [{ id: "ev-1", texto: "Marc ha aceptado el servicio de las 15:00" }], graves: [] });
+  const r = await resumen(get());
+  expect(await r.json()).toMatchObject({ actividad: [{ id: "ev-1" }], graves: [] });
 });

@@ -7,6 +7,7 @@ import { sugerirConductores, type Candidato } from "@/lib/dominio/sugerencia";
 import { conexionConductor } from "@/lib/dominio/conexionConductor";
 import { ESTADOS_AGENDA, construirCandidatos } from "@/lib/dominio/planificacion";
 import { rangosConductor } from "@/lib/dominio/dias";
+import { construirActividad, HORAS_ACTIVIDAD, TIPOS_GRAVES, type ServicioAct } from "@/lib/dominio/actividad";
 
 /** Lógica de la central compartida por las Server Actions (web) y las rutas /api/central/* (app nativa). */
 export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar";
@@ -22,6 +23,14 @@ export async function ejecutarAccionOperador(operadorId: string, p: PeticionOper
 export async function marcarAlertaVista(servicioId: string): Promise<void> {
   const { error } = await clienteAdmin().from("servicios").update({ incidencia_vista: true }).eq("id", servicioId);
   if (error) throw new Error(error.message);
+}
+
+/** Marca una incidencia como resuelta (botón «Resuelta» de lo grave en la app). false si no existe. */
+export async function resolverIncidenciaOperador(incidenciaId: string): Promise<boolean> {
+  const { data, error } = await clienteAdmin().from("incidencias").update({ resuelta: true, resuelta_en: new Date().toISOString() })
+    .eq("id", incidenciaId).select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
 
 export async function sugerenciasServicio(servicioId: string) {
@@ -70,7 +79,9 @@ export async function resumenCentral(ahora = new Date()) {
   const fallo = [alertas, pendientes, deHoy, pos, gente].find((x) => x.error);
   if (fallo?.error) throw new Error(fallo.error.message);
   const nombres = new Map((gente.data ?? []).map((p) => [p.id, p.nombre]));
+  const act = await actividadCentral(sb, ahora, gente.data ?? [], pos.data ?? []);
   return {
+    ...act,
     generadoEn: ahora.toISOString(),
     alertas: alertas.data ?? [],
     pendientes: pendientes.data ?? [],
@@ -78,4 +89,38 @@ export async function resumenCentral(ahora = new Date()) {
     posiciones: (pos.data ?? []).map((p) => ({ ...p, nombre: nombres.get(p.conductor_id) ?? null })),
     conductores: gente.data ?? [],
   };
+}
+
+const CAMPOS_ACT = "id,cliente_nombre,origen_texto,destino_texto,fecha_hora_recogida,conductor_id,origen_pedido";
+
+/**
+ * «Actividad en vivo» para la app: últimos movimientos de las últimas 12 h ya redactados (misma lógica que la web)
+ * y lo grave sin resolver (avería/accidente), aunque sea más antiguo. Si algo falla, vacío (no tumba el resumen).
+ */
+async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date,
+  conductores: { id: string; nombre: string; telefono: string | null }[], posiciones: { conductor_id: string; lat: number; lng: number }[]) {
+  try {
+    const desde = new Date(ahora.getTime() - HORAS_ACTIVIDAD * 3600_000);
+    const d = desde.toISOString();
+    const [ev, inc, rev, jor, veh] = await Promise.all([
+      sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").gte("creado_en", d).order("creado_en", { ascending: false }).limit(150),
+      sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta")
+        .or(`creado_en.gte.${d},and(resuelta.is.false,tipo.in.(${TIPOS_GRAVES.join(",")}))`).order("creado_en", { ascending: false }).limit(60),
+      sb.from("checklist_revisiones").select("id,conductor_id,vehiculo_id,con_fallos,observaciones,creado_en").gte("creado_en", d).order("creado_en", { ascending: false }).limit(60),
+      sb.from("jornadas").select("id,conductor_id,inicio,fin").or(`inicio.gte.${d},fin.gte.${d}`).order("inicio", { ascending: false }).limit(60),
+      sb.from("vehiculos").select("id,matricula"),
+    ]);
+    const f = [ev, inc, rev, jor, veh].find((x) => x.error);
+    if (f?.error) throw new Error(f.error.message);
+    const ids = [...new Set([...(ev.data ?? []).map((e) => e.servicio_id), ...(inc.data ?? []).map((i) => i.servicio_id)])].filter((x): x is string => !!x);
+    const { data: servs } = ids.length ? await sb.from("servicios").select(CAMPOS_ACT).in("id", ids.slice(0, 200)) : { data: [] };
+    const r = construirActividad({
+      eventos: ev.data ?? [], incidencias: inc.data ?? [], revisiones: rev.data ?? [], jornadas: jor.data ?? [],
+      servicios: (servs ?? []) as ServicioAct[], conductores, posiciones, vehiculos: veh.data ?? [], desde,
+    });
+    return { actividad: r.movimientos, graves: r.graves };
+  } catch (e) {
+    console.error("[central] actividad:", e instanceof Error ? e.message : e);
+    return { actividad: [], graves: [] };
+  }
 }
