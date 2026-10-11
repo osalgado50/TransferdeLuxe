@@ -2,32 +2,33 @@
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { RUTAS_DEMO, posicionSimulada } from "@/lib/demo/rutas";
-import { sembrarDemo } from "@/lib/demo/seed";
 
 async function exigirDemo() {
   if (process.env.NEXT_PUBLIC_MODO_DEMO !== "true") throw new Error("Modo demo desactivado");
   await exigirRol("operador");
 }
 
-/** Inserta una posición por conductor demo, siguiendo su ruta. */
+const GPS_REAL_MS = 5 * 60_000;
+
+/**
+ * Inserta una posición por conductor demo siguiendo su ruta, salvo a los que tienen GPS real reciente
+ * (las posiciones reales llevan precisión; las simuladas no), para no mezclar el coche simulado con el real.
+ */
 export async function simularPaso(): Promise<void> {
   await exigirDemo();
   const sb = clienteAdmin();
-  const { data, error } = await sb.from("perfiles").select("id,nombre").eq("rol", "conductor");
-  if (error) throw new Error(error.message);
   const ahora = Date.now(), ts = new Date(ahora).toISOString();
-  for (const c of data ?? []) {
-    const ruta = RUTAS_DEMO[c.nombre];
-    if (!ruta) continue;
-    const p = posicionSimulada(ruta, ahora);
-    const r1 = await sb.from("posiciones").insert({ conductor_id: c.id, lat: p.lat, lng: p.lng, velocidad: 40, registrado_en: ts });
-    if (r1.error) throw new Error(r1.error.message); // el trigger actualiza posicion_actual
-  }
-}
-
-export async function restablecerDemo(): Promise<void> {
-  await exigirDemo();
-  const pass = process.env.DEMO_PASSWORD;
-  if (!pass) throw new Error("Falta DEMO_PASSWORD");
-  await sembrarDemo(clienteAdmin(), pass);
+  const [conductores, reales] = await Promise.all([
+    sb.from("perfiles").select("id,nombre").eq("rol", "conductor"),
+    sb.from("posiciones").select("conductor_id").not("precision_m", "is", null).gte("registrado_en", new Date(ahora - GPS_REAL_MS).toISOString()),
+  ]);
+  if (conductores.error) throw new Error(conductores.error.message);
+  if (reales.error) throw new Error(reales.error.message);
+  const conGpsReal = new Set((reales.data ?? []).map((r) => r.conductor_id));
+  const filas = (conductores.data ?? [])
+    .filter((c) => RUTAS_DEMO[c.nombre] && !conGpsReal.has(c.id))
+    .map((c) => { const p = posicionSimulada(RUTAS_DEMO[c.nombre], ahora); return { conductor_id: c.id, lat: p.lat, lng: p.lng, velocidad: 40, registrado_en: ts }; });
+  if (!filas.length) return;
+  const { error } = await sb.from("posiciones").insert(filas); // el trigger actualiza posicion_actual
+  if (error) throw new Error(error.message);
 }
