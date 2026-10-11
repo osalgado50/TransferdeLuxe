@@ -17,8 +17,8 @@ export default async function PanelCentral() {
   const hasta = new Date(Date.now() + 48 * 3600e3).toISOString();
   const hace12h = new Date(Date.now() - HORAS_ACTIVIDAD * 3600e3).toISOString();
   const [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors] = await Promise.all([
-    sb.from("servicios").select("*").gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
-    sb.from("servicios").select("*").eq("incidencia_vista", false),
+    sb.from("servicios").select("*").eq("es_prueba", false).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
+    sb.from("servicios").select("*").eq("es_prueba", false).eq("incidencia_vista", false),
     sb.from("posicion_actual").select("*"),
     sb.from("perfiles").select("id,nombre,telefono,vehiculo_habitual_id").or(FILTRO_CONDUCEN),
     sb.from("vehiculos").select("id,matricula"),
@@ -45,8 +45,12 @@ export default async function PanelCentral() {
   // Servicios de la actividad fuera de la ventana del panel (p. ej. aceptado hoy para dentro de una semana): solo lo necesario.
   const faltan = [...new Set([...todosEventos.map((e) => e.servicio_id), ...(inc.data ?? []).map((i) => i.servicio_id)])].filter((id): id is string => !!id && !porId.has(id));
   const { data: extra } = faltan.length
-    ? await sb.from("servicios").select("id,cliente_nombre,origen_texto,destino_texto,fecha_hora_recogida,conductor_id,origen_pedido").in("id", faltan.slice(0, 200))
-    : { data: [] as ServicioAct[] };
+    ? await sb.from("servicios").select("id,cliente_nombre,origen_texto,destino_texto,fecha_hora_recogida,conductor_id,origen_pedido,es_prueba").in("id", faltan.slice(0, 200))
+    : { data: [] as (ServicioAct & { es_prueba: boolean })[] };
+  // Pruebas automáticas: fuera de la actividad, del mapa y de las alertas.
+  const ocultos = new Set((extra ?? []).filter((x) => x.es_prueba).map((x) => x.id));
+  const eventosVisibles = todosEventos.filter((e) => !ocultos.has(e.servicio_id));
+  const incidenciasVisibles = (inc.data ?? []).filter((i) => !i.servicio_id || !ocultos.has(i.servicio_id));
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -55,8 +59,9 @@ export default async function PanelCentral() {
       </div>
       <AvisosMantenimiento avisos={avisosMant} />
       <PanelEnVivo
-        servicios={[...porId.values()]} posiciones={pos.data ?? []} eventos={todosEventos}
-        incidencias={inc.data ?? []} revisiones={revs.data ?? []} jornadas={jors.data ?? []} serviciosExtra={(extra ?? []) as ServicioAct[]}
+        servicios={[...porId.values()]} posiciones={pos.data ?? []} eventos={eventosVisibles}
+        incidencias={incidenciasVisibles} revisiones={revs.data ?? []} jornadas={jors.data ?? []}
+        serviciosExtra={(extra ?? []).filter((x) => !x.es_prueba) as ServicioAct[]}
         conductores={perfiles.data ?? []} vehiculos={vehiculos.data ?? []} umbralMin={ajustes.data?.umbral_sin_senal_min ?? 5}
       />
     </div>

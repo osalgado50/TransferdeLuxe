@@ -15,7 +15,7 @@ export default async function Historial() {
   const desdeDia = diaMadrid(new Date(Date.parse(`${hoy}T12:00:00Z`) - 6 * 86400e3));
   const sb = await clienteServidor();
   const [s, t] = await Promise.all([
-    sb.from("servicios").select(`id,estado,fecha_hora_recogida,origen_texto,destino_texto,recorrido:recorridos(${CAMPOS_RECORRIDO})`)
+    sb.from("servicios").select(`id,estado,fecha_hora_recogida,origen_texto,destino_texto,recorrido:recorridos(${CAMPOS_RECORRIDO})`).eq("es_prueba", false)
       .eq("conductor_id", yo.id).gte("fecha_hora_recogida", madridAUtc(desdeDia, "00:00")).order("fecha_hora_recogida", { ascending: false }),
     sb.from("tickets_combustible").select("id,fecha,litros,importe").eq("conductor_id", yo.id).gte("fecha", desdeDia).order("fecha", { ascending: false }),
   ]);

@@ -52,7 +52,7 @@ export default function Historial() {
   const { datos, error, cargando, recargar } = useConsulta(async () => {
     const r = rangosConductor(new Date()).historial;
     const [s, t] = await Promise.all([
-      supabase.from("servicios").select(`id,estado,fecha_hora_recogida,origen_texto,destino_texto,recorrido:recorridos(${CAMPOS_RECORRIDO})`)
+      supabase.from("servicios").select(`id,estado,fecha_hora_recogida,origen_texto,destino_texto,recorrido:recorridos(${CAMPOS_RECORRIDO})`).eq("es_prueba", false)
         .eq("conductor_id", yo).gte("fecha_hora_recogida", r.desde).order("fecha_hora_recogida", { ascending: false }),
       supabase.from("tickets_combustible").select("id,fecha,litros,importe").eq("conductor_id", yo).gte("fecha", r.desdeDia)
         .order("fecha", { ascending: false }),

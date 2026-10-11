@@ -26,9 +26,9 @@ export default function Hoy() {
   const r = useRangos();
   const { datos, error, cargando, recargar } = useConsulta(async () => {
     const [hoy, prox] = await Promise.all([
-      supabase.from("servicios").select(CAMPOS_LISTA).eq("conductor_id", yo)
+      supabase.from("servicios").select(CAMPOS_LISTA).eq("es_prueba", false).eq("conductor_id", yo)
         .gte("fecha_hora_recogida", r.hoy.desde).lt("fecha_hora_recogida", r.hoy.hasta).neq("estado", "cancelado").order("fecha_hora_recogida"),
-      supabase.from("servicios").select(CAMPOS_LISTA).eq("conductor_id", yo)
+      supabase.from("servicios").select(CAMPOS_LISTA).eq("es_prueba", false).eq("conductor_id", yo)
         .gte("fecha_hora_recogida", r.proximos.desde).lt("fecha_hora_recogida", r.proximos.hasta)
         .not("estado", "in", "(cancelado,completado)").order("fecha_hora_recogida"),
     ]);

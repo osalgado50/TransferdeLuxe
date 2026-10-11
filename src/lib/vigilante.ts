@@ -29,9 +29,11 @@ export async function vigilarUnaVez(): Promise<number> {
 
   const idsServ = [...new Set([...eventos.map((e) => e.servicio_id), ...incidencias.map((i) => i.servicio_id).filter((x): x is string => !!x)])];
   const { data: servs } = idsServ.length
-    ? await sb.from("servicios").select("id,origen_texto,destino_texto,fecha_hora_recogida,origen_pedido,conductor_id").in("id", idsServ)
+    ? await sb.from("servicios").select("id,origen_texto,destino_texto,fecha_hora_recogida,origen_pedido,conductor_id,es_prueba").in("id", idsServ)
     : { data: [] };
   const porId = new Map(((servs ?? []) as ServicioAviso[]).map((s) => [s.id, s]));
+  // Pruebas automáticas: sin push a la central (el cursor avanza igual).
+  const prueba = new Set(((servs ?? []) as { id: string; es_prueba?: boolean }[]).filter((s) => s.es_prueba).map((s) => s.id));
   // Retraso en la recogida: el evento no tiene actor; se nombra (y se sitúa) al conductor asignado.
   const tarde = eventos.filter((e) => e.tipo === "retraso_recogida").map((e) => porId.get(e.servicio_id)?.conductor_id).filter((x): x is string => !!x);
   const idsPers = [...new Set([...eventos.map((e) => e.actor_id), ...tarde, ...incidencias.map((i) => i.conductor_id), ...revisiones.map((r) => r.conductor_id)].filter((x): x is string => !!x))];
@@ -44,7 +46,9 @@ export async function vigilarUnaVez(): Promise<number> {
     sinCoord.length ? sb.from("posicion_actual").select("conductor_id,lat,lng").in("conductor_id", sinCoord) : Promise.resolve({ data: [] }),
   ]);
   const avisos = construirAvisos({
-    eventos, incidencias, revisiones: revisiones.filter((r) => r.con_fallos),
+    eventos: eventos.filter((e) => !prueba.has(e.servicio_id)),
+    incidencias: incidencias.filter((i) => !i.servicio_id || !prueba.has(i.servicio_id)),
+    revisiones: revisiones.filter((r) => r.con_fallos),
     servicios: porId,
     nombres: new Map(((pers ?? []) as { id: string; nombre: string }[]).map((p) => [p.id, p.nombre])),
     matriculas: new Map(((vehs ?? []) as { id: string; matricula: string }[]).map((v) => [v.id, v.matricula])),

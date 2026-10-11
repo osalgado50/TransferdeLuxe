@@ -34,7 +34,7 @@ export async function cargarInforme(f: FiltroInforme) {
   const [vs, cs, ss, ts, ev, inc] = await Promise.all([
     sb.from("vehiculos").select("id,matricula").order("matricula"),
     sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre"),
-    sb.from("servicios").select("id,estado,pasajeros,conductor_id,vehiculo_id,fecha_hora_recogida,origen_lat,origen_lng,destino_lat,destino_lng")
+    sb.from("servicios").select("id,estado,pasajeros,conductor_id,vehiculo_id,fecha_hora_recogida,origen_lat,origen_lng,destino_lat,destino_lng").eq("es_prueba", false)
       .gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
     // Todos los tickets hasta fin de mes: el consumo necesita el repostaje anterior como referencia.
     sb.from("tickets_combustible").select("vehiculo_id,conductor_id,fecha,litros,importe,km").lte("fecha", finMes),

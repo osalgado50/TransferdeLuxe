@@ -46,7 +46,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   const sb = await clienteServidor();
   const [{ data: conductores }, { data: aj }] = await Promise.all([sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre"), sb.from("ajustes").select("modulos").maybeSingle()]);
   const conVuelos = leerModulos(aj?.modulos).vuelos;
-  let q = sb.from("servicios").select("*, conductor:perfiles!servicios_conductor_id_fkey(nombre)", { count: "exact" })
+  let q = sb.from("servicios").select("*, conductor:perfiles!servicios_conductor_id_fkey(nombre)", { count: "exact" }).eq("es_prueba", false)
     .gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc).order("fecha_hora_recogida").range(0, cal ? LIMITE_CAL - 1 : pagina * POR_PAGINA - 1);
   if (estado) q = q.eq("estado", estado);
   const estGrupo = grupo ? estadosDeGrupo(grupo) : null;
@@ -55,7 +55,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
   if (origen) q = q.eq("origen_pedido", origen);
   // Contadores: un count exacto (head) por tarjeta; respetan conductor y origen pero no el estado.
   const cuenta = (est?: string[], sub?: boolean) => {
-    let x = sb.from("servicios").select("id", { count: "exact", head: true })
+    let x = sb.from("servicios").select("id", { count: "exact", head: true }).eq("es_prueba", false)
       .gte("fecha_hora_recogida", r.desdeUtc).lt("fecha_hora_recogida", r.hastaUtc);
     if (conductor) x = x.eq("conductor_id", conductor);
     if (origen) x = x.eq("origen_pedido", origen);

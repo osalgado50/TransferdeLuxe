@@ -44,7 +44,7 @@ export async function sugerenciasServicio(servicioId: string) {
     sb.from("perfiles").select("id, nombre, vehiculo_habitual_id").or(FILTRO_CONDUCEN),
     sb.from("vehiculos").select("*"),
     sb.from("posicion_actual").select("*"),
-    sb.from("servicios").select("id, estado, conductor_id, fecha_hora_recogida, duracion_estimada_min, origen_lat, origen_lng, destino_lat, destino_lng, origen_texto, destino_texto")
+    sb.from("servicios").select("id, estado, conductor_id, fecha_hora_recogida, duracion_estimada_min, origen_lat, origen_lng, destino_lat, destino_lng, origen_texto, destino_texto").eq("es_prueba", false)
       .in("estado", [...ESTADOS_AGENDA]).gte("fecha_hora_recogida", desde).lte("fecha_hora_recogida", hasta),
     sb.from("ajustes").select("umbral_sin_senal_min").eq("id", 1).maybeSingle(),
   ]);
@@ -70,9 +70,9 @@ export async function resumenCentral(ahora = new Date()) {
   const sb = clienteAdmin();
   const { hoy } = rangosConductor(ahora);
   const [alertas, pendientes, deHoy, pos, gente] = await Promise.all([
-    sb.from("servicios").select(CAMPOS).eq("incidencia_vista", false).order("fecha_hora_recogida").limit(100),
-    sb.from("servicios").select(CAMPOS).eq("estado", "pendiente").gte("fecha_hora_recogida", new Date(ahora.getTime() - 12 * 3600_000).toISOString()).order("fecha_hora_recogida").limit(200),
-    sb.from("servicios").select(CAMPOS).gte("fecha_hora_recogida", hoy.desde).lt("fecha_hora_recogida", hoy.hasta).order("fecha_hora_recogida").limit(300),
+    sb.from("servicios").select(CAMPOS).eq("es_prueba", false).eq("incidencia_vista", false).order("fecha_hora_recogida").limit(100),
+    sb.from("servicios").select(CAMPOS).eq("es_prueba", false).eq("estado", "pendiente").gte("fecha_hora_recogida", new Date(ahora.getTime() - 12 * 3600_000).toISOString()).order("fecha_hora_recogida").limit(200),
+    sb.from("servicios").select(CAMPOS).eq("es_prueba", false).gte("fecha_hora_recogida", hoy.desde).lt("fecha_hora_recogida", hoy.hasta).order("fecha_hora_recogida").limit(300),
     sb.from("posicion_actual").select("conductor_id,lat,lng,velocidad,en_servicio,registrado_en"),
     sb.from("perfiles").select("id,nombre,telefono,rol,conduce,vehiculo_habitual_id").or(FILTRO_CONDUCEN).order("nombre"),
   ]);
@@ -113,10 +113,12 @@ async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date
     const f = [ev, inc, rev, jor, veh].find((x) => x.error);
     if (f?.error) throw new Error(f.error.message);
     const ids = [...new Set([...(ev.data ?? []).map((e) => e.servicio_id), ...(inc.data ?? []).map((i) => i.servicio_id)])].filter((x): x is string => !!x);
-    const { data: servs } = ids.length ? await sb.from("servicios").select(CAMPOS_ACT).in("id", ids.slice(0, 200)) : { data: [] };
+    const { data: servs } = ids.length ? await sb.from("servicios").select(`${CAMPOS_ACT},es_prueba`).in("id", ids.slice(0, 200)) : { data: [] };
+    const filas = (servs ?? []) as (ServicioAct & { es_prueba: boolean })[];
     const r = construirActividad({
       eventos: ev.data ?? [], incidencias: inc.data ?? [], revisiones: rev.data ?? [], jornadas: jor.data ?? [],
-      servicios: (servs ?? []) as ServicioAct[], conductores, posiciones, vehiculos: veh.data ?? [], desde,
+      servicios: filas.filter((x) => !x.es_prueba), ocultos: filas.filter((x) => x.es_prueba).map((x) => x.id),
+      conductores, posiciones, vehiculos: veh.data ?? [], desde,
     });
     return { actividad: r.movimientos, graves: r.graves };
   } catch (e) {

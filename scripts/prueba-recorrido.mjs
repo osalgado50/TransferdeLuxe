@@ -122,7 +122,7 @@ if (rec) {
   const cen = await central.sb.from("recorridos").select("servicio_id").eq("servicio_id", sid).maybeSingle();
   paso(cen.data?.servicio_id === sid, "RLS: la central lo ve");
 }
-await admin.from("servicios").update({ incidencia_vista: true }).eq("id", sid);
+await admin.from("servicios").update({ incidencia_vista: true, es_prueba: true }).eq("id", sid); // oculto de listados e informes
 await Promise.all([central, yo, otro].map((s) => s.sb.auth.signOut().catch(() => {})));
 console.log(`\n${fallos === 0 ? "TODO OK" : `${fallos} FALLO(S)`}`);
 process.exit(fallos ? 1 : 0);

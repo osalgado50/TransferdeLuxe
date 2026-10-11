@@ -55,6 +55,8 @@ export interface EntradaActividad {
   vehiculos?: { id: string; matricula: string }[];
   /** Solo lo posterior (las graves pendientes se incluyen siempre en `graves`). */
   desde?: Date;
+  /** Servicios ocultos (pruebas automáticas): sus eventos e incidencias no salen en la actividad. */
+  ocultos?: Iterable<string>;
 }
 
 export const TIPOS_GRAVES = ["averia", "accidente"] as const;
@@ -105,6 +107,7 @@ const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido",
 export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDAD): { movimientos: Movimiento[]; graves: Movimiento[] } {
   const servicios = new Map<string, ServicioAct>();
   for (const s of e.servicios) servicios.set(s.id, s);
+  const ocultos = new Set(e.ocultos ?? []);
   const gente = new Map(e.conductores.map((c) => [c.id, c]));
   const pos = new Map((e.posiciones ?? []).map((p) => [p.conductor_id, p]));
   const matr = new Map((e.vehiculos ?? []).map((v) => [v.id, v.matricula]));
@@ -132,6 +135,7 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
   };
 
   for (const ev of e.eventos ?? []) {
+    if (ocultos.has(ev.servicio_id)) continue;
     const s = servicios.get(ev.servicio_id);
     const deshecho = ev.tipo === "deshecho" ? leerDeshecho(ev.motivo) : null;
     const cid = DEL_CONDUCTOR.has(ev.tipo) || (deshecho && !deshecho.central) ? (ev.actor_id ?? s?.conductor_id ?? null)
@@ -183,6 +187,7 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
   }
 
   for (const i of e.incidencias ?? []) {
+    if (i.servicio_id && ocultos.has(i.servicio_id)) continue;
     const s = i.servicio_id ? servicios.get(i.servicio_id) : undefined;
     const m = base(`inc-${i.id}`, i.creado_en, i.conductor_id, s);
     const p = i.lat != null && i.lng != null ? { lat: i.lat, lng: i.lng } : pos.get(i.conductor_id) ?? null;

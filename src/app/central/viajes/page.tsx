@@ -26,7 +26,7 @@ export default async function HistorialViajes({ searchParams }: { searchParams: 
   const conductor = f.conductor && UUID.test(f.conductor) ? f.conductor : "";
   const sb = await clienteServidor();
   let q = sb.from("servicios")
-    .select(`id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,conductor:perfiles!servicios_conductor_id_fkey(nombre),recorrido:recorridos(${CAMPOS_RECORRIDO})`, { count: "exact" })
+    .select(`id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,conductor:perfiles!servicios_conductor_id_fkey(nombre),recorrido:recorridos(${CAMPOS_RECORRIDO})`, { count: "exact" }).eq("es_prueba", false)
     .eq("estado", "completado").gte("fecha_hora_recogida", madridAUtc(desde, "00:00")).lt("fecha_hora_recogida", madridAUtc(sumarDias(hasta, 1), "00:00"))
     .order("fecha_hora_recogida", { ascending: false }).limit(LIMITE);
   if (conductor) q = q.eq("conductor_id", conductor);

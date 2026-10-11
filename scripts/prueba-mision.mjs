@@ -151,9 +151,9 @@ paso(["asignado", "aceptado", "en_camino", "recogido", "completado"].every((t) =
 const { count } = await admin.from("incidencias").select("id", { count: "exact", head: true }).like("descripcion", `${NOTA}%`);
 paso(count === 2, "Las 2 incidencias llegan a la central", String(count));
 
-// Limpieza suave: nada se borra; lo de prueba queda visto/resuelto/cancelado para no ensuciar la central.
+// Limpieza suave: nada se borra; lo de prueba queda visto/resuelto/cancelado y marcado es_prueba (fuera de listados e informes).
 await admin.from("incidencias").update({ resuelta: true, resuelta_en: new Date().toISOString() }).like("descripcion", `${NOTA}%`);
-await admin.from("servicios").update({ incidencia_vista: true }).in("id", [s1, s2, s3]);
+await admin.from("servicios").update({ incidencia_vista: true, es_prueba: true }).in("id", [s1, s2, s3]); // oculto de listados e informes
 await admin.from("servicios").update({ estado: "cancelado" }).eq("id", s2);
 await Promise.all([central, yo].map((s) => s.sb.auth.signOut().catch(() => {})));
 console.log(`\n${fallos === 0 ? "TODO OK" : `${fallos} FALLO(S)`}`);

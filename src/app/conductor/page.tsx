@@ -13,13 +13,13 @@ export default async function Hoy() {
   const hasta = madridAUtc(new Date(Date.parse(`${dia}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10), "00:00");
   const sb = await clienteServidor();
   const { data, error } = await sb.from("servicios")
-    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas")
+    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas").eq("es_prueba", false)
     .eq("conductor_id", yo.id).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta)
     .neq("estado", "cancelado").order("fecha_hora_recogida");
   const dia8 = new Date(Date.parse(`${dia}T12:00:00Z`) + 8 * 86400e3).toISOString().slice(0, 10);
   const hasta7 = madridAUtc(dia8, "00:00");
   const { data: prox, error: errorProx } = await sb.from("servicios")
-    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas")
+    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas").eq("es_prueba", false)
     .eq("conductor_id", yo.id).gte("fecha_hora_recogida", hasta).lt("fecha_hora_recogida", hasta7)
     .not("estado", "in", "(cancelado,completado)").order("fecha_hora_recogida");
   return (
