@@ -1,5 +1,7 @@
 import { rangosConductor } from "@dominio/dias";
 import { objetivoActual, type Fase } from "@dominio/navegacion";
+import { leerModulos } from "@dominio/modulos";
+import { urlVuelo } from "@dominio/vuelos";
 import type { EstadoServicio, Punto, Servicio } from "@dominio/tipos";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -31,12 +33,13 @@ export default function ServicioEnCurso() {
   const yo = sesion!.user.id;
   const { datos, error, cargando, recargar } = useConsulta(async () => {
     const r = rangosConductor(new Date()).hoy;
-    const [s, hoy] = await Promise.all([
+    const [s, hoy, aj] = await Promise.all([
       supabase.from("servicios").select("*").eq("id", id).eq("conductor_id", yo).maybeSingle(),
       supabase.from("servicios").select("id").eq("conductor_id", yo).gte("fecha_hora_recogida", r.desde).lt("fecha_hora_recogida", r.hasta)
         .not("estado", "in", "(cancelado,completado)").neq("id", id).order("fecha_hora_recogida").limit(1),
+      supabase.from("ajustes").select("modulos").maybeSingle(),
     ]);
-    return { s: exigir(s) as Servicio | null, siguienteId: (exigir(hoy) as { id: string }[])[0]?.id ?? null };
+    return { s: exigir(s) as Servicio | null, siguienteId: (exigir(hoy) as { id: string }[])[0]?.id ?? null, vuelos: leerModulos(aj.data?.modulos).vuelos };
   }, [id, yo]);
 
   const s = datos?.s;
@@ -78,7 +81,8 @@ export default function ServicioEnCurso() {
           <Text style={estilos.texto}><Text style={estilos.tenue}>Recogida: </Text>{s.origen_texto}</Text>
           <Text style={estilos.texto}><Text style={estilos.tenue}>Destino: </Text>{s.destino_texto}</Text>
           <Text style={estilos.texto}><Text style={estilos.tenue}>Cliente: </Text>{nombre} · {s.pasajeros} pax · {s.maletas} maletas</Text>
-          {s.numero_vuelo && <Text style={estilos.texto}><Text style={estilos.tenue}>Vuelo: </Text>{s.numero_vuelo}</Text>}
+          {datos?.vuelos && s.numero_vuelo && <Text style={estilos.texto}><Text style={estilos.tenue}>Vuelo: </Text>{s.numero_vuelo}{"  "}
+            <Text accessibilityRole="link" style={{ color: color.marcaClaro, textDecorationLine: "underline" }} onPress={() => void abrir(urlVuelo(s.numero_vuelo!))}>Ver vuelo</Text></Text>}
           {s.notas && <Text style={estilos.texto}><Text style={estilos.tenue}>Notas: </Text>{s.notas}</Text>}
         </Tarjeta>
         {objetivo && (

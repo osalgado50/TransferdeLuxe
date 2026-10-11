@@ -1,4 +1,5 @@
 "use client";
+import EnlaceVuelo from "@/components/vuelos/EnlaceVuelo";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clienteNavegador } from "@/lib/supabase/navegador";
@@ -38,7 +39,7 @@ function pitar() {
   } catch { /* sin sonido */ }
 }
 
-export default function TarjetaServicioNuevo({ iniciales, yo }: { iniciales: ServicioNuevo[]; yo: string }) {
+export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: { iniciales: ServicioNuevo[]; yo: string; vuelos?: boolean }) {
   const todos = useTiempoReal("servicios", iniciales, "id");
   const router = useRouter();
   const [ahora, setAhora] = useState<Date | null>(null);
@@ -141,7 +142,8 @@ export default function TarjetaServicioNuevo({ iniciales, yo }: { iniciales: Ser
       {ahora && restante <= 86400 && <p className="text-xs text-slate-400">para responder</p>}
       <p className="mt-5 text-3xl font-bold">{fechaHora.format(new Date(s.fecha_hora_recogida))}</p>
       <p className="mt-2 text-xl">{s.origen_texto} → {s.destino_texto}</p>
-      <p className="mt-2 text-base text-slate-300">{s.pasajeros} pax · {s.maletas} maletas{s.numero_vuelo ? ` · Vuelo ${s.numero_vuelo}` : ""}</p>
+      <p className="mt-2 text-base text-slate-300">{s.pasajeros} pax · {s.maletas} maletas{vuelos && s.numero_vuelo ? ` · Vuelo ${s.numero_vuelo}` : ""}</p>
+      {vuelos && s.numero_vuelo && <EnlaceVuelo codigo={s.numero_vuelo} className="mt-1 inline-block text-base" />}
       {s.notas && <p className="mt-2 rounded-lg bg-slate-900 p-3 text-sm text-slate-300">{s.notas}</p>}
       {error && <p role="alert" className="mt-3 rounded-lg bg-red-950 p-3 text-red-300">{error}</p>}
       <div className="mt-auto space-y-3 pt-6">

@@ -7,6 +7,9 @@ import EstadoBadge from "@/components/comun/EstadoBadge";
 import MapaTrayecto from "@/components/mapa/MapaTrayectoCarga";
 import BotonPaso from "@/components/conductor/BotonPaso";
 import NavegacionConductor from "@/components/conductor/NavegacionConductor";
+import BotonIncidencia from "@/components/conductor/BotonIncidencia";
+import EnlaceVuelo from "@/components/vuelos/EnlaceVuelo";
+import { leerModulos } from "@/lib/dominio/modulos";
 import { objetivoActual } from "@/lib/dominio/navegacion";
 import type { EstadoServicio, Punto } from "@/lib/dominio/tipos";
 
@@ -26,6 +29,9 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
     .eq("conductor_id", yo.id).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta)
     .neq("estado", "cancelado").neq("estado", "completado").neq("id", id).order("fecha_hora_recogida");
   const siguienteId = hoy?.[0]?.id ?? null;
+  const { data: aj } = await sb.from("ajustes").select("modulos").eq("id", 1).maybeSingle();
+  const incidencias = leerModulos(aj?.modulos).incidencias;
+  const vuelos = leerModulos(aj?.modulos).vuelos;
 
   const pt = (lat: number | null, lng: number | null): Punto | null => (lat != null && lng != null ? { lat, lng } : null);
   const origen = pt(s.origen_lat, s.origen_lng);
@@ -45,6 +51,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
         <p><span className="text-slate-400">Recogida:</span> {s.origen_texto}</p>
         <p><span className="text-slate-400">Destino:</span> {s.destino_texto}</p>
         <p><span className="text-slate-400">Cliente:</span> {nombre} · {s.pasajeros} pax · {s.maletas} maletas</p>
+        {vuelos && s.numero_vuelo && <p><span className="text-slate-400">Vuelo:</span> {s.numero_vuelo} · <EnlaceVuelo codigo={s.numero_vuelo} /></p>}
       </div>
       {objetivo
         ? <NavegacionConductor key={`${s.id}-${objetivo.tipo}`} servicioId={s.id} objetivo={objetivo} origenServicio={origen} />
@@ -55,6 +62,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
         <a className="col-span-2 flex min-h-12 items-center justify-center rounded-xl border border-slate-600 py-3" href={`tel:${s.cliente_telefono}`}>Llamar al cliente</a>
       </div>
       <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
+      {incidencias && <BotonIncidencia servicioId={s.id} />}
     </div>
   );
 }

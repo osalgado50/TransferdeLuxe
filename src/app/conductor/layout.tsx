@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { leerModulos } from "@/lib/dominio/modulos";
 import LogoTVL from "@/components/comun/LogoTVL";
 import type { Metadata, Viewport } from "next";
 import { exigirRol } from "@/lib/supabase/sesion";
@@ -21,6 +22,7 @@ const NAV = [["/conductor", "Hoy"], ["/conductor/ticket", "Ticket"], ["/conducto
 export default async function LayoutConductor({ children }: { children: React.ReactNode }) {
   const yo = await exigirRol("conductor");
   const sb = await clienteServidor();
+  const { data: aj } = await sb.from("ajustes").select("modulos").maybeSingle();
   const { data: nuevos } = await sb.from("servicios")
     .select("id,estado,conductor_id,asignado_en,plazo_respuesta_min,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,notas")
     .eq("conductor_id", yo.id).eq("estado", "asignado");
@@ -28,7 +30,7 @@ export default async function LayoutConductor({ children }: { children: React.Re
     <div className="min-h-screen bg-slate-950 pb-24 text-slate-200">
       <RegistroSW />
       <DrenajeCola conductorId={yo.id} />
-      <TarjetaServicioNuevo iniciales={(nuevos ?? []) as ServicioNuevo[]} yo={yo.id} />
+      <TarjetaServicioNuevo iniciales={(nuevos ?? []) as ServicioNuevo[]} yo={yo.id} vuelos={leerModulos(aj?.modulos).vuelos} />
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 px-4 py-3">
         <div className="flex items-center gap-3"><LogoTVL alto={48} prioridad /><div><p className="text-xs text-slate-400">Conductor · TransferdeLuxe</p><p className="text-lg font-semibold text-marca-claro">{yo.nombre}</p></div></div>
         <InterruptorServicio conductorId={yo.id} />
