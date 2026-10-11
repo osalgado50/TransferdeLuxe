@@ -93,3 +93,19 @@ export async function notificarConductor(servicioId: string, titulo: string, cue
     console.error("[push] notificarConductor falló:", e instanceof Error ? e.message : e);
   }
 }
+
+/** Aviso a todos los dispositivos de los usuarios de la central (operadores). Nunca lanza. */
+export async function notificarCentral(titulo: string, cuerpo: string, data: Record<string, unknown>): Promise<void> {
+  try {
+    const sb = clienteAdmin();
+    const { data: ops } = await sb.from("perfiles").select("id").eq("rol", "operador");
+    const ids = (ops ?? []).map((o: { id: string }) => o.id);
+    if (!ids.length) return;
+    const { data: disp } = await sb.from("dispositivos_push").select("token").in("conductor_id", ids);
+    const tokens = (disp ?? []).map((d: { token: string }) => d.token);
+    if (!tokens.length) return;
+    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data, sound: "default", priority: "high", channelId: "servicios" })));
+  } catch (e) {
+    console.error("[push] notificarCentral falló:", e instanceof Error ? e.message : e);
+  }
+}
