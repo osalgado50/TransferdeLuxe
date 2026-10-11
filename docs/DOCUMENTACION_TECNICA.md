@@ -83,13 +83,12 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 15. **Calendario de servicios**: la central alterna «Lista | Calendario», ve los servicios sobre una rejilla horaria (día/semana) o por chips (mes) coloreados por estado, y abre la ficha con un clic.
 16. **Navegación del conductor**: con el servicio aceptado, en camino o con pasajeros, el conductor ve en la app su posición, la ruta por carretera hasta la recogida o el destino y «Hacia la recogida · 4,2 km · 7 min»; a 500 m suena un aviso «Estás llegando…», la central ve «Llegando» y, al llegar (100 m), se resalta el botón CARGA/DESCARGA.
 17. **Planificación con tiempos**: en la hoja de ruta cada servicio muestra «13:00 → 13:45 · 45 min» y, entre dos servicios del mismo conductor, una franja «🚗 Barcelona T1 → Tarragona · 1 h 10 min · llega 15:20 · 40 min de margen» (verde/ámbar/roja). Al arrastrar un servicio a un conductor que no llegaría a tiempo se pide confirmación con el motivo; los servicios sin asignar proponen «💡 Mejor: …» con botón «Asignar».
-
-19. **Jornada laboral**: el conductor inicia la jornada, hace pausas y la finaliza; la central consulta y exporta a CSV el registro horario por conductor y día.
-20. **Incidencia con foto**: una avería en ruta se notifica con foto y posición; aparece al momento en las alertas de la central, que la marca como resuelta.
-21. **Checklist del vehículo**: al empezar la jornada el conductor revisa el vehículo; un punto «mal» genera aviso en la central. Los puntos se editan desde la central.
-22. **Mantenimiento e informes**: semáforo de ITV, seguro y revisiones por vehículo; informe mensual de servicios, km y consumo con export CSV.
-23. **Vuelo retrasado**: el operador anota la hora real de llegada y la app propone mover la recogida; el conductor recibe un aviso push.
-24. **Módulos**: en Flota y ajustes la empresa activa o desactiva cada módulo y desaparece de la central y de la app.
+18. **Jornada laboral**: el conductor inicia la jornada, hace pausas y la finaliza; la central consulta y exporta a CSV el registro horario por conductor y día.
+19. **Incidencia con foto**: una avería en ruta se notifica con foto y posición; aparece al momento en las alertas de la central, que la marca como resuelta.
+20. **Checklist del vehículo**: al empezar la jornada el conductor revisa el vehículo; un punto «mal» genera aviso en la central. Los puntos se editan desde la central.
+21. **Mantenimiento e informes**: semáforo de ITV, seguro y revisiones por vehículo; informe mensual de servicios, km y consumo con export CSV.
+22. **Vuelo retrasado**: el operador anota la hora real de llegada y la app propone mover la recogida; el conductor recibe un aviso push.
+23. **Módulos**: en Flota y ajustes la empresa activa o desactiva cada módulo y desaparece de la central y de la app.
 
 ## 5. Proceso iterativo con la IA
 - **09/10/2026**: preparación del entorno. Repo nuevo, reglas de las bases en `CLAUDE.md` para que el
