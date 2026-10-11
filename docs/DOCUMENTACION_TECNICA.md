@@ -156,6 +156,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   (`src/lib/vuelos/`, AeroDataBox) que solo aparece con `AERODATABOX_API_KEY`. Migración 0014; lógica pura en
   `src/lib/dominio/vuelos.ts`.
 
+- **Módulos del conductor (11/10/2026)**: **Jornada** (iniciar/pausa/reanudar/finalizar, horas de hoy y semana;
+  `/central/jornadas` por conductor y día con CSV de registro horario, art. 34.9 ET), **Incidencias** (avería,
+  accidente, no presentado, retraso u otro, con foto en el bucket privado `incidencias` y posición; alerta en vivo en el
+  panel y `/central/incidencias` con URL firmada para resolverlas) y **Checklist** del vehículo (ítems editables y
+  ordenables en `/central/checklist`, una revisión por día y vehículo; lo «mal» avisa en el panel). En PWA (Server
+  Actions) y app nativa (rutas `/api/conductor/{jornada,incidencia,checklist}` con Bearer). Migración 0012; lógica pura
+  en `src/lib/dominio/{jornada,incidencias,checklist}.ts`.
+
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
   plano), Mindee, Tabscanner, Azure y Google Document AI. Se elige Claude Haiku 5.5 porque devuelve los datos ya
@@ -221,6 +229,12 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Reajuste de recogida por vuelo sin sorpresas**: el operador ve la propuesta y confirma; el servidor recalcula la hora
   con la llegada guardada y rechaza si no coincide con la que vio, y el `update` excluye servicios ya recogidos o
   cerrados. `/reservar` pasa de estática a ISR (5 min) para respetar el módulo activado sin perder la caché de la CDN.
+
+- **Jornada sin estados imposibles ni dobles toques**: índices únicos parciales (una jornada abierta por conductor y
+  una pausa abierta por jornada) y transiciones validadas en el dominio; repetir una acción ya aplicada responde ok.
+  La jornada es independiente del interruptor GPS «En servicio»: al finalizar solo se sugiere ponerse fuera de servicio.
+  El checklist se hace idempotente con `unique (conductor_id, vehiculo_id, fecha)` y «quitar» un ítem lo desactiva
+  para no romper revisiones antiguas.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
