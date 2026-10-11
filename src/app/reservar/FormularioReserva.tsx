@@ -91,10 +91,12 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
       <div role="status" className="rounded-xl border border-marca-claro bg-slate-900 p-6 text-center">
         <p className="text-xl font-semibold text-marca-claro">{estado.mensaje}</p>
         <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
-          {/* Recarga completa: formulario limpio con favoritos y ajustes al día. */}
+          {/* Recarga completa a propósito: formulario limpio con favoritos y ajustes al día. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href={central ? "/central/servicios/nuevo" : "/reservar"} className="min-h-12 rounded-lg bg-marca px-5 py-3 font-semibold text-white hover:bg-marca-claro">
             {central ? "Crear otro servicio" : "Hacer otra reserva"}
           </a>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           {central && <a href="/central/servicios" className="min-h-12 rounded-lg border border-slate-600 px-5 py-3 font-semibold hover:border-marca-claro">Ver servicios</a>}
         </div>
       </div>

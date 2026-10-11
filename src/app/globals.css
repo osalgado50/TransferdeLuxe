@@ -41,3 +41,16 @@ body {
 
 /* Mapa de navegación del conductor: los controles quedan bajo el banner superior */
 .mapa-nav .leaflet-top { top: 4.25rem; }
+
+/* Iconos de calendario y reloj de los campos de fecha/hora: en azul de marca y bien visibles sobre fondo oscuro. */
+input[type="date"], input[type="time"], input[type="datetime-local"] { color-scheme: dark; }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 1;
+  width: 1.4rem;
+  height: 1.4rem;
+  /* Convierte el icono (negro) en el azul claro de marca #5aaee3. */
+  filter: invert(62%) sepia(48%) saturate(640%) hue-rotate(170deg) brightness(97%) contrast(92%);
+}
