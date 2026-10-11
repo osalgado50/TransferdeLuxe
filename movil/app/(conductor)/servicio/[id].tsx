@@ -82,6 +82,16 @@ export default function ServicioEnCurso() {
         </View>
         <Text style={estilos.tenue}>{fmt(fechaHora, s.fecha_hora_recogida)}</Text>
         {error && <Aviso tipo="error" texto={`Sin conexión: datos de hace un momento (${error})`} />}
+        {/* Controles primero: el conductor va conduciendo y necesita los botones a mano, sin hacer scroll. */}
+        <View style={{ gap: 10 }}>
+          <BotonPaso key={s.id} servicioId={s.id} conductorId={yo} estadoServidor={estado} siguienteId={datos?.siguienteId ?? null}
+            alCambiar={() => void recargar()} resaltar={!!objetivo && fase === "llegado"} />
+          {!!s.cliente_telefono && s.estado !== "completado" && (
+            <Boton texto="📞  Llamar al cliente" alto={64} tamano={19} variante="secundario"
+              onPress={() => void abrir(`tel:${s.cliente_telefono.replace(/[^\d+]/g, "")}`)} />
+          )}
+          {datos?.incidencias && s.estado !== "completado" && <BotonIncidencia servicioId={s.id} />}
+        </View>
         <Tarjeta>
           <BloqueDireccion tipo="recogida" texto={s.origen_texto} lat={s.origen_lat} lng={s.origen_lng} />
           <BloqueDireccion tipo="destino" texto={s.destino_texto} lat={s.destino_lat} lng={s.destino_lng} />
@@ -102,14 +112,6 @@ export default function ServicioEnCurso() {
               onPress={() => void abrir(`waze://?ll=${meta.lat},${meta.lng}&navigate=yes`, `https://waze.com/ul?ll=${meta.lat},${meta.lng}&navigate=yes`)} />
           </View>
         )}
-        {!!s.cliente_telefono && (
-          <Boton texto="Llamar al cliente" variante="secundario" onPress={() => void abrir(`tel:${s.cliente_telefono.replace(/[^\d+]/g, "")}`)} />
-        )}
-        <View style={{ marginTop: 8 }}>
-          <BotonPaso key={s.id} servicioId={s.id} conductorId={yo} estadoServidor={estado} siguienteId={datos?.siguienteId ?? null}
-            alCambiar={() => void recargar()} resaltar={!!objetivo && fase === "llegado"} />
-        </View>
-        {datos?.incidencias && s.estado !== "completado" && <BotonIncidencia servicioId={s.id} />}
       </ScrollView>
     </SafeAreaView>
   );
