@@ -1,7 +1,7 @@
 name: Mantener activa la base de datos
 
-# Consulta de solo lectura diaria para que el plan gratuito de Supabase no se pause por inactividad.
-# NO borra ni reinicia ningún dato (el reinicio automático de la demo se desactivó a petición del responsable).
+# Latido diario para que el plan gratuito de Supabase no se pause por inactividad, y limpieza de tokens push
+# de móviles desinstalados. NO borra ni reinicia datos de la demo (el reinicio se desactivó a petición del responsable).
 on:
   schedule:
     - cron: "30 3 * * *"
