@@ -1,6 +1,8 @@
 // Prueba de punta a punta del ciclo de una misión contra producción, con servicios de PRUEBA creados aquí (nunca toca otros).
 // Central asigna → conductor lo ve (RLS) → acepta (y duplicado idempotente) → orden incorrecto rechazado → en camino →
 // incidencia «retraso» → «llegando» → CARGA → DESCARGA. Segundo servicio: el conductor lo rechaza con motivo.
+// Tercer servicio: recogida hace 5 min, aceptado y sin recoger → el servidor registra «retraso_recogida» (≤ 60 s) y la
+// central lo ve en la actividad; después se completa.
 // Al final las alertas e incidencias de prueba quedan vistas/resueltas para no ensuciar la central.
 // Uso: set -a; . ./.env.local; set +a; node scripts/prueba-mision.mjs [conductorEmail=conductor3@transferdeluxe.test]
 import { createClient } from "@supabase/supabase-js";
@@ -88,6 +90,31 @@ const incAct = act.filter((m) => m.incidenciaId && (m.descripcion ?? "").startsW
 paso(incAct.length === 2 && incAct.every((m) => m.conductor && m.zona), "Actividad en vivo: incidencias con conductor y zona", incAct.map((m) => `${m.zona}`).join(" | "));
 for (const m of act.filter((x) => x.servicioId === s1 || x.servicioId === s2).slice(0, 12)) console.log(`   ${m.hora} [${m.gravedad}] ${m.texto}`);
 
+// ── Tercer servicio: la hora de recogida ya pasó y el conductor aún no ha recogido → aviso del servidor. ──
+const { data: s3fila, error: eIns3 } = await admin.from("servicios")
+  .insert({ ...base, fecha_hora_recogida: new Date(Date.now() - 5 * 60e3).toISOString() }).select("id").single();
+if (eIns3) throw eIns3;
+const s3 = s3fila.id;
+console.log(`\nTercer servicio (recogida hace 5 min): ${s3}`);
+r = await llamar(central, "POST", "/api/central/asignar", { idAccion: randomUUID(), servicioId: s3, conductorId: yo.id });
+paso(r.status === 200, "Central asigna un servicio con la recogida ya pasada", `${r.status} ${r.j?.error ?? ""}`);
+r = await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s3, accion: "aceptar" });
+paso(r.status === 200 && (await estado(s3)).estado === "aceptado", "Conductor lo acepta (sin recoger)");
+const t3 = Date.now();
+let retraso = null;
+while (!retraso && Date.now() - t3 < 60_000) {
+  const { data } = await admin.from("eventos_servicio").select("id,actor_id,motivo,creado_en").eq("servicio_id", s3).eq("tipo", "retraso_recogida");
+  if (data?.length) retraso = data; else await new Promise((ok) => setTimeout(ok, 3000));
+}
+paso(retraso?.length === 1 && retraso[0].actor_id === null, "Servidor: evento «retraso_recogida» (una sola vez, sin actor)",
+  retraso ? `${Math.round((Date.now() - t3) / 1000)} s · ${retraso[0].motivo}` : "no apareció en 60 s");
+r = await llamar(central, "GET", "/api/central/resumen");
+const mr = (r.j?.actividad ?? []).find((m) => m.servicioId === s3 && m.tipo === "retraso_recogida");
+paso(!!mr && mr.gravedad === "aviso" && mr.texto.includes("llega tarde a la recogida"), "Actividad en vivo: la central ve que llega tarde", mr?.texto ?? "");
+for (const a of ["salir", "cargar", "descargar"]) await llamar(yo, "POST", "/api/conductor/accion", { idAccion: randomUUID(), servicioId: s3, accion: a });
+const { count: nRetraso } = await admin.from("eventos_servicio").select("id", { count: "exact", head: true }).eq("servicio_id", s3).eq("tipo", "retraso_recogida");
+paso((await estado(s3)).estado === "completado" && nRetraso === 1, "Tercer servicio completado; el aviso no se repite", `${nRetraso} evento(s)`);
+
 const { data: ev } = await admin.from("eventos_servicio").select("tipo").eq("servicio_id", s1).order("creado_en");
 paso(["asignado", "aceptado", "en_camino", "recogido", "completado"].every((t) => ev.some((e) => e.tipo === t)),
   "Historial de eventos completo", ev.map((e) => e.tipo).join(" → "));
@@ -96,7 +123,7 @@ paso(count === 2, "Las 2 incidencias llegan a la central", String(count));
 
 // Limpieza suave: nada se borra; lo de prueba queda visto/resuelto/cancelado para no ensuciar la central.
 await admin.from("incidencias").update({ resuelta: true, resuelta_en: new Date().toISOString() }).like("descripcion", `${NOTA}%`);
-await admin.from("servicios").update({ incidencia_vista: true }).in("id", [s1, s2]);
+await admin.from("servicios").update({ incidencia_vista: true }).in("id", [s1, s2, s3]);
 await admin.from("servicios").update({ estado: "cancelado" }).eq("id", s2);
 await Promise.all([central, yo].map((s) => s.sb.auth.signOut().catch(() => {})));
 console.log(`\n${fallos === 0 ? "TODO OK" : `${fallos} FALLO(S)`}`);

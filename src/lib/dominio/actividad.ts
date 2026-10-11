@@ -96,7 +96,7 @@ function cuando(s: ServicioAct, en: string) {
 const ICONO: Record<string, string> = {
   creado: "🆕", asignado: "📤", reasignado: "🔁", aceptado: "✅", rechazado: "❌", expirado: "⏰", en_camino: "🚗",
   llegando_recogida: "📍", llegando_destino: "📍", recogido: "🧳", completado: "🏁", cancelado: "🚫", subcontratado: "🤝",
-  llegada_vuelo: "✈️", recogida_reajustada: "🕒",
+  llegada_vuelo: "✈️", recogida_reajustada: "🕒", retraso_recogida: "🔴",
 };
 /** Eventos que hace el propio conductor (el actor es él). En el resto se nombra al conductor asignado. */
 const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido", "completado", "llegando_recogida", "llegando_destino"]);
@@ -156,6 +156,15 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
       case "completado": texto = `${N} ha dejado ${C ? `a ${C}` : "al cliente"}${D ? ` en ${D}` : ""} · queda libre`; break;
       case "cancelado": texto = `${Serv} cancelado${T}`; break;
       case "subcontratado": texto = `${Serv} subcontratado${T}`; break;
+      case "retraso_recogida": {
+        // Detectado por el servidor (actor null): conductor asignado y su última posición conocida.
+        const p = cid ? pos.get(cid) : undefined;
+        m.zona = p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null;
+        m.lat = p?.lat ?? null; m.lng = p?.lng ?? null;
+        texto = [`⏰ ${N} llega tarde a la recogida de ${s ? cuando(s, ev.creado_en) : "un servicio"}`, s ? trayectoBreve(s) : null, m.zona].filter(Boolean).join(" · ");
+        m.gravedad = "aviso";
+        break;
+      }
       default: texto = `${etiquetaEvento(ev.tipo)} · ${serv}`;
     }
     out.push({ ...m, tipo: ev.tipo, icono: ICONO[ev.tipo] ?? "•", texto, descripcion: ev.tipo === "rechazado" ? ev.motivo : null });

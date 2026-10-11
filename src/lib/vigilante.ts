@@ -12,6 +12,9 @@ export async function vigilarUnaVez(): Promise<number> {
   const { data: c, error } = await sb.from("vigilante_push").select("*").eq("id", 1).maybeSingle();
   if (error) throw new Error(`cursor: ${error.message}`); // Supabase caído → el arranque aplica backoff
   if (!c) return 0;
+  // Retrasos en la recogida (idempotente: índice único parcial). Si falla, el pg_cron de cada minuto lo cubre.
+  const det = await sb.rpc("detectar_retrasos_recogida");
+  if (det.error) console.error("[vigilante] retrasos:", det.error.message);
   const [{ data: ev }, { data: inc }, { data: rev }] = await Promise.all([
     sb.from("eventos_servicio").select("id,servicio_id,tipo,actor_id,motivo").gt("id", c.ultimo_evento_id).order("id").limit(LIMITE),
     sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en").gt("creado_en", c.ultima_incidencia_en).order("creado_en").limit(LIMITE),
@@ -23,19 +26,24 @@ export async function vigilarUnaVez(): Promise<number> {
   if (!eventos.length && !incidencias.length && !revisiones.length) return 0;
 
   const idsServ = [...new Set([...eventos.map((e) => e.servicio_id), ...incidencias.map((i) => i.servicio_id).filter((x): x is string => !!x)])];
-  const idsPers = [...new Set([...eventos.map((e) => e.actor_id), ...incidencias.map((i) => i.conductor_id), ...revisiones.map((r) => r.conductor_id)].filter((x): x is string => !!x))];
+  const { data: servs } = idsServ.length
+    ? await sb.from("servicios").select("id,origen_texto,destino_texto,fecha_hora_recogida,origen_pedido,conductor_id").in("id", idsServ)
+    : { data: [] };
+  const porId = new Map(((servs ?? []) as ServicioAviso[]).map((s) => [s.id, s]));
+  // Retraso en la recogida: el evento no tiene actor; se nombra (y se sitúa) al conductor asignado.
+  const tarde = eventos.filter((e) => e.tipo === "retraso_recogida").map((e) => porId.get(e.servicio_id)?.conductor_id).filter((x): x is string => !!x);
+  const idsPers = [...new Set([...eventos.map((e) => e.actor_id), ...tarde, ...incidencias.map((i) => i.conductor_id), ...revisiones.map((r) => r.conductor_id)].filter((x): x is string => !!x))];
   const idsVeh = [...new Set(revisiones.map((r) => r.vehiculo_id))];
-  // Zona de las incidencias sin coordenadas: última posición del conductor.
-  const sinCoord = [...new Set(incidencias.filter((i) => i.lat == null || i.lng == null).map((i) => i.conductor_id))];
-  const [{ data: servs }, { data: pers }, { data: vehs }, { data: poss }] = await Promise.all([
-    idsServ.length ? sb.from("servicios").select("id,origen_texto,destino_texto,fecha_hora_recogida,origen_pedido").in("id", idsServ) : Promise.resolve({ data: [] }),
+  // Zona de las incidencias sin coordenadas y de los retrasos: última posición del conductor.
+  const sinCoord = [...new Set([...incidencias.filter((i) => i.lat == null || i.lng == null).map((i) => i.conductor_id), ...tarde])];
+  const [{ data: pers }, { data: vehs }, { data: poss }] = await Promise.all([
     idsPers.length ? sb.from("perfiles").select("id,nombre").in("id", idsPers) : Promise.resolve({ data: [] }),
     idsVeh.length ? sb.from("vehiculos").select("id,matricula").in("id", idsVeh) : Promise.resolve({ data: [] }),
     sinCoord.length ? sb.from("posicion_actual").select("conductor_id,lat,lng").in("conductor_id", sinCoord) : Promise.resolve({ data: [] }),
   ]);
   const avisos = construirAvisos({
     eventos, incidencias, revisiones: revisiones.filter((r) => r.con_fallos),
-    servicios: new Map(((servs ?? []) as ServicioAviso[]).map((s) => [s.id, s])),
+    servicios: porId,
     nombres: new Map(((pers ?? []) as { id: string; nombre: string }[]).map((p) => [p.id, p.nombre])),
     matriculas: new Map(((vehs ?? []) as { id: string; matricula: string }[]).map((v) => [v.id, v.matricula])),
     posiciones: new Map(((poss ?? []) as { conductor_id: string; lat: number; lng: number }[]).map((p) => [p.conductor_id, p])),

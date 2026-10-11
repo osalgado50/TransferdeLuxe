@@ -8,6 +8,7 @@ import MapaTrayecto from "@/components/mapa/MapaTrayectoCarga";
 import BotonPaso from "@/components/conductor/BotonPaso";
 import NavegacionConductor from "@/components/conductor/NavegacionConductor";
 import BotonIncidencia from "@/components/conductor/BotonIncidencia";
+import ContadorPuntualidad from "@/components/conductor/ContadorPuntualidad";
 import EnlaceVuelo from "@/components/vuelos/EnlaceVuelo";
 import { leerModulos } from "@/lib/dominio/modulos";
 import { objetivoActual } from "@/lib/dominio/navegacion";
@@ -47,6 +48,7 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
         <h1 className="text-2xl font-semibold text-marca-claro">{hora.format(new Date(s.fecha_hora_recogida))}</h1>
         <EstadoBadge estado={s.estado as EstadoServicio} />
       </div>
+      <ContadorPuntualidad servicioId={s.id} estado={s.estado} recogida={s.fecha_hora_recogida} />
       {/* Controles primero: el conductor va conduciendo y necesita los botones a mano, sin hacer scroll. */}
       <BotonPaso servicioId={s.id} conductorId={yo.id} estadoInicial={s.estado as EstadoServicio} siguienteId={siguienteId} />
       {s.cliente_telefono && s.estado !== "completado" && (

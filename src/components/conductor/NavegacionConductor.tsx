@@ -7,6 +7,7 @@ import { suscribirGps } from "@/lib/gps/gestor";
 import { avisarLlegando } from "@/app/conductor/actions";
 import type { Punto } from "@/lib/dominio/tipos";
 import { pitar, prepararDesbloqueo } from "@/lib/sonidos";
+import { EVENTO_ETA, type DetalleEta } from "@/components/conductor/ContadorPuntualidad";
 
 interface Ruta { coords: [number, number][]; distanciaM: number; duracionS: number; fuente: "osrm" | "recta" }
 type Pos = Punto & { precision: number };
@@ -100,6 +101,13 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
   const quedaM = restante?.restanteM ?? distObj ?? ruta?.distanciaM ?? null;
   const quedaS = ruta && quedaM != null ? (ruta.distanciaM > 0 ? ruta.duracionS * Math.min(1, quedaM / ruta.distanciaM) : 0) : null;
   const titulo = objetivo.tipo === "recogida" ? "Hacia la recogida" : "Hacia el destino";
+
+  // ETA hacia la recogida para el contador de puntualidad (redondeada a 15 s; con posición simulada, no se usa).
+  const eta = objetivo.tipo === "recogida" && quedaS != null && !simulado.current ? Math.round(quedaS / 15) * 15 : null;
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent<DetalleEta>(EVENTO_ETA, { detail: { servicioId, etaS: eta } }));
+  }, [eta, servicioId]);
+  useEffect(() => () => { window.dispatchEvent(new CustomEvent<DetalleEta>(EVENTO_ETA, { detail: { servicioId, etaS: null } })); }, [servicioId]);
 
   return (
     <div className="space-y-2">

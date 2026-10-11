@@ -67,6 +67,7 @@ test("llegandoReciente: último evento real, ventana de 20 min y estado coherent
   expect(llegandoReciente(ev, { id: "c", estado: "en_camino" }, ahora)).toBeNull();
   expect(etiquetaEvento("llegando_destino")).toBe("Llegando al destino");
   expect(etiquetaEvento("aceptado")).toBe("aceptado");
+  expect(etiquetaEvento("retraso_recogida")).toBe("Llega tarde a la recogida");
 });
 
 beforeEach(() => limpiarCacheRuta());

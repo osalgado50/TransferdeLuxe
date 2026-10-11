@@ -4,7 +4,7 @@ import { zonaCercana } from "./zonas";
 
 /** Lógica pura de los avisos push a la central (vigilante del servidor). */
 export interface AvisoCentral { titulo: string; cuerpo: string; data: { tipo: string; servicioId?: string; incidenciaId?: string; grave?: boolean } }
-export interface ServicioAviso { id: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string; origen_pedido: string }
+export interface ServicioAviso { id: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string; origen_pedido: string; conductor_id?: string | null }
 export interface EventoAviso { id: number; servicio_id: string; tipo: string; actor_id: string | null; motivo: string | null }
 export interface IncidenciaAviso { id?: string; conductor_id: string; servicio_id: string | null; tipo: string; descripcion: string; lat?: number | null; lng?: number | null }
 export interface RevisionAviso { conductor_id: string; vehiculo_id: string }
@@ -39,6 +39,13 @@ export function construirAvisos(e: Entrada): AvisoCentral[] {
     else if (ev.tipo === "rechazado") out.push({ titulo: `Rechazado por ${nombre(ev.actor_id)}${ev.motivo ? `: ${recortar(ev.motivo, 60)}` : ""}`, cuerpo: trayecto(s), data });
     else if (ev.tipo === "expirado") out.push({ titulo: "Sin respuesta del conductor", cuerpo: trayecto(s), data });
     else if (ev.tipo === "aceptado") out.push({ titulo: `${nombre(ev.actor_id)} ha aceptado`, cuerpo: trayecto(s), data });
+    else if (ev.tipo === "retraso_recogida") {
+      // Lo detecta el servidor (actor null): conductor asignado y zona de su última posición.
+      const cid = s.conductor_id ?? null;
+      const p = cid ? e.posiciones?.get(cid) : undefined;
+      const zona = p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null;
+      out.push({ titulo: `⏰ ${nombre(cid)} llega tarde a la recogida`, cuerpo: [trayecto(s), zona].filter(Boolean).join(" · "), data });
+    }
   }
   // Lo grave (avería, accidente) va primero (nunca se pierde en el resumen) y con todos los datos: tipo, conductor y zona.
   const graves: AvisoCentral[] = [];

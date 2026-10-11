@@ -14,6 +14,7 @@ import { EstadoBadge } from "~/components/EstadoBadge";
 import { EstadoConexion } from "~/components/EstadoConexion";
 import { BotonIncidencia } from "~/components/ModulosConductor";
 import { MapaServicio } from "~/components/MapaServicio";
+import { ContadorPuntualidad } from "~/components/Puntualidad";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 import { fechaHora, fmt, hora } from "~/lib/formato";
 import { exigir } from "~/lib/servicios";
@@ -47,6 +48,7 @@ export default function ServicioEnCurso() {
 
   const s = datos?.s;
   const [fase, setFase] = useState<Fase>("lejos");
+  const [eta, setEta] = useState<number | null>(null);
   const volver = (
     <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} accessibilityRole="button" accessibilityLabel="Volver"
       style={estilos.volver} hitSlop={8}>
@@ -81,6 +83,7 @@ export default function ServicioEnCurso() {
           <EstadoBadge estado={estado} />
         </View>
         <Text style={estilos.tenue}>{fmt(fechaHora, s.fecha_hora_recogida)}</Text>
+        <ContadorPuntualidad servicioId={s.id} estado={estado} recogida={s.fecha_hora_recogida} etaS={objetivo?.tipo === "recogida" ? eta : null} />
         {error && <Aviso tipo="error" texto={`Sin conexión: datos de hace un momento (${error})`} />}
         {/* Controles primero: el conductor va conduciendo y necesita los botones a mano, sin hacer scroll. */}
         <View style={{ gap: 10 }}>
@@ -102,7 +105,7 @@ export default function ServicioEnCurso() {
         </Tarjeta>
         {objetivo && (
           <MapaServicio key={`${s.id}:${objetivo.tipo}`} servicioId={s.id} objetivo={objetivo}
-            origenServicio={pt(s.origen_lat, s.origen_lng)} alCambiarFase={setFase} />
+            origenServicio={pt(s.origen_lat, s.origen_lng)} alCambiarFase={setFase} alCambiarEta={setEta} />
         )}
         {meta && (
           <View style={estilos.dos}>

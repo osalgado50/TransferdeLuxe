@@ -250,6 +250,23 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   notificación local con sonido y vibración Error que insiste cada 30 s (máx. 5) hasta «Visto»/«Resuelta»; el resto
   de movimientos solo vibra suave. *Push*: el vigilante avisa también de «aceptado» y de lo grave con tipo,
   conductor y zona (primero, para que nunca se pierda en el resumen de muchos avisos).
+- **Puntualidad: «¿llego a tiempo a la recogida?» (11/10/2026)**. Petición del responsable: con un servicio a las
+  19:50 aún de camino, que la app se lo diga y que la central se entere. Lógica pura `src/lib/dominio/puntualidad.ts`
+  (tests en `tests/unit/puntualidad.test.ts`): solo en asignado / aceptado / en camino; con la hora de recogida, la
+  hora actual y la ETA de la ruta OSRM (el mismo tiempo restante del banner del mapa) devuelve verde «Faltan 12 min ·
+  llegas a tiempo», ámbar «Llegas justo · 3 min de margen» (< 5 min), rojo «Llegas tarde · +8 min» (llegada estimada
+  > hora + 2 min de tolerancia) o rojo «Recogida hace 6 min · aún no has llegado». Sin ruta, solo el reloj.
+  *App nativa*: contador GRANDE con fondo de color arriba de la pantalla del servicio (antes del botón de paso), se
+  refresca cada 15 s; `MapaServicio` expone `alCambiarEta` (redondeada a 15 s para no re-renderizar en cada fix);
+  chip compacto en las tarjetas de hoy sin recoger. *PWA*: el mismo contador, con la ETA que `NavegacionConductor`
+  publica por un evento de ventana. *Aviso anticipado*: cuando la ETA pasa a «tarde» antes de la hora, la app (y la
+  PWA) mandan UNA incidencia «retraso» automática («Aviso automático: llegada estimada 19:58 (+8 min)», con la
+  posición), marcada en AsyncStorage/localStorage; si falla, un intento cada 60 s como mucho. *Aviso definitivo del
+  servidor* (sin depender del móvil): migración `0018_retraso_recogida.sql` con `detectar_retrasos_recogida()` →
+  evento `retraso_recogida` (sin actor) para recogidas de las últimas 6 h pasadas 2 min y sin recoger; índice único
+  parcial = una sola vez por servicio. La llama el vigilante en cada pasada (~20 s) y pg_cron cada minuto. La central
+  lo ve en la actividad («⏰ Marc llega tarde a la recogida de las 19:50 · Salou → Reus · cerca de Cambrils», aviso),
+  con tres pitidos y push. `scripts/prueba-mision.mjs` lo comprueba con un tercer servicio de prueba.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -382,6 +399,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   desde Realtime, así que se ordena por instante (`Date.parse`) y no por texto. Para no crear bucles de red en la
   app, los cambios de eventos, incidencias, checklists y jornadas se agrupan en la misma recarga diferida (800 ms)
   que ya tenían los servicios; la alarma insistente se para en cuanto la grave deja de estar pendiente.
+- **Avisar del retraso sin cobertura y sin duplicados (11/10/2026)**: el aviso del móvil depende de su red y de que
+  tenga la pantalla abierta, así que el aviso «definitivo» lo genera el servidor. Para que el vigilante (cada 20 s) y
+  pg_cron (cada minuto) no lo dupliquen, la base de datos lo garantiza con un índice único parcial
+  (`eventos_servicio (servicio_id) where tipo = 'retraso_recogida'`) y `insert … on conflict do nothing`. La ventana de
+  6 h evita que los servicios antiguos que se quedaron «aceptado» inunden la actividad el día que se activó. En el
+  móvil, el envío se marca en memoria antes del `await` (nunca dos a la vez), se persiste solo con respuesta OK y los
+  fallos esperan 60 s; la ETA se redondea a 15 s para no re-renderizar la pantalla con cada fix del GPS.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

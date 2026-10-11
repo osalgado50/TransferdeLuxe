@@ -25,6 +25,14 @@ describe("construirAvisos", () => {
     expect(r.map((a) => a.titulo)).toEqual(["Rechazado por Laia Demo: Avería", "Sin respuesta del conductor", "Laia Demo ha aceptado"]);
     expect(r[2]).toEqual({ titulo: "Laia Demo ha aceptado", cuerpo: "Reus → Salou 15:00", data: { tipo: "aceptado", servicioId: "s1" } });
   });
+  test("retraso en la recogida: conductor asignado (el evento no tiene actor) y zona de su última posición", () => {
+    const servicios = new Map([["s1", { ...S, conductor_id: "c1" }]]);
+    const e = { id: 9, servicio_id: "s1", tipo: "retraso_recogida", actor_id: null, motivo: "Hora de recogida superada y sin recoger" };
+    expect(construirAvisos(base({ servicios, eventos: [e], posiciones: new Map([["c1", { lat: 41.156, lng: 1.107 }]]) }))).toEqual([
+      { titulo: "⏰ Laia Demo llega tarde a la recogida", cuerpo: "Reus → Salou 15:00 · en Reus", data: { tipo: "retraso_recogida", servicioId: "s1" } },
+    ]);
+    expect(construirAvisos(base({ servicios, eventos: [e] }))[0].cuerpo).toBe("Reus → Salou 15:00");
+  });
   test("avería/accidente: GRAVE primero, con tipo, conductor y zona (de la incidencia o de su GPS); leves con zona", () => {
     const r = construirAvisos(base({
       revisiones: [{ conductor_id: "c1", vehiculo_id: "v1" }],

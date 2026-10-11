@@ -115,6 +115,18 @@ describe("construirActividad", () => {
       ["info", "Laia ha empezado la jornada"],
     ]);
   });
+  it("retraso en la recogida (servidor, sin actor): conductor asignado, trayecto y zona de su GPS; aviso", () => {
+    const { movimientos } = construirActividad(entrada({
+      eventos: [{ ...ev(52, "retraso_recogida", { actor_id: null, motivo: "Hora de recogida superada y sin recoger" }), creado_en: "2026-10-11T13:02:00Z" }],
+      posiciones: [{ conductor_id: "c1", lat: 41.156, lng: 1.107 }],
+    }));
+    expect(movimientos[0]).toMatchObject({
+      tipo: "retraso_recogida", gravedad: "aviso", conductorId: "c1", zona: "en Reus", lat: 41.156, pendiente: false,
+      texto: "⏰ Marc llega tarde a la recogida de las 15:00 · Salou → Aeropuerto de Reus · en Reus",
+    });
+    const sinPos = construirActividad(entrada({ eventos: [{ ...ev(53, "retraso_recogida", { actor_id: null }), creado_en: "2026-10-11T13:02:00Z" }] }));
+    expect(sinPos.movimientos[0].texto).toBe("⏰ Marc llega tarde a la recogida de las 15:00 · Salou → Aeropuerto de Reus");
+  });
   it("límite, ventana `desde` (las graves pendientes antiguas siguen en `graves`) y sin duplicados", () => {
     const vieja = { id: "iv", conductor_id: "c1", servicio_id: null, tipo: "accidente", descripcion: "", lat: null, lng: null, creado_en: "2026-10-10T08:00:00Z", resuelta: false };
     const eventos = Array.from({ length: 50 }, (_, i) => ({ ...ev(1, "aceptado"), id: i + 1 }));

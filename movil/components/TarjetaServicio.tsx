@@ -2,6 +2,7 @@ import { direccionCorta } from "@dominio/direccion";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { EstadoBadge } from "./EstadoBadge";
+import { ChipPuntualidad } from "./Puntualidad";
 import { Boton, Tarjeta } from "./ui";
 import { diaHora, fmt, hora } from "~/lib/formato";
 import type { ServicioLista } from "~/lib/servicios";
@@ -14,6 +15,7 @@ export function TarjetaServicio({ s, destacada, conDia }: { s: ServicioLista; de
         <Text style={conDia ? estilos.dia : estilos.hora}>{fmt(conDia ? diaHora : hora, s.fecha_hora_recogida)}</Text>
         <EstadoBadge estado={s.estado} />
       </View>
+      {!conDia && <ChipPuntualidad estado={s.estado} recogida={s.fecha_hora_recogida} />}
       <Linea tipo="recogida" texto={s.origen_texto} />
       <Linea tipo="destino" texto={s.destino_texto} />
       <Text style={estilos.meta}>{s.pasajeros} pax · {s.maletas} maletas</Text>

@@ -13,6 +13,7 @@ describe("sonidoDeEvento", () => {
     expect(sonidoDeEvento("completado")).toBe("completado");
     expect(sonidoDeEvento("llegando_recogida")).toBe("llegando");
     expect(sonidoDeEvento("llegando_destino")).toBe("llegando");
+    expect(sonidoDeEvento("retraso_recogida")).toBe("incidencia");
   });
   it("«creado» suena solo si es de la web (o aún no se sabe); las manuales las crea la propia central", () => {
     expect(sonidoDeEvento("creado", "web")).toBe("reserva_nueva");

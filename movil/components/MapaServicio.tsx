@@ -29,8 +29,10 @@ const VERDE = "#22c55e", ROJO = "#ef4444", AZUL = "#3b82f6";
 const lngLat = (p: Punto): [number, number] => [p.lng, p.lat];
 const linea = (coords: [number, number][]) => ({ type: "Feature" as const, properties: {}, geometry: { type: "LineString" as const, coordinates: coords } });
 
-export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFase }: {
+export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFase, alCambiarEta }: {
   servicioId: string; objetivo: Objetivo; origenServicio: Punto | null; alCambiarFase?: (f: Fase) => void;
+  /** Segundos restantes de la ruta (los del banner), redondeados a 15 s; null sin ruta. Al desmontar, null. */
+  alCambiarEta?: (s: number | null) => void;
 }) {
   const [pos, setPos] = useState<Punto | null>(null);
   const [avisoGps, setAvisoGps] = useState<string | null>(null);
@@ -152,6 +154,10 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
 
   const quedaM = restante?.restanteM ?? distObj ?? ruta?.distanciaM ?? null;
   const quedaS = tiempoRestanteS(ruta, quedaM);
+  // ETA para el contador de puntualidad: redondeada a 15 s para no re-renderizar la pantalla en cada fix del GPS.
+  const etaRedondeada = quedaS == null ? null : Math.round(quedaS / 15) * 15;
+  useEffect(() => { alCambiarEta?.(etaRedondeada); }, [etaRedondeada, alCambiarEta]);
+  useEffect(() => () => alCambiarEta?.(null), [alCambiarEta]);
   const colorObj = objetivo.tipo === "recogida" ? VERDE : ROJO;
   const inicio = ruta?.coords[0], fin = ruta?.coords[ruta.coords.length - 1];
   const geoRuta = useMemo(() => (ruta ? linea(ruta.coords.map(([lat, lng]) => [lng, lat])) : null), [ruta]);
