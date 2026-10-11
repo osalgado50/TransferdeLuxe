@@ -16,6 +16,9 @@ export default async function LayoutCentral({ children }: { children: React.Reac
   const { data: aj } = await clienteAdmin().from("ajustes").select("modulos").eq("id", 1).maybeSingle();
   const mods = leerModulos(aj?.modulos);
   const extra: [string, string][] = [];
+  if (mods.jornada) extra.push(["/central/jornadas", "Jornadas"]);
+  if (mods.incidencias) extra.push(["/central/incidencias", "Incidencias"]);
+  if (mods.checklist) extra.push(["/central/checklist", "Checklist"]);
   if (mods.mantenimiento) extra.push(["/central/mantenimiento", "Mantenimiento"]);
   if (mods.informes) extra.push(["/central/informes", "Informes"]);
   return (

@@ -4,6 +4,7 @@ import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
 import ListaProximos from "@/components/conductor/ListaProximos";
 import ListaHoy, { type ServicioHoy } from "@/components/conductor/ListaHoy";
+import ModulosConductor from "@/components/conductor/ModulosConductor";
 
 export default async function Hoy() {
   const yo = await exigirRol("conductor");
@@ -23,6 +24,7 @@ export default async function Hoy() {
     .not("estado", "in", "(cancelado,completado)").order("fecha_hora_recogida");
   return (
     <div className="space-y-4">
+      <ModulosConductor yo={yo} />
       <h1 className="text-2xl font-semibold text-marca-claro">Hoy</h1>
       {error ? <p className="text-red-400">Error al cargar: {error.message}</p>
         : <ListaHoy iniciales={(data ?? []) as ServicioHoy[]} yo={yo.id} desde={desde} hasta={hasta} />}

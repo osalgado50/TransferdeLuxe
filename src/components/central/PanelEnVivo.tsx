@@ -20,7 +20,7 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
       <Contadores servicios={sv} />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} /></div>
-        <ColumnaAlertas servicios={sv} eventos={ev} conductores={conductores} />
+        <ColumnaAlertas servicios={sv} eventos={ev} conductores={conductores} vehiculos={vehiculos} />
       </div>
     </div>
   );

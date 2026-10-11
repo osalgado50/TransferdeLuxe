@@ -4,6 +4,7 @@ import { leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
 import { etiquetaEvento, llegandoReciente } from "@/lib/dominio/navegacion";
 import DialogoAsignar from "@/components/central/DialogoAsignar";
+import AlertasModulos from "@/components/central/AlertasModulos";
 import type { Servicio } from "@/lib/dominio/tipos";
 
 export interface EventoAlerta { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string; actor_id?: string | null }
@@ -48,8 +49,8 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
   return ["Aviso", inc || "Incidencia"] as const;
 }
 
-export default function ColumnaAlertas({ servicios, eventos, conductores }: {
-  servicios: Servicio[]; eventos: EventoAlerta[]; conductores: { id: string; nombre: string }[];
+export default function ColumnaAlertas({ servicios, eventos, conductores, vehiculos = [] }: {
+  servicios: Servicio[]; eventos: EventoAlerta[]; conductores: { id: string; nombre: string }[]; vehiculos?: { id: string; matricula: string }[];
 }) {
   const alertas = useMemo(() => servicios.filter(esAlerta).sort((a, b) => a.fecha_hora_recogida.localeCompare(b.fecha_hora_recogida)), [servicios]);
   const nombre = (id: string | null) => conductores.find((c) => c.id === id)?.nombre ?? "conductor";
@@ -87,6 +88,7 @@ export default function ColumnaAlertas({ servicios, eventos, conductores }: {
     <section aria-label="Alertas" className="space-y-3">
       <h2 className="text-lg font-semibold">Alertas ({alertas.length})</h2>
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+      <AlertasModulos conductores={conductores} vehiculos={vehiculos} alNuevo={pitido} />
       {llegando.map(({ s, ev }) => (
         <article key={`ll-${s.id}`} data-alerta="Llegando" className="rounded-xl border border-green-600 bg-slate-900 p-3">
           <p className="text-sm font-medium text-green-400">{etiquetaEvento(ev.tipo)} · {nombre(s.conductor_id)}</p>
