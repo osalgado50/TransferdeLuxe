@@ -2,6 +2,7 @@ import "server-only";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { notificarCentral } from "@/lib/push";
 import { esperaBackoff } from "@/lib/dominio/reintento";
+import { actualizarRecorridos } from "@/lib/servicios/recorridos";
 import { construirAvisos, type EventoAviso, type IncidenciaAviso, type RevisionAviso, type ServicioAviso } from "@/lib/dominio/avisosCentral";
 
 const LIMITE = 50;
@@ -15,6 +16,7 @@ export async function vigilarUnaVez(): Promise<number> {
   // Retrasos en la recogida (idempotente: índice único parcial). Si falla, el pg_cron de cada minuto lo cubre.
   const det = await sb.rpc("detectar_retrasos_recogida");
   if (det.error) console.error("[vigilante] retrasos:", det.error.message);
+  await pasadaRecorridos(sb);
   const [{ data: ev }, { data: inc }, { data: rev }] = await Promise.all([
     sb.from("eventos_servicio").select("id,servicio_id,tipo,actor_id,motivo").gt("id", c.ultimo_evento_id).order("id").limit(LIMITE),
     sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en").gt("creado_en", c.ultima_incidencia_en).order("creado_en").limit(LIMITE),
@@ -57,6 +59,23 @@ export async function vigilarUnaVez(): Promise<number> {
   }).eq("id", 1);
   for (const a of avisos) await notificarCentral(a.titulo, a.cuerpo, a.data);
   return avisos.length;
+}
+
+/**
+ * Recorridos de los servicios completados (últimas 48 h). Tras arrancar el proceso, primero un retro-relleno de los
+ * últimos 30 días (solo los que faltan; mientras queden posiciones) hasta que no quede ninguno pendiente.
+ * Nunca rompe la pasada de avisos.
+ */
+async function pasadaRecorridos(sb: ReturnType<typeof clienteAdmin>): Promise<void> {
+  const g = globalThis as { __recorridosRetro?: boolean };
+  try {
+    const retro = !g.__recorridosRetro;
+    const r = await actualizarRecorridos(sb, { horas: retro ? 30 * 24 : 48 });
+    if (retro && r.pendientes === 0) g.__recorridosRetro = true;
+    if (r.calculados) console.log(`[vigilante] recorridos: ${r.calculados} calculado(s)${r.pendientes ? `, ${r.pendientes} pendiente(s)` : ""}`);
+  } catch (e) {
+    console.error("[vigilante] recorridos:", e instanceof Error ? e.message : e);
+  }
 }
 
 /**
