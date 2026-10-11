@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
-import { Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { InterruptorGps } from "~/components/InterruptorGps";
 import { useSesion } from "~/lib/sesion";
@@ -16,6 +16,10 @@ function Cabecera() {
         <Text style={estilos.nombre} numberOfLines={1}>{perfil?.nombre ?? "Conductor"}</Text>
         {sinConexion && <Pressable onPress={reintentar} accessibilityRole="button"><Text style={estilos.sinRed}>Sin conexión · tocar para reintentar</Text></Pressable>}
       </View>
+      <Pressable onPress={() => Linking.openURL("https://app.transfersvipluxe.com/privacidad")} accessibilityRole="link"
+        accessibilityLabel="Política de privacidad" hitSlop={8} style={estilos.salir}>
+        <Text style={estilos.salirTexto}>Privacidad</Text>
+      </Pressable>
       <Pressable onPress={salir} accessibilityRole="button" accessibilityLabel="Cerrar sesión" hitSlop={8}
         style={({ pressed }) => [estilos.salir, pressed && { borderColor: color.marcaClaro }]}>
         <Text style={estilos.salirTexto}>Salir</Text>

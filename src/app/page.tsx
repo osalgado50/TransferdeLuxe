@@ -1,5 +1,9 @@
 import Link from "next/link";
+import PieLegal from "@/components/legal/PieLegal";
 import LogoTVL from "@/components/comun/LogoTVL";
+
+// Página pública sin sesión: HTML estático cacheable por la CDN.
+export const dynamic = "force-static";
 
 export default function Portada() {
   return (
@@ -13,6 +17,7 @@ export default function Portada() {
         <Link href="/reservar" className="rounded-lg bg-marca px-6 py-3 font-semibold text-white hover:bg-marca-oscuro">Reservar traslado</Link>
         <Link href="/login" className="rounded-lg border border-slate-600 px-6 py-3 text-slate-200 hover:border-marca-claro">Acceso central y conductores</Link>
       </div>
+      <PieLegal />
     </main>
   );
 }

@@ -184,7 +184,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
         <div>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" name="acepta_privacidad" required className="mt-0.5 size-4 accent-marca-claro" />
-            He leído y acepto la política de privacidad
+            <span>Al reservar aceptas la <a href="/privacidad" target="_blank" className="text-marca-claro underline">política de privacidad</a>. He leído y la acepto.</span>
           </label>
           <ErrorCampo e={estado.errores} k="acepta_privacidad" />
           <input type="text" name="web" className="hidden" tabIndex={-1} autoComplete="off" />

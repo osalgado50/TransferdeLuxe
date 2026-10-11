@@ -1,5 +1,6 @@
 import LogoTVL from "@/components/comun/LogoTVL";
 import { CuentasDemo } from "@/components/login/CuentasDemo";
+import PieLegal from "@/components/legal/PieLegal";
 import { FormularioLogin } from "./formulario";
 
 const CUENTAS = [
@@ -22,6 +23,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <FormularioLogin destino={destino ?? ""} />
         </div>
         <CuentasDemo cuentas={CUENTAS} clave={clave} />
+        <PieLegal />
       </div>
     </main>
   );

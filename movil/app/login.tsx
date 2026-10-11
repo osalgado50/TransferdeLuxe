@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useRef, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CampoContrasena } from "~/components/CampoContrasena";
 import { CuentasDemo } from "~/components/CuentasDemo";
@@ -52,6 +52,9 @@ export default function Login() {
               {pendiente ? <ActivityIndicator color="#fff" /> : <Text style={estilos.botonTexto}>Entrar</Text>}
             </Pressable>
           </View>
+          <Pressable onPress={() => Linking.openURL(URL_PRIVACIDAD)} accessibilityRole="link" hitSlop={8}>
+            <Text style={estilos.legal}>Política de privacidad</Text>
+          </Pressable>
           {MODO_DEMO && <CuentasDemo cuentas={CUENTAS_DEMO} clave={DEMO_PASSWORD} onUsar={usar} />}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -59,7 +62,10 @@ export default function Login() {
   );
 }
 
+const URL_PRIVACIDAD = "https://app.transfersvipluxe.com/privacidad";
+
 const estilos = StyleSheet.create({
+  legal: { color: color.textoTenue, fontSize: 14, textAlign: "center", textDecorationLine: "underline" },
   pantalla: { flex: 1, backgroundColor: color.fondo },
   contenido: { padding: 16, gap: 20, flexGrow: 1, justifyContent: "center" },
   logo: { width: 96, height: 106, alignSelf: "center" },
