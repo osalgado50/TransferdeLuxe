@@ -28,9 +28,15 @@ import { POST as foto } from "@/app/api/conductor/ticket/foto/route";
 const body = { fecha: "2026-10-10", litros: "40,5", importe: "60", km: 1200, gasolinera: "Repsol" };
 const req = (b: unknown, auth = "Bearer bueno") =>
   new Request("http://x/api", { method: "POST", headers: auth ? { authorization: auth } : {}, body: JSON.stringify(b) });
-const reqFoto = (tipo = "image/jpeg", size = 10, auth = "Bearer bueno") => {
-  const fd = new FormData(); fd.append("foto", new File([new Uint8Array(size)], "t.jpg", { type: tipo }));
-  return new Request("http://x/api", { method: "POST", headers: auth ? { authorization: auth } : {}, body: fd });
+const FIRMAS: Record<string, number[]> = { "image/png": [0x89, 0x50, 0x4e, 0x47], "image/jpeg": [0xff, 0xd8, 0xff] };
+const reqFoto = async (tipo = "image/jpeg", size = 10, auth = "Bearer bueno", firma = FIRMAS[tipo] ?? []) => {
+  const bytes = new Uint8Array(size); bytes.set(firma.slice(0, size));
+  const fd = new FormData(); fd.append("foto", new File([bytes], "t.jpg", { type: tipo }));
+  const cuerpo = new Response(fd);
+  const body = await cuerpo.arrayBuffer();
+  const headers: Record<string, string> = { "content-type": cuerpo.headers.get("content-type")!, "content-length": String(body.byteLength) };
+  if (auth) headers.authorization = auth;
+  return new Request("http://x/api", { method: "POST", headers, body });
 };
 
 beforeEach(() => {
@@ -63,10 +69,13 @@ test("ticket ok: inserta con vehículo del perfil, corregido y actualiza km", as
   expect(st.kms[0]).toEqual([{ km_actuales: 1200 }, 1200]);
 });
 test("foto: 401, formato, tamaño y ok con ruta del conductor", async () => {
-  expect((await foto(reqFoto("image/jpeg", 10, ""))).status).toBe(401);
-  expect((await foto(reqFoto("image/gif"))).status).toBe(400);
-  expect((await foto(reqFoto("image/jpeg", 5 * 1024 * 1024 + 1))).status).toBe(400);
-  const r = await foto(reqFoto("image/png"));
+  expect((await foto(await reqFoto("image/jpeg", 10, ""))).status).toBe(401);
+  expect((await foto(await reqFoto("image/gif"))).status).toBe(400);
+  // El tipo declarado no basta: manda la firma real.
+  expect((await foto(await reqFoto("image/png", 10, "Bearer bueno", []))).status).toBe(400);
+  expect((await foto(await reqFoto("image/jpeg", 5 * 1024 * 1024 + 1))).status).toBe(400);
+  expect((await foto(new Request("http://x/api", { method: "POST", headers: { authorization: "Bearer bueno" } }))).status).toBe(411);
+  const r = await foto(await reqFoto("image/png"));
   expect(r.status).toBe(200);
   const j = (await r.json()) as { fotoPath: string };
   expect(j.fotoPath).toMatch(new RegExp(`^${U}/[0-9a-f-]{36}\\.png$`));

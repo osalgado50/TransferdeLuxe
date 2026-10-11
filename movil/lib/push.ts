@@ -54,6 +54,11 @@ export async function registrarPush(): Promise<void> {
   }
 }
 
+/** Si el SO rota el token, vuelve a registrarlo (upsert idempotente en la central). */
+export function escucharRotacionToken(): { remove: () => void } {
+  return Notifications.addPushTokenListener(() => { void registrarPush(); });
+}
+
 /** Al salir: da de baja el token (con la sesión aún válida). Nunca lanza. */
 export async function darDeBajaPush(): Promise<void> {
   try {

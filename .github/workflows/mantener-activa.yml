@@ -18,3 +18,11 @@ jobs:
           codigo=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/api/geocodificar?q=salou")
           echo "Respuesta: $codigo"
           test "$codigo" = "200"
+      - name: Limpiar tokens push dados de baja (recibos de Expo)
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          codigo=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/recibos-push")
+          echo "Respuesta: $codigo"
+          test "$codigo" = "200"
