@@ -256,3 +256,9 @@ Navegación del conductor llegando al destino: `docs/capturas/conductor-navegaci
   nuevo `DELETE /api/conductor/push-token` (solo borra el token del conductor que llama). Tocar «Servicio nuevo» abre Hoy.
 - Lógica pura nueva en `src/lib/dominio/navegacion.ts` (`debePedirRuta`, `tiempoRestanteS`, textos), con tests.
 - Challenge: MapLibre es código nativo → no funciona en Expo Go; requiere development build (N7).
+
+### Auditoría del 11/10 (analista senior + propietario)
+Auditoría de código web, app nativa y pruebas de carga de solo lectura en producción (0 errores, techo ~60 req/s).
+Informe completo: `docs/INFORME_AUDITORIA.md`. Aplicado: cabeceras de seguridad HTTP y migración `0009`
+(validación de posiciones en servidor —coordenadas imposibles descartadas, hora futura corregida— y purga diaria
+con pg_cron de posiciones y acciones de más de 30 días: el plan gratuito de 500 MB ya no se llena).
