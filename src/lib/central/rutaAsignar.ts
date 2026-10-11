@@ -1,0 +1,25 @@
+import "server-only";
+import { z } from "zod";
+import { after } from "next/server";
+import { datosNoValidos, demasiadas, exigirOperadorBearer, leerJson } from "@/lib/supabase/bearer";
+import { permitir } from "@/lib/limite";
+import { ejecutarAccionOperador } from "@/lib/central/operaciones";
+
+const cuerpo = z.object({
+  idAccion: z.string().uuid(), servicioId: z.string().uuid(), conductorId: z.string().uuid(),
+  vehiculoId: z.string().uuid().nullish(),
+});
+
+/** POST /api/central/asignar y /reasignar (app nativa en modo central). 200 ok, 409 rechazo de negocio. */
+export function rutaAsignar(accion: "asignar" | "reasignar") {
+  return async function POST(req: Request) {
+    const a = await exigirOperadorBearer(req);
+    if (!a.ok) return a.res;
+    if (!permitir(`central-accion:${a.yo.id}`, 30, 60_000)) return demasiadas();
+    const b = cuerpo.safeParse(await leerJson(req));
+    if (!b.success) return datosNoValidos();
+    const { r, avisar } = await ejecutarAccionOperador(a.yo.id, { ...b.data, vehiculoId: b.data.vehiculoId ?? undefined, accion });
+    after(avisar);
+    return Response.json(r, { status: r.ok ? 200 : 409 });
+  };
+}
