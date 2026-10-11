@@ -30,6 +30,8 @@ ANONIMIZAR = [
     (re.compile(r"Oscar Salgado(?: Sugra[ñn]es)?", re.I), "[responsable]"),
     (re.compile(r"Dr\.? Eduard Punset[^\n»]*", re.I), "[dirección privada]"),
     (re.compile(r"Rustical Mont-roig", re.I), "[establecimiento]"),
+    (re.compile(r"\bOscar\b"), "[responsable]"),
+    (re.compile(r"Demo-zjSOtzfsbqGS"), "[contraseña de demo antigua]"),
 ]
 
 
