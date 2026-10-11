@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const st = vi.hoisted(() => ({
   usuario: null as null | { id: string },
-  perfil: null as null | { id: string; rol: string },
+  perfil: null as null | { id: string; rol: string; conduce?: boolean },
   servicio: null as null | Record<string, unknown>,
   tokens: [] as { token: string }[],
   borrados: [] as string[][],
@@ -50,6 +50,13 @@ test("sin Bearer o token inválido → 401", async () => {
 test("no conductor → 403", async () => {
   st.perfil = { id: U, rol: "operador" };
   expect((await accion(req({}))).status).toBe(403);
+});
+test("operador que también conduce → pasa y actúa con su rol", async () => {
+  st.perfil = { id: U, rol: "operador", conduce: true };
+  ej.fn.mockResolvedValueOnce({ ok: true, estado: "aceptado" });
+  const r = await accion(req({ idAccion: S, servicioId: S, accion: "aceptar" }));
+  expect(r.status).toBe(200);
+  expect(ej.fn.mock.calls[0][1].actor).toEqual({ id: U, rol: "operador", conduce: true });
 });
 test("cuerpo inválido → 400", async () => {
   expect((await accion(req({ idAccion: "x", servicioId: S, accion: "volar" }))).status).toBe(400);

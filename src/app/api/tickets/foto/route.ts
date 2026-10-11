@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { puedeConducir } from "@/lib/dominio/tipos";
 import { perfilActual } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { permitir } from "@/lib/limite";
@@ -9,7 +10,7 @@ const MAX = 5 * 1024 * 1024;
 // Solo valida y guarda la foto; la lectura (OCR) se hace en el navegador.
 export async function POST(req: Request) {
   const yo = await perfilActual();
-  if (!yo || yo.rol !== "conductor") return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!yo || !puedeConducir(yo)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   if (!permitir(`web-ticket-foto:${yo.id}`, 10, 60_000)) return NextResponse.json({ error: "Demasiadas peticiones. Espera un momento." }, { status: 429 });
   const largo = Number(req.headers.get("content-length"));
   if (!largo) return NextResponse.json({ error: "Falta el tamaño de la petición" }, { status: 411 });

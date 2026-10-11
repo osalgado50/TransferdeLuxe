@@ -1,7 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { clienteServidor } from "./servidor";
-import type { Perfil, Rol } from "@/lib/dominio/tipos";
+import { puedeConducir, type Perfil, type Rol } from "@/lib/dominio/tipos";
 
 export async function perfilActual(): Promise<Perfil | null> {
   const sb = await clienteServidor();
@@ -14,4 +14,10 @@ export async function exigirRol(rol: Rol): Promise<Perfil> {
   const p = await perfilActual();
   if (!p || p.rol !== rol) redirect(`/login?destino=/${rol === "operador" ? "central" : "conductor"}`);
   return p;
+}
+/** Conductor o jefe que también conduce (PWA /conductor). */
+export async function exigirConductor(): Promise<Perfil> {
+  const p = await perfilActual();
+  if (!puedeConducir(p)) redirect("/login?destino=/conductor");
+  return p!;
 }

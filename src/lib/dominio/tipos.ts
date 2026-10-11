@@ -18,10 +18,15 @@ export interface Servicio {
   hora_llegada_real?: string | null;
 }
 export interface Vehiculo { id: string; matricula: string; modelo: string; plazas: number; maletas: number; estado: "activo" | "taller"; km_actuales: number }
-export interface Perfil { id: string; rol: Rol; nombre: string; telefono: string | null; vehiculo_habitual_id: string | null }
+export interface Perfil { id: string; rol: Rol; nombre: string; telefono: string | null; vehiculo_habitual_id: string | null; conduce?: boolean }
 export interface PosicionActual { conductor_id: string; lat: number; lng: number; velocidad: number | null; en_servicio: boolean; registrado_en: string }
 export interface TicketCombustible {
   id: string; conductor_id: string; vehiculo_id: string; fecha: string; gasolinera: string | null;
   litros: number; precio_litro: number | null; importe: number; tipo_combustible: string | null; km: number;
   foto_path: string | null; corregido: boolean; creado_en: string;
+}
+
+/** Conductor o jefe (operador con `conduce`): puede tener servicios asignados y ejecutar acciones de conductor. */
+export function puedeConducir(p: { rol: Rol; conduce?: boolean | null } | null | undefined): boolean {
+  return !!p && (p.rol === "conductor" || (p.rol === "operador" && p.conduce === true));
 }

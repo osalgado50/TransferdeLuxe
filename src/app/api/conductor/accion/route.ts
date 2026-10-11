@@ -19,6 +19,6 @@ export async function POST(req: Request) {
   if (!permitir(`app-accion:${a.yo.id}`, 30, 60_000)) return demasiadas();
   const b = cuerpo.safeParse(await leerJson(req));
   if (!b.success) return datosNoValidos();
-  const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...b.data, actor: { id: a.yo.id, rol: "conductor" } });
+  const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...b.data, actor: { id: a.yo.id, rol: a.yo.rol, conduce: a.yo.conduce } });
   return Response.json(r, { status: r.ok ? 200 : 409 });
 }

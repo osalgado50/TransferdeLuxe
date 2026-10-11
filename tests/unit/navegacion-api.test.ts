@@ -6,6 +6,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/supabase/sesion", () => ({
   perfilActual: async () => perfil.actual,
   exigirRol: async (rol: string) => { if (!perfil.actual || perfil.actual.rol !== rol) throw new Error("redirect"); return perfil.actual; },
+  exigirConductor: async () => { const p = perfil.actual; if (!p || !(p.rol === "conductor" || (p.rol === "operador" && (p as { conduce?: boolean }).conduce))) throw new Error("redirect"); return p; },
 }));
 const bd = vi.hoisted(() => ({ servicio: null as null | { id: string; estado: string; conductor_id: string }, previos: 0, insertados: [] as unknown[] }));
 vi.mock("@/lib/supabase/admin", () => ({

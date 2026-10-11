@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { exigirRol } from "@/lib/supabase/sesion";
+import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { permitir } from "@/lib/limite";
 import { accionJornada, exigirModulo, guardarRevision, registrarIncidencia, subirFotoIncidencia, type Res } from "@/lib/conductor/modulos";
@@ -9,7 +9,7 @@ import { ACCIONES_JORNADA, type AccionJornada } from "@/lib/dominio/jornada";
 const lento: Res = { ok: false, error: "Demasiadas peticiones. Espera un momento." };
 
 export async function jornadaConductor(accion: AccionJornada): Promise<Res> {
-  const yo = await exigirRol("conductor");
+  const yo = await exigirConductor();
   if (!ACCIONES_JORNADA.includes(accion)) return { ok: false, error: "Acción no válida." };
   if (!permitir(`web-jornada:${yo.id}`, 20, 60_000)) return lento;
   const r = await accionJornada(clienteAdmin(), yo.id, accion);
@@ -19,7 +19,7 @@ export async function jornadaConductor(accion: AccionJornada): Promise<Res> {
 
 /** FormData: tipo, descripcion, servicio_id?, lat?, lng?, foto? (ya redimensionada en el navegador). */
 export async function incidenciaConductor(fd: FormData): Promise<Res> {
-  const yo = await exigirRol("conductor");
+  const yo = await exigirConductor();
   if (!permitir(`web-incidencia:${yo.id}`, 10, 60_000)) return lento;
   const sb = clienteAdmin();
   const m = await exigirModulo(sb, "incidencias");
@@ -41,7 +41,7 @@ export async function incidenciaConductor(fd: FormData): Promise<Res> {
 }
 
 export async function checklistConductor(p: { vehiculo_id: string; respuestas: Record<string, string>; observaciones: string }): Promise<Res> {
-  const yo = await exigirRol("conductor");
+  const yo = await exigirConductor();
   if (!permitir(`web-checklist:${yo.id}`, 10, 60_000)) return lento;
   const r = await guardarRevision(clienteAdmin(), yo.id, p);
   revalidatePath("/conductor", "layout");

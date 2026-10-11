@@ -1,7 +1,8 @@
-import type { EstadoServicio, Rol } from "./tipos";
+import { puedeConducir, type EstadoServicio, type Rol } from "./tipos";
 
 export type Accion = "asignar" | "reasignar" | "aceptar" | "rechazar" | "salir" | "cargar" | "descargar" | "cancelar" | "subcontratar";
-export interface Actor { rol: Rol; esAsignado: boolean }
+/** `conduce`: operador que también conduce (puede hacer las acciones de conductor sobre lo suyo). */
+export interface Actor { rol: Rol; esAsignado: boolean; conduce?: boolean }
 export type ResultadoTransicion = { ok: true; nuevo: EstadoServicio; evento: string } | { ok: false; error: string };
 
 interface Regla { desde: EstadoServicio[]; hacia: EstadoServicio; quien: Rol; evento: string }
@@ -20,8 +21,9 @@ const REGLAS: Record<Accion, Regla> = {
 
 export function transicion(estado: EstadoServicio, accion: Accion, actor: Actor): ResultadoTransicion {
   const regla = REGLAS[accion];
-  if (actor.rol !== regla.quien) return { ok: false, error: "No tienes permiso para esta acción" };
-  if (actor.rol === "conductor" && !actor.esAsignado) return { ok: false, error: "Este servicio ya no está asignado a ti" };
+  const permitido = regla.quien === "conductor" ? puedeConducir(actor) : actor.rol === regla.quien;
+  if (!permitido) return { ok: false, error: "No tienes permiso para esta acción" };
+  if (regla.quien === "conductor" && !actor.esAsignado) return { ok: false, error: "Este servicio ya no está asignado a ti" };
   if (!regla.desde.includes(estado)) return { ok: false, error: `No se puede «${accion}» un servicio en estado «${estado}»` };
   return { ok: true, nuevo: regla.hacia, evento: regla.evento };
 }

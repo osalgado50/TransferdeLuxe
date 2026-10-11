@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { exigirRol } from "@/lib/supabase/sesion";
+import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
@@ -17,7 +17,7 @@ const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour:
 
 export default async function ServicioEnCurso({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const yo = await exigirRol("conductor");
+  const yo = await exigirConductor();
   const sb = await clienteServidor();
   const { data: s } = await sb.from("servicios").select("*").eq("id", id).eq("conductor_id", yo.id).maybeSingle();
   if (!s) notFound();

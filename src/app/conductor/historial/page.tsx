@@ -1,4 +1,4 @@
-import { exigirRol } from "@/lib/supabase/sesion";
+import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
@@ -7,7 +7,7 @@ import { euros, litros2, fechaCorta } from "@/lib/dominio/formato";
 const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 export default async function Historial() {
-  const yo = await exigirRol("conductor");
+  const yo = await exigirConductor();
   const hoy = diaMadrid(new Date());
   const desdeDia = diaMadrid(new Date(Date.parse(`${hoy}T12:00:00Z`) - 6 * 86400e3));
   const sb = await clienteServidor();

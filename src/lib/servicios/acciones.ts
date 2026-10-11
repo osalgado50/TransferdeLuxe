@@ -10,7 +10,7 @@ export interface RepoServicios {
   liberarAccion(idAccion: string): Promise<void>;
 }
 export interface PeticionAccion {
-  idAccion: string; servicioId: string; accion: Accion; actor: { id: string; rol: Rol };
+  idAccion: string; servicioId: string; accion: Accion; actor: { id: string; rol: Rol; conduce?: boolean };
   motivo?: string; conductorId?: string; vehiculoId?: string;
 }
 export type ResultadoAccion = { ok: true; estado: EstadoServicio; duplicada?: boolean } | { ok: false; error: string };
@@ -25,7 +25,7 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   if (p.accion === "rechazar" && (!p.motivo || p.motivo.trim() === "" || p.motivo === "Otro"))
     return { ok: false, error: "Indica el motivo del rechazo" };
 
-  const t = transicion(s.estado, p.accion, { rol: p.actor.rol, esAsignado: s.conductor_id === p.actor.id });
+  const t = transicion(s.estado, p.accion, { rol: p.actor.rol, conduce: p.actor.conduce, esAsignado: s.conductor_id === p.actor.id });
   if (!t.ok) return t;
   if (!(await repo.registrarAccion(p.idAccion))) return { ok: true, estado: s.estado, duplicada: true };
 

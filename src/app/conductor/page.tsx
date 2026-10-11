@@ -1,4 +1,4 @@
-import { exigirRol } from "@/lib/supabase/sesion";
+import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc } from "@/lib/reserva/esquema";
@@ -7,7 +7,7 @@ import ListaHoy, { type ServicioHoy } from "@/components/conductor/ListaHoy";
 import ModulosConductor from "@/components/conductor/ModulosConductor";
 
 export default async function Hoy() {
-  const yo = await exigirRol("conductor");
+  const yo = await exigirConductor();
   const dia = diaMadrid(new Date());
   const desde = madridAUtc(dia, "00:00");
   const hasta = madridAUtc(new Date(Date.parse(`${dia}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10), "00:00");

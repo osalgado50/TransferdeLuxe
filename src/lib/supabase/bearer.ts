@@ -1,6 +1,6 @@
 import "server-only";
 import { clienteAdmin } from "@/lib/supabase/admin";
-import type { Perfil } from "@/lib/dominio/tipos";
+import { puedeConducir, type Perfil } from "@/lib/dominio/tipos";
 
 /** Perfil a partir de `Authorization: Bearer <access_token>` (app nativa). null si falta o no es válido. */
 export async function perfilDesdeBearer(req: Request): Promise<Perfil | null> {
@@ -14,11 +14,19 @@ export async function perfilDesdeBearer(req: Request): Promise<Perfil | null> {
 }
 
 type Resultado = { ok: true; yo: Perfil } | { ok: false; res: Response };
-/** 401 sin sesión válida, 403 si no es conductor. */
+/** 401 sin sesión válida, 403 si no es conductor (ni operador que conduce). */
 export async function exigirConductorBearer(req: Request): Promise<Resultado> {
   const yo = await perfilDesdeBearer(req);
   if (!yo) return { ok: false, res: Response.json({ error: "Sesión no válida. Vuelve a iniciar sesión." }, { status: 401 }) };
-  if (yo.rol !== "conductor") return { ok: false, res: Response.json({ error: "Solo los conductores pueden usar esta función." }, { status: 403 }) };
+  if (!puedeConducir(yo)) return { ok: false, res: Response.json({ error: "Solo los conductores pueden usar esta función." }, { status: 403 }) };
+  return { ok: true, yo };
+}
+
+/** 401 sin sesión válida, 403 si no es operador (modo central de la app nativa). */
+export async function exigirOperadorBearer(req: Request): Promise<Resultado> {
+  const yo = await perfilDesdeBearer(req);
+  if (!yo) return { ok: false, res: Response.json({ error: "Sesión no válida. Vuelve a iniciar sesión." }, { status: 401 }) };
+  if (yo.rol !== "operador") return { ok: false, res: Response.json({ error: "Solo la central puede usar esta función." }, { status: 403 }) };
   return { ok: true, yo };
 }
 

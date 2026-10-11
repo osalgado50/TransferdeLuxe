@@ -1,8 +1,8 @@
-import { exigirRol } from "@/lib/supabase/sesion";
+import { exigirConductor } from "@/lib/supabase/sesion";
 import CapturaTicket from "@/components/conductor/CapturaTicket";
 
 export default async function Ticket() {
-  await exigirRol("conductor");
+  await exigirConductor();
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-marca-claro">Ticket de combustible</h1>

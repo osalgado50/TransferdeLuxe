@@ -45,3 +45,23 @@ describe("transicion", () => {
     expect(ACCION_SIGUIENTE_CONDUCTOR.recogido?.etiqueta).toMatch(/DESCARGA/);
   });
 });
+
+describe("operador que también conduce", () => {
+  const jefe = { rol: "operador" as const, esAsignado: true, conduce: true };
+  test("ejecuta las acciones de conductor sobre lo suyo", () => {
+    expect(transicion("asignado", "aceptar", jefe)).toMatchObject({ ok: true, nuevo: "aceptado" });
+    expect(transicion("asignado", "rechazar", jefe)).toMatchObject({ ok: true, nuevo: "pendiente" });
+    expect(transicion("aceptado", "salir", jefe)).toMatchObject({ ok: true });
+    expect(transicion("en_camino", "cargar", jefe)).toMatchObject({ ok: true });
+    expect(transicion("recogido", "descargar", jefe)).toMatchObject({ ok: true });
+  });
+  test("no sobre servicios de otro", () => {
+    expect(transicion("asignado", "aceptar", { ...jefe, esAsignado: false })).toEqual({ ok: false, error: "Este servicio ya no está asignado a ti" });
+  });
+  test("sin conduce, un operador no puede", () => {
+    expect(transicion("asignado", "aceptar", { rol: "operador", esAsignado: true }).ok).toBe(false);
+  });
+  test("sigue pudiendo asignar como operador", () => {
+    expect(transicion("pendiente", "asignar", jefe).ok).toBe(true);
+  });
+});
