@@ -74,3 +74,25 @@ describe("gpsNativo", () => {
     expect(trozos([])).toEqual([]);
   });
 });
+
+import { seleccionarPuntos, estaParado, type Fix } from "@/lib/dominio/gpsNativo";
+describe("seleccionarPuntos", () => {
+  const f = (ts: number, lat = 41.07, vel: number | null = 15): Fix => ({ lat, lng: 1.13, velocidad: vel, precision_m: 5, ts });
+  it("guarda todos los fixes de un lote separados ≥ 12 s, no solo el último", () => {
+    const { puntos, ref } = seleccionarPuntos([f(0), f(5_000, 41.071), f(13_000, 41.072), f(26_000, 41.073)], null);
+    expect(puntos.map((p) => p.ts)).toEqual([0, 13_000, 26_000]);
+    expect(ref?.ts).toBe(26_000);
+  });
+  it("ignora fixes anteriores a la referencia y los ordena", () => {
+    const { puntos } = seleccionarPuntos([f(40_000, 41.08), f(10_000), f(25_000, 41.075)], { lat: 41.07, lng: 1.13, ts: 10_000 });
+    expect(puntos.map((p) => p.ts)).toEqual([25_000, 40_000]);
+  });
+  it("parado: un punto por minuto", () => {
+    const fixes = [0, 15_000, 30_000, 45_000, 60_000, 75_000].map((t) => f(t, 41.07, 0));
+    expect(seleccionarPuntos(fixes, null).puntos.map((p) => p.ts)).toEqual([0, 60_000]);
+  });
+  it("en marcha no se considera parado", () => {
+    expect(estaParado(f(20_000, 41.08, 0.5), { lat: 41.07, lng: 1.13, ts: 0 })).toBe(false);
+    expect(estaParado(f(20_000, 41.07, 12), { lat: 41.07, lng: 1.13, ts: 0 })).toBe(false);
+  });
+});

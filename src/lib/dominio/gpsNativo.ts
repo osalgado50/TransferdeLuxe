@@ -36,6 +36,43 @@ export function filaPosicion(conductorId: string, p: PosicionPendiente, ahora: n
     registrado_en: new Date(Math.min(p.ts, ahora)).toISOString() };
 }
 
+// ---- Selección de puntos de un lote (todos los fixes, no solo el último) + modo ahorro con el coche parado ----
+export const PARADO_CADA_MS = 60_000; // parado: un punto por minuto (latido; la central marca «sin señal» a los 5 min)
+export const PARADO_VEL_MS = 1;       // < 1 m/s ≈ 3,6 km/h
+export const PARADO_RADIO_M = 30;     // y a menos de 30 m del último punto aceptado
+
+export interface Fix { lat: number; lng: number; velocidad: number | null; precision_m: number | null; ts: number }
+export interface Referencia { lat: number; lng: number; ts: number }
+
+function distanciaM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
+}
+
+/** ¿Está parado respecto al último punto aceptado? (velocidad baja o desconocida y casi sin moverse) */
+export function estaParado(f: Fix, ref: Referencia | null): boolean {
+  if (!ref) return false;
+  return (f.velocidad === null || f.velocidad < PARADO_VEL_MS) && distanciaM(f, ref) < PARADO_RADIO_M;
+}
+
+/**
+ * De un lote de fixes, los que se guardan: en orden, posteriores a la referencia, separados ≥ 12 s
+ * (≥ 60 s si el coche está parado). Devuelve también la nueva referencia.
+ */
+export function seleccionarPuntos(fixes: Fix[], ref: Referencia | null): { puntos: Fix[]; ref: Referencia | null } {
+  const puntos: Fix[] = [];
+  let r = ref;
+  for (const f of [...fixes].sort((a, b) => a.ts - b.ts)) {
+    if (r && f.ts <= r.ts) continue;
+    const hueco = r ? f.ts - r.ts : Infinity;
+    if (hueco < (estaParado(f, r) ? PARADO_CADA_MS : MIN_ENTRE_ENVIOS_MS)) continue;
+    puntos.push(f);
+    r = { lat: f.lat, lng: f.lng, ts: f.ts };
+  }
+  return { puntos, ref: r };
+}
+
 export const TROZO_ENVIO = 50; // filas por insert al vaciar la cola
 
 // Claves de AsyncStorage, todas por conductor. `on` guarda una «generación» (cambia en cada encendido; ausente = OFF).
@@ -43,6 +80,7 @@ export const PREFIJO_GPS = "tvl:gps:";
 export const claveOn = (id: string) => `${PREFIJO_GPS}on:${id}`;
 export const claveCola = (id: string) => `${PREFIJO_GPS}cola:${id}`;
 export const claveUltimo = (id: string) => `${PREFIJO_GPS}ultimo:${id}`;
+export const claveRef = (id: string) => `${PREFIJO_GPS}ref:${id}`;
 
 /** Solo las filas del conductor de la sesión actual. */
 export const filtrarCola = (cola: PosicionPendiente[], dueno: string) => cola.filter((p) => p.dueno === dueno);

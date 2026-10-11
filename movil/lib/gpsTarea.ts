@@ -2,11 +2,12 @@
 // quede registrada al arrancar, también cuando el SO relanza la app sin interfaz para entregar ubicaciones.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  PREFIJO_GPS, claveCola, claveOn, claveUltimo, clasificarRefresco, decidirLote, decisionSesion, debeEnviarNativo,
-  encolarPosicion, filaPosicion, filtrarCola, sigueActivo, trozos, velocidadValida, type EstadoSesionGps, type PosicionPendiente,
+  PREFIJO_GPS, claveCola, claveOn, claveRef, claveUltimo, clasificarRefresco, decidirLote, decisionSesion, seleccionarPuntos,
+  encolarPosicion, filaPosicion, filtrarCola, sigueActivo, trozos, velocidadValida, type EstadoSesionGps, type PosicionPendiente, type Referencia,
 } from "@dominio/gpsNativo";
 import { ENVIO_TIMEOUT_MS } from "@dominio/gps";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
 import { supabase } from "./supabase";
 
@@ -24,7 +25,7 @@ export async function leerUltimoEnvio(id: string): Promise<number | null> {
 
 /** Borra cola y último envío (de un conductor o de todos). */
 export async function limpiarDatosGps(id?: string, conFlag = false): Promise<void> {
-  const claves = id ? [claveCola(id), claveUltimo(id), ...(conFlag ? [claveOn(id)] : [])]
+  const claves = id ? [claveCola(id), claveUltimo(id), claveRef(id), ...(conFlag ? [claveOn(id)] : [])]
     : (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(PREFIJO_GPS) && (conFlag || !k.startsWith(`${PREFIJO_GPS}on:`)));
   if (claves.length) await AsyncStorage.multiRemove(claves);
 }
@@ -45,25 +46,41 @@ let enVuelo: Promise<void> | null = null;
 /** Espera al lote en curso (para no enviar «fuera de servicio» antes de que acabe un insert). */
 export const esperarLoteEnCurso = () => enVuelo ?? Promise.resolve();
 
-async function procesar(ultima: Location.LocationObject) {
+async function leerRef(id: string): Promise<Referencia | null> {
+  try { return JSON.parse((await AsyncStorage.getItem(claveRef(id))) ?? "null") as Referencia | null; } catch { return null; }
+}
+
+/** Aviso local al conductor: el GPS se ha parado porque la sesión ya no es válida. */
+const avisarGpsDetenido = () => Notifications.scheduleNotificationAsync({
+  content: { title: "GPS detenido", body: "Tu sesión ha caducado. Abre TVL Conductor y vuelve a entrar para seguir en servicio." },
+  trigger: null,
+}).catch(() => undefined);
+
+async function procesar(lote: Location.LocationObject[]) {
   const ahora = Date.now();
   const { estado, id } = await estadoSesion();
-  if (!id) { await parar(); await limpiarDatosGps(undefined, true); return; }
+  if (!id) { await parar(); await limpiarDatosGps(undefined, true); await avisarGpsDetenido(); return; }
   const gen = await AsyncStorage.getItem(claveOn(id));
   const activo = async () => sigueActivo(gen, await AsyncStorage.getItem(claveOn(id)));
   const decision = decidirLote(gen !== null, estado);
-  if (decision === "parar_y_limpiar") { await parar(); await limpiarDatosGps(id, true); return; } // sin token no hay «fuera de servicio» posible
+  if (decision === "parar_y_limpiar") { // sin token no hay «fuera de servicio» posible
+    const estabaOn = gen !== null;
+    await parar(); await limpiarDatosGps(id, true);
+    if (estabaOn) await avisarGpsDetenido();
+    return;
+  }
   if (decision === "descartar") return;
-  if (!debeEnviarNativo(ahora, await leerUltimoEnvio(id))) return;
-  const p: PosicionPendiente = {
-    dueno: id, lat: ultima.coords.latitude, lng: ultima.coords.longitude,
-    velocidad: velocidadValida(ultima.coords.speed), precision_m: ultima.coords.accuracy ?? null, ts: ultima.timestamp || ahora,
-  };
-  let pendientes = [...(await leerCola(id)), p];
+  // Todos los fixes del lote (tras un túnel llegan varios), separados ≥ 12 s, o ≥ 60 s con el coche parado.
+  const fixes = lote.map((l) => ({ lat: l.coords.latitude, lng: l.coords.longitude, velocidad: velocidadValida(l.coords.speed),
+    precision_m: l.coords.accuracy ?? null, ts: l.timestamp || ahora }));
+  const { puntos, ref } = seleccionarPuntos(fixes, await leerRef(id));
+  if (!puntos.length) return;
+  await AsyncStorage.setItem(claveRef(id), JSON.stringify(ref));
+  const nuevos: PosicionPendiente[] = puntos.map((x) => ({ dueno: id, ...x }));
+  let pendientes = [...(await leerCola(id)), ...nuevos];
   const guardar = async () => {
     if (!(await activo())) return;
-    const cola = pendientes.slice(0, -1).reduce<PosicionPendiente[]>((c, x) => encolarPosicion(c, x), []);
-    await AsyncStorage.setItem(claveCola(id), JSON.stringify(pendientes.length ? encolarPosicion(cola, pendientes.at(-1)!) : []));
+    await AsyncStorage.setItem(claveCola(id), JSON.stringify(pendientes.reduce<PosicionPendiente[]>((c, x) => encolarPosicion(c, x), [])));
   };
   if (decision === "encolar") { await guardar(); return; }
   for (const trozo of trozos(pendientes)) {
@@ -83,9 +100,18 @@ async function procesar(ultima: Location.LocationObject) {
 
 const parar = () => Location.stopLocationUpdatesAsync(TAREA_GPS).catch(() => undefined);
 
+// Lotes que llegan mientras otro se está enviando: se acumulan en memoria y se procesan a continuación (antes se perdían).
+let enEspera: Location.LocationObject[] = [];
+
 TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TAREA_GPS, async ({ data, error }) => {
-  const ultima = data?.locations?.at(-1);
-  if (error || !ultima || enVuelo) return;
-  enVuelo = procesar(ultima).catch((e) => console.warn("[gps] tarea", e)).finally(() => { enVuelo = null; });
+  if (error || !data?.locations?.length) return;
+  enEspera = [...enEspera, ...data.locations].slice(-500); // tope de memoria
+  if (enVuelo) return; // el bucle en curso lo recoge
+  enVuelo = (async () => {
+    while (enEspera.length) {
+      const lote = enEspera; enEspera = [];
+      await procesar(lote).catch((e) => console.warn("[gps] tarea", e));
+    }
+  })().finally(() => { enVuelo = null; });
   await enVuelo;
 });
