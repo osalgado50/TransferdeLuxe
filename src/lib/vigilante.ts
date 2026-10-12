@@ -53,7 +53,7 @@ export async function vigilarUnaVez(): Promise<number> {
     eventos: eventos.filter((e) => !prueba.has(e.servicio_id)),
     incidencias: incidencias.filter((i) => !i.servicio_id || !prueba.has(i.servicio_id)),
     revisiones: revisiones.filter((r) => r.con_fallos),
-    cierres,
+    cierres: cierres.filter((x) => !x.comentario?.startsWith("PRUEBA AUTOMÁTICA")), // pruebas automáticas: sin push
     servicios: porId,
     nombres: new Map(((pers ?? []) as { id: string; nombre: string }[]).map((p) => [p.id, p.nombre])),
     matriculas: new Map(((vehs ?? []) as { id: string; matricula: string }[]).map((v) => [v.id, v.matricula])),
