@@ -38,7 +38,14 @@ export function CuentasDemo({ cuentas, clave }: { cuentas: string[]; clave?: str
     setCopiado(v);
     setTimeout(() => setCopiado((c) => (c === v ? null : c)), 1800);
   }
-  const usar = (email: string) => { rellenar("email", email); if (clave) rellenar("password", clave); document.getElementById(clave ? "password" : "email")?.focus(); };
+  // «Usar»: rellena la cuenta de demo y envía el formulario de acceso (entra directamente).
+  const usar = (email: string) => {
+    rellenar("email", email);
+    if (!clave) { document.getElementById("email")?.focus(); return; }
+    rellenar("password", clave);
+    const form = (document.getElementById("password") as HTMLInputElement | null)?.form;
+    if (form) form.requestSubmit(); else document.getElementById("password")?.focus();
+  };
   const fila = "flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900/70 px-3 py-2";
   const mono = "min-w-0 break-all font-mono text-[15px] tracking-tight sm:text-base sm:tracking-normal text-slate-100";
   return (

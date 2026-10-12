@@ -16,17 +16,19 @@ export default function Login() {
   const [pendiente, setPendiente] = useState(false);
   const refClave = useRef<TextInput>(null);
 
-  async function enviar() {
-    if (!email.trim() || !clave) { setError("Escribe tu email y tu contraseña"); return; }
+  async function enviar(em = email, cl = clave) {
+    if (!em.trim() || !cl) { setError("Escribe tu email y tu contraseña"); return; }
     setPendiente(true); setError(null);
-    const e = await entrar(email, clave);
+    const e = await entrar(em, cl);
     setPendiente(false);
     if (e) setError(e);
   }
+  // «Usar»: rellena la cuenta de demo y entra directamente.
   function usar(c: string) {
     setEmail(c);
     if (DEMO_PASSWORD) setClave(DEMO_PASSWORD);
     setError(null);
+    if (DEMO_PASSWORD && !pendiente) void enviar(c, DEMO_PASSWORD);
   }
 
   return (
@@ -44,10 +46,10 @@ export default function Login() {
               placeholderTextColor={color.textoTenue} />
             <Text style={[estilos.etiqueta, { marginTop: 12 }]}>Contraseña</Text>
             <CampoContrasena ref={refClave} value={clave} onChangeText={setClave} style={estilos.campo}
-              autoComplete="current-password" textContentType="password" returnKeyType="go" onSubmitEditing={enviar}
+              autoComplete="current-password" textContentType="password" returnKeyType="go" onSubmitEditing={() => void enviar()}
               accessibilityLabel="Contraseña" />
             {error && <Text style={estilos.error} accessibilityRole="alert">{error}</Text>}
-            <Pressable onPress={enviar} disabled={pendiente} accessibilityRole="button"
+            <Pressable onPress={() => void enviar()} disabled={pendiente} accessibilityRole="button"
               style={({ pressed }) => [estilos.boton, (pressed || pendiente) && { backgroundColor: color.marcaOscuro }, pendiente && { opacity: 0.6 }]}>
               {pendiente ? <ActivityIndicator color="#fff" /> : <Text style={estilos.botonTexto}>Entrar</Text>}
             </Pressable>
