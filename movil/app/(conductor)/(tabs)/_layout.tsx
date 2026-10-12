@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View, type ColorValue } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EstadoConexion } from "~/components/EstadoConexion";
 import { InterruptorGps } from "~/components/InterruptorGps";
-import { BotonJornada } from "~/components/BotonJornada";
+import { IconoJornada } from "~/components/IconoJornada";
 import { useSesion } from "~/lib/sesion";
 import { color } from "~/lib/tema";
 
@@ -47,8 +47,8 @@ export default function LayoutPestanas() {
       <Tabs.Screen name="index" options={{ title: "Hoy", tabBarIcon: icono("today-outline") }} />
       <Tabs.Screen name="historial" options={{ title: "Historial", tabBarIcon: icono("time-outline") }} />
       <Tabs.Screen name="ticket" options={{ title: "Ticket", tabBarIcon: icono("receipt-outline") }} />
-      {/* Jornada: no es una pantalla; la pestaña abre el menú iniciar / pausa / finalizar. */}
-      <Tabs.Screen name="jornada" options={{ title: "Jornada", tabBarButton: () => (yo ? <BotonJornada yo={yo} pestana /> : null) }} />
+      {/* Jornada: pantalla propia (iniciar con GPS, pausa, finalizar con hoja de cierre, incidencias). Icono según el estado. */}
+      <Tabs.Screen name="jornada" options={{ title: "Jornada", tabBarIcon: ({ color: c, size }) => (yo ? <IconoJornada yo={yo} color={c} size={size} /> : icono("time-outline")({ color: c, size })) }} />
     </Tabs>
   );
 }

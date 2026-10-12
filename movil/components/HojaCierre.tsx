@@ -1,15 +1,16 @@
 // Hoja de cierre de jornada (app nativa): Modal a pantalla completa en 3 pasos. (1) Daños en el diagrama del coche visto
-// desde arriba (Views absolutas escaladas al ancho de pantalla; sin react-native-svg). (2) Estado técnico, combustible y km.
+// desde arriba (DiagramaDanos; precargado con las zonas de los golpes/accidentes comunicados hoy). (2) Estado técnico, combustible y km.
 // (3) Comentario y «Enviar y cerrar jornada». «Cancelar» no finaliza. Sin red: error y reintento con el mismo idAccion
 // (lo marcado se conserva mientras el modal siga abierto).
 import {
-  ALTO_DIAGRAMA, ANCHO_DIAGRAMA, COMBUSTIBLE, ITEMS_TECNICOS, MAX_COMENTARIO, TESTIGOS, ZONAS_VEHICULO, alternarZona, gravedadCierre,
+  COMBUSTIBLE, ITEMS_TECNICOS, MAX_COMENTARIO, TESTIGOS, alternarZona, gravedadCierre, normalizarZonas,
   resumenCierre, tecnicoInicial, validarKm, type Combustible, type GravedadCierre, type IdTestigo, type Tecnico,
 } from "@dominio/cierre";
 import * as Haptics from "expo-haptics";
 import { useRef, useState } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { DiagramaDanos, useAnchoDiagrama } from "./DiagramaDanos";
 import { Boton } from "./ui";
 import { nuevoIdAccion } from "~/lib/acciones";
 import { llamarApi } from "~/lib/api";
@@ -23,71 +24,18 @@ const FONDO_G: Record<GravedadCierre, { fondo: string; borde: string; texto: str
   mantenimiento: { fondo: "#451a03", borde: "#f59e0b", texto: "#fef3c7" },
   ok: { fondo: "#052e16", borde: "#22c55e", texto: "#dcfce7" },
 };
-/** Zonas pequeñas en los bordes: área táctil extra hacia fuera (no pisa otras zonas). */
-const HOLGURA: Record<string, { top?: number; bottom?: number }> = {
-  faro_izq: { top: 10 }, faro_der: { top: 10 }, parachoques_del: { top: 10 },
-  piloto_izq: { bottom: 10 }, piloto_der: { bottom: 10 }, parachoques_tras: { bottom: 10 },
-  retrovisor_izq: { bottom: 10 }, retrovisor_der: { bottom: 10 },
-};
-
-/** Diagrama del coche (DELANTERA arriba, la izquierda del coche a la izquierda). Fondo gris claro; marcada = rojo con texto blanco. */
-export function DiagramaVehiculo({ zonas, alAlternar, ancho, laterales = true }: { zonas: readonly string[]; alAlternar?: (id: string) => void; ancho: number; laterales?: boolean }) {
-  const k = ancho / ANCHO_DIAGRAMA;
-  const alto = ALTO_DIAGRAMA * k;
-  const marcadas = new Set(zonas);
-  const lateral = (texto: string, giro: string) => (
-    <View style={{ width: 16, height: alto }} accessible={false} importantForAccessibility="no-hide-descendants">
-      <Text style={[e.rotulo, { position: "absolute", width: alto, left: 8 - alto / 2, top: alto / 2 - 8, transform: [{ rotate: giro }] }]}>{texto}</Text>
-    </View>
-  );
-  return (
-    <View style={e.diagrama}>
-      {laterales ? <Text style={e.rotulo} importantForAccessibility="no">DELANTERA</Text> : (
-        // Pantallas estrechas: los rótulos laterales van arriba para que las zonas sean más grandes.
-        <View style={{ width: ancho, flexDirection: "row", justifyContent: "space-between" }} importantForAccessibility="no-hide-descendants">
-          <Text style={e.rotulo}>◀ IZQ.</Text><Text style={e.rotulo}>DELANTERA</Text><Text style={e.rotulo}>DER. ▶</Text>
-        </View>
-      )}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        {laterales && lateral("IZQUIERDA", "-90deg")}
-        <View style={{ width: ancho, height: alto }}>
-          {ZONAS_VEHICULO.map((z) => {
-            const on = marcadas.has(z.id);
-            const fondo = on ? ROJO : z.tipo === "rueda" ? "#64748b" : z.tipo === "cristal" ? "#e0f2fe" : "#ffffff";
-            const borde = on ? "#991b1b" : z.tipo === "rueda" ? "#475569" : z.tipo === "cristal" ? "#7dd3fc" : "#cbd5e1";
-            const tinta = on || z.tipo === "rueda" ? "#ffffff" : "#334155";
-            const radio = z.tipo === "luz" ? Math.min(z.w, z.h) * k / 2 : z.tipo === "rueda" ? 12 : 9;
-            return (
-              <Pressable key={z.id} disabled={!alAlternar} hitSlop={HOLGURA[z.id]}
-                onPress={() => { void Haptics.selectionAsync().catch(() => undefined); alAlternar?.(z.id); }}
-                accessibilityRole="button" accessibilityLabel={z.etiqueta} accessibilityState={{ selected: on }}
-                accessibilityHint={alAlternar ? (on ? "Toca para quitar el daño" : "Toca para marcarla como dañada hoy") : undefined}
-                style={({ pressed }) => [e.zona, {
-                  left: z.x * k, top: z.y * k, width: z.w * k, height: z.h * k, backgroundColor: fondo, borderColor: borde, borderRadius: radio,
-                }, pressed && { opacity: 0.7 }]}>
-                <Text style={[e.zonaTexto, { color: tinta, fontWeight: on ? "800" : "600" }]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.7}>{z.corta ?? z.etiqueta}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {laterales && lateral("DERECHA", "90deg")}
-      </View>
-      <Text style={e.rotulo} importantForAccessibility="no">TRASERA</Text>
-    </View>
-  );
-}
-
-export function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alEnviado }: {
+/** `zonasIniciales`: zonas ya comunicadas hoy en golpes/accidentes (se precargan marcadas). `incidenciasHoy`: resumen para el paso 3. */
+export function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alEnviado, zonasIniciales = [], incidenciasHoy = [] }: {
   vehiculos: VehiculoCierre[]; vehiculoInicial: string | null; alCancelar: () => void; alEnviado: (g: GravedadCierre) => void;
+  zonasIniciales?: readonly string[]; incidenciasHoy?: readonly string[];
 }) {
-  const { width } = useWindowDimensions();
-  // Ancho del diagrama: márgenes (24) + relleno (8) y, si cabe, rótulos laterales (2 × 16 + huecos). Zonas ≥ 40 pt donde se pueda.
-  const laterales = width >= 400;
-  const ancho = Math.min(width - 32 - (laterales ? 40 : 0), 420);
+  // Ancho del diagrama: márgenes (24) + relleno (8) y, si cabe, rótulos laterales (2 × 16 + huecos).
+  const { ancho, laterales } = useAnchoDiagrama(32);
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [vehiculo, setVehiculo] = useState(vehiculoInicial && vehiculos.some((v) => v.id === vehiculoInicial) ? vehiculoInicial : "");
   const [elegir, setElegir] = useState(!vehiculo);
-  const [zonas, setZonas] = useState<string[]>([]);
+  const [zonas, setZonas] = useState<string[]>(() => normalizarZonas(zonasIniciales));
+  const precargadas = zonasIniciales.length;
   const [tecnico, setTecnico] = useState<Tecnico>(tecnicoInicial);
   const [combustible, setCombustible] = useState<Combustible | "">("");
   const [km, setKm] = useState("");
@@ -170,7 +118,8 @@ export function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alEnviado }
                     </View>
                   )}
                   <Text style={e.ayuda}>Toca las zonas que se han dañado <Text style={{ fontWeight: "800" }}>hoy</Text> (se marcan en rojo). Si no hay daños, pulsa «Hecho».</Text>
-                  <View style={{ alignItems: "center" }}><DiagramaVehiculo zonas={zonas} alAlternar={(id) => setZonas((z) => alternarZona(z, id))} ancho={ancho} laterales={laterales} /></View>
+                  {precargadas > 0 && <Text style={e.precarga}>Ya están marcadas las zonas de los golpes que has comunicado hoy. Añade las que falten.</Text>}
+                  <View style={{ alignItems: "center" }}><DiagramaDanos zonas={zonas} alAlternar={(id) => setZonas((z) => alternarZona(z, id))} ancho={ancho} laterales={laterales} /></View>
                   <Text style={e.ayuda} accessibilityLiveRegion="polite">{zonas.length ? `${zonas.length} zona${zonas.length > 1 ? "s" : ""} marcada${zonas.length > 1 ? "s" : ""}` : "Sin daños marcados"}</Text>
                 </>
               )}
@@ -226,6 +175,13 @@ export function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alEnviado }
                   <View style={[e.resumen, { backgroundColor: g.fondo, borderColor: g.borde }]}>
                     <Text style={[e.resumenTexto, { color: g.texto }]}>{resumenCierre({ zonas, tecnico, combustible: combustible || "lleno", matricula: v?.matricula })}</Text>
                   </View>
+                  {incidenciasHoy.length > 0 && (
+                    <View style={e.item}>
+                      <Text style={e.itemTitulo}>Incidencias de hoy</Text>
+                      <Text style={e.ayuda}>{incidenciasHoy.join(" · ")}</Text>
+                      <Text style={e.ayudaPeq}>Se envían a la central junto con esta hoja.</Text>
+                    </View>
+                  )}
                   <Text style={e.itemTitulo}>Comentario para la central (opcional)</Text>
                   <TextInput value={comentario} onChangeText={setComentario} multiline maxLength={MAX_COMENTARIO} textAlignVertical="top"
                     placeholder="Ej.: rozadura en el portón al aparcar en el aeropuerto" placeholderTextColor={color.textoTenue}
@@ -257,15 +213,12 @@ const e = StyleSheet.create({
   titulo: { color: color.marcaClaro, fontSize: 22, fontWeight: "800" },
   subtitulo: { color: color.textoTenue, fontSize: 14 },
   contenido: { padding: 12, gap: 12, paddingBottom: 24 },
-  diagrama: { backgroundColor: "#e2e8f0", borderRadius: 16, padding: 4, alignItems: "center", gap: 2 },
-  rotulo: { color: "#475569", fontSize: 11, fontWeight: "800", letterSpacing: 2, textAlign: "center" },
-  zona: { position: "absolute", borderWidth: 1.5, alignItems: "center", justifyContent: "center", padding: 2, overflow: "hidden" },
-  zonaTexto: { fontSize: 11, textAlign: "center", lineHeight: 13 },
   filaVehiculo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   vehiculo: { color: color.texto, fontSize: 18, fontWeight: "700", flexShrink: 1 },
   etiqueta: { color: color.texto, fontSize: 17, fontWeight: "700" },
   ayuda: { color: color.textoSuave, fontSize: 16 },
   ayudaPeq: { color: color.textoTenue, fontSize: 14 },
+  precarga: { color: "#fecaca", backgroundColor: "#450a0a", borderRadius: 10, padding: 10, fontSize: 15, fontWeight: "600" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { minHeight: 44, borderRadius: 22, borderWidth: 1.5, borderColor: color.borde, paddingHorizontal: 14, justifyContent: "center" },
   chipOn: { backgroundColor: color.marca, borderColor: color.marcaClaro },

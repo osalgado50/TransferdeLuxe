@@ -13,7 +13,7 @@ import { BloqueDireccion } from "~/components/BloqueDireccion";
 import { BotonPaso } from "~/components/BotonPaso";
 import { EstadoBadge } from "~/components/EstadoBadge";
 import { EstadoConexion } from "~/components/EstadoConexion";
-import { BotonIncidencia } from "~/components/ModulosConductor";
+import { BotonIncidencia } from "~/components/Incidencias";
 import { MapaServicio } from "~/components/MapaServicio";
 import { ContadorPuntualidad } from "~/components/Puntualidad";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";

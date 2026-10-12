@@ -1,24 +1,51 @@
-import { AVISO_SIN_FONDO, alEncender, alIniciar, type EstadoInterruptor } from "@dominio/gpsNativo";
+import { AVISO_SIN_FONDO, alIniciar, type EstadoInterruptor } from "@dominio/gpsNativo";
 import { estadoEnvio } from "@dominio/gps";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState, Linking, Modal, StyleSheet, Switch, Text, View } from "react-native";
 import { Boton } from "~/components/ui";
-import {
-  arrancarGps, guardarEnServicio, leerEnServicio, marcarFueraDeServicio, pararGps, pedirFondo, pedirPrimerPlano,
-  permisosActuales, tareaCorriendo,
-} from "~/lib/gps";
+import { apagarServicio, arrancarGps, encenderServicio, leerEnServicio, pararGps, permisosActuales, tareaCorriendo } from "~/lib/gps";
+import { alCambiarGps } from "~/lib/jornada";
 import { leerUltimoEnvio } from "~/lib/gpsTarea";
 import { color } from "~/lib/tema";
 
-/** Interruptor «En servicio / Fuera de servicio» de la cabecera + estado del último envío. */
+/**
+ * Pantalla explicativa «Ubicación Siempre» antes del diálogo del sistema (interruptor de la cabecera y «Iniciar jornada»).
+ * `explicar()` la abre y resuelve true con «Continuar» (pedir «Siempre») o false con «Ahora no».
+ */
+export function useExplicacionUbicacion(): { explicar: () => Promise<boolean>; modal: ReactNode } {
+  const [abierta, setAbierta] = useState(false);
+  const resolver = useRef<((v: boolean) => void) | null>(null);
+  const explicar = useCallback(() => new Promise<boolean>((res) => { resolver.current = res; setAbierta(true); }), []);
+  const responder = (v: boolean) => { setAbierta(false); resolver.current?.(v); resolver.current = null; };
+  const modal = (
+    <Modal visible={abierta} transparent animationType="fade" onRequestClose={() => responder(false)}>
+      <View style={estilos.velo}>
+        <View style={estilos.dialogo}>
+          <Text style={estilos.titulo}>Ubicación «Siempre»</Text>
+          <Text style={estilos.cuerpo}>
+            Para que la central vea dónde estás con la pantalla bloqueada o con otra app abierta (navegador, llamadas),
+            en el siguiente aviso elige «Permitir siempre» (en Android: «Permitir todo el tiempo»).
+            Solo se envía tu posición mientras estés «En servicio».
+          </Text>
+          <Boton texto="Continuar" onPress={() => responder(true)} />
+          <Boton texto="Ahora no (solo con la app abierta)" variante="texto" tamano={15} onPress={() => responder(false)} />
+        </View>
+      </View>
+    </Modal>
+  );
+  return { explicar, modal };
+}
+
+/** Interruptor «En servicio / Fuera de servicio» de la cabecera + estado del último envío. Se resincroniza si la pantalla
+ *  Jornada enciende (al iniciar la jornada) o apaga (al finalizarla) el GPS. */
 export function InterruptorGps({ conductorId }: { conductorId: string }) {
   const [estado, setEstado] = useState<EstadoInterruptor>("fuera");
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [explicando, setExplicando] = useState(false);
   const [ultimo, setUltimo] = useState<number | null>(null);
   const [ahora, setAhora] = useState(Date.now());
   const desde = useRef<number | null>(null);
+  const { explicar, modal } = useExplicacionUbicacion();
 
   // Al abrir y al volver a primer plano: reconciliar estado persistido, tarea y permisos (pudieron cambiar en Ajustes).
   const ocupadoRef = useRef(false);
@@ -31,14 +58,16 @@ export function InterruptorGps({ conductorId }: { conductorId: string }) {
       if (r.accion === "parar") await pararGps(conductorId);
     } catch (e) { setError(`No se pudo reanudar el GPS: ${(e as Error).message}`); }
     if (on && r.estado === "fuera") setError("Se ha retirado el permiso de ubicación. Actívalo en Ajustes y vuelve a entrar en servicio.");
-    if (r.estado !== "fuera" && desde.current === null) desde.current = Date.now();
+    if (r.estado !== "fuera" && desde.current === null) { desde.current = Date.now(); setError(null); }
+    if (r.estado === "fuera" && !on) { desde.current = null; setUltimo(null); }
     setEstado(r.estado);
   }, [conductorId]);
 
   useEffect(() => {
     void sincronizar();
     const s = AppState.addEventListener("change", (e) => { if (e === "active") void sincronizar(); });
-    return () => s.remove();
+    const quitar = alCambiarGps(() => void sincronizar());
+    return () => { s.remove(); quitar(); };
   }, [sincronizar]);
 
   useEffect(() => {
@@ -52,44 +81,24 @@ export function InterruptorGps({ conductorId }: { conductorId: string }) {
   }, [estado, conductorId]);
 
   const marcar = (v: boolean) => { ocupadoRef.current = v; setOcupado(v); };
-  const activar = async (pedirSiempre: boolean) => {
-    setExplicando(false);
-    marcar(true);
-    try {
-      const actuales = await permisosActuales();
-      const fondo = pedirSiempre ? await pedirFondo() : actuales.fondo;
-      const r = alEncender(actuales.primerPlano, fondo);
-      if (r.error) { setError(r.error); return; }
-      await arrancarGps();
-      await guardarEnServicio(conductorId, true);
-      desde.current = Date.now();
-      setEstado(r.estado);
-    } catch (e) { setError(`No se pudo arrancar el GPS: ${(e as Error).message}`); }
-    finally { marcar(false); }
-  };
-
   const encender = async () => {
     setError(null);
     marcar(true);
-    let modal = false; // con el modal abierto sigue «ocupado» hasta que activar() termine
     try {
-      const pp = await pedirPrimerPlano(); // iOS exige «Mientras se usa» antes de «Siempre»
-      const r0 = alEncender(pp, "undetermined");
-      if (r0.error) { setError(r0.error); return; }
-      const { fondo } = await permisosActuales();
-      if (fondo === "granted") { marcar(false); await activar(false); return; }
-      modal = true;
-      setExplicando(true); // pantalla explicativa antes del diálogo del sistema
-    } finally { if (!modal) marcar(false); }
+      const r = await encenderServicio(conductorId, explicar);
+      if (r.error) { setError(r.error); return; }
+      desde.current = Date.now();
+      setEstado(r.estado);
+    } finally { marcar(false); }
   };
 
   const apagar = async () => {
     marcar(true);
     setError(null);
     try {
-      await pararGps(conductorId);
+      const avisado = await apagarServicio(conductorId);
       setEstado("fuera"); setUltimo(null); desde.current = null;
-      if (!(await marcarFueraDeServicio())) setError("No se pudo avisar a la central de «Fuera de servicio». Se dejará de ver tu posición igualmente.");
+      if (!avisado) setError("No se pudo avisar a la central de «Fuera de servicio». Se dejará de ver tu posición igualmente.");
     } finally { marcar(false); }
   };
 
@@ -104,28 +113,20 @@ export function InterruptorGps({ conductorId }: { conductorId: string }) {
           trackColor={{ true: "#16a34a", false: color.borde }} />
       </View>
       {on && <Text style={[estilos.estado, { color: env.alerta ? color.error : color.textoSuave }]}>{env.texto}</Text>}
-      {estado === "solo_primer_plano" && (
-        <View style={estilos.aviso}>
-          <Text style={estilos.avisoTexto}>⚠️ {AVISO_SIN_FONDO}. Permite la ubicación «Siempre».</Text>
-          <Boton texto="Abrir Ajustes" variante="secundario" alto={44} tamano={16} onPress={() => void Linking.openSettings()} />
-        </View>
-      )}
+      {estado === "solo_primer_plano" && <AvisoSinFondo />}
       {error && <Text accessibilityRole="alert" style={estilos.error}>{error}</Text>}
       {error && !on && <Boton texto="Abrir Ajustes" variante="texto" alto={44} tamano={15} onPress={() => void Linking.openSettings()} />}
-      <Modal visible={explicando} transparent animationType="fade" onRequestClose={() => void activar(false)}>
-        <View style={estilos.velo}>
-          <View style={estilos.dialogo}>
-            <Text style={estilos.titulo}>Ubicación «Siempre»</Text>
-            <Text style={estilos.cuerpo}>
-              Para que la central vea dónde estás con la pantalla bloqueada o con otra app abierta (navegador, llamadas),
-              en el siguiente aviso elige «Permitir siempre» (en Android: «Permitir todo el tiempo»).
-              Solo se envía tu posición mientras estés «En servicio».
-            </Text>
-            <Boton texto="Continuar" onPress={() => void activar(true)} />
-            <Boton texto="Ahora no (solo con la app abierta)" variante="texto" tamano={15} onPress={() => void activar(false)} />
-          </View>
-        </View>
-      </Modal>
+      {modal}
+    </View>
+  );
+}
+
+/** Aviso amarillo: con solo «Mientras se usa», con la pantalla bloqueada no se envía la ubicación. */
+export function AvisoSinFondo() {
+  return (
+    <View style={estilos.aviso}>
+      <Text style={estilos.avisoTexto}>⚠️ {AVISO_SIN_FONDO}. Permite la ubicación «Siempre».</Text>
+      <Boton texto="Abrir Ajustes" variante="secundario" alto={44} tamano={16} onPress={() => void Linking.openSettings()} />
     </View>
   );
 }

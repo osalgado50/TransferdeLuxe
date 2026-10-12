@@ -1,11 +1,12 @@
 // Control del GPS en servicio: permisos, arranque/parada de la tarea y estado persistido por conductor.
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { claveOn, type Permiso } from "@dominio/gpsNativo";
+import { alEncender, alIniciar, claveOn, type EstadoInterruptor, type Permiso } from "@dominio/gpsNativo";
 import * as Crypto from "expo-crypto";
 import * as Location from "expo-location";
 import { fetchConTiempo } from "./api";
 import { API_URL } from "./config";
 import { TAREA_GPS, esperarLoteEnCurso, limpiarDatosGps } from "./gpsTarea";
+import { avisarCambioGps } from "./jornada";
 import { supabase } from "./supabase";
 
 export async function leerEnServicio(conductorId: string): Promise<boolean> {
@@ -63,4 +64,40 @@ async function postFuera(): Promise<boolean> {
     const r = await fetchConTiempo(`${API_URL}/api/conductor/fuera-de-servicio`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     return r.ok;
   } catch { return false; }
+}
+
+// ── Encender / apagar «En servicio» (interruptor de la cabecera y pantalla Jornada: mismo almacenamiento y mismo flujo) ──
+
+/** Estado actual sin tocar nada (para mostrarlo): flag persistido + permisos. */
+export async function estadoGps(conductorId: string): Promise<EstadoInterruptor> {
+  const [on, corriendo, p] = await Promise.all([leerEnServicio(conductorId), tareaCorriendo(), permisosActuales()]);
+  return alIniciar(on, corriendo, p.primerPlano, p.fondo).estado;
+}
+
+/**
+ * Pide permisos y arranca el GPS. `explicar` muestra la pantalla «Ubicación Siempre» antes del diálogo del sistema y
+ * resuelve true si el conductor pulsa «Continuar» (se pide «Siempre») o false («Ahora no»: solo con la app abierta).
+ * Sin permiso de ubicación devuelve el error y NO enciende.
+ */
+export async function encenderServicio(conductorId: string, explicar: () => Promise<boolean>): Promise<{ estado: EstadoInterruptor; error?: string }> {
+  const pp = await pedirPrimerPlano(); // iOS exige «Mientras se usa» antes de «Siempre»
+  const r0 = alEncender(pp, "undetermined");
+  if (r0.error) return r0;
+  let { fondo } = await permisosActuales();
+  if (fondo !== "granted" && (await explicar())) fondo = await pedirFondo();
+  const r = alEncender((await permisosActuales()).primerPlano, fondo);
+  if (r.error) return r;
+  try {
+    await arrancarGps();
+    await guardarEnServicio(conductorId, true);
+  } catch (e) { return { estado: "fuera", error: `No se pudo arrancar el GPS: ${(e as Error).message}` }; }
+  avisarCambioGps();
+  return r;
+}
+
+/** Apaga el GPS y avisa a la central de «Fuera de servicio». Devuelve false si no se pudo avisar (se apaga igualmente). */
+export async function apagarServicio(conductorId: string): Promise<boolean> {
+  await pararGps(conductorId);
+  avisarCambioGps();
+  return marcarFueraDeServicio();
 }

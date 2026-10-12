@@ -1,13 +1,9 @@
 import { debePedirChecklist, itemsActivos, type ItemChecklist, type RespuestaItem } from "@dominio/checklist";
 import { diaMadrid } from "@dominio/geo";
-import { TIPOS_INCIDENCIA } from "@dominio/incidencias";
 import { rangosJornada, type Jornada } from "@dominio/jornada";
 import { leerModulos } from "@dominio/modulos";
-import * as ImageManipulator from "expo-image-manipulator";
-import * as ImagePicker from "expo-image-picker";
-import * as Location from "expo-location";
 import { useEffect, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 import { llamarApi } from "~/lib/api";
 import { exigir } from "~/lib/servicios";
@@ -27,7 +23,7 @@ async function enviar(ruta: string, body: unknown): Promise<string | null> {
 
 type Vehiculo = { id: string; matricula: string; modelo: string };
 
-/** Checklist e incidencias en la pantalla principal (solo los módulos activos); la jornada va en la cabecera (BotonJornada). */
+/** Checklist del vehículo en la pantalla de Hoy (si toca). Jornada e incidencias tienen su propia pantalla (pestaña «Jornada»). */
 export function ModulosConductor() {
   const { sesion, perfil } = useSesion();
   const yo = sesion!.user.id;
@@ -45,7 +41,7 @@ export function ModulosConductor() {
       hechos: new Set(((rev.data ?? []) as { vehiculo_id: string }[]).map((x) => x.vehiculo_id)), vehiculos: exigir(veh) as Vehiculo[],
     };
   }, [yo]);
-  // La jornada se controla desde la cabecera; al cambiar, recargar para pedir el checklist si toca.
+  // La jornada se controla desde su pantalla; al cambiar, recargar para pedir el checklist si toca.
   useEffect(() => alCambiarJornada(() => void recargar()), [recargar]);
   if (!datos) return null;
   const { m, jornadas, items, hechos, vehiculos } = datos;
@@ -57,7 +53,6 @@ export function ModulosConductor() {
   return (
     <View style={{ gap: 12 }}>
       {pedir && <ChecklistTarjeta items={items} vehiculos={vehiculos} inicial={habitual} alGuardar={recargar} />}
-      {m.incidencias && <BotonIncidencia />}
     </View>
   );
 }
@@ -101,67 +96,6 @@ function ChecklistTarjeta({ items, vehiculos, inicial, alGuardar }: { items: Ite
       {error && <Aviso tipo="error" texto={error} />}
       <Boton texto="Guardar checklist" onPress={() => void guardar()} cargando={ocupado} deshabilitado={!vehiculo || items.some((i) => !resp[i.id])} />
     </Tarjeta>
-  );
-}
-
-/** Botón «Incidencia» con formulario modal (tipo, descripción, foto opcional y última posición conocida). */
-export function BotonIncidencia({ servicioId }: { servicioId?: string }) {
-  const [abierto, setAbierto] = useState(false);
-  const [tipo, setTipo] = useState("");
-  const [desc, setDesc] = useState("");
-  const [foto, setFoto] = useState<string | null>(null);
-  const [ocupado, setOcupado] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const cerrar = () => { setAbierto(false); setTipo(""); setDesc(""); setFoto(null); setError(null); };
-
-  const hacerFoto = async () => {
-    const p = await ImagePicker.requestCameraPermissionsAsync();
-    if (!p.granted) { setError("Sin permiso de cámara."); return; }
-    const r = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 });
-    if (!r.canceled && r.assets[0]) setFoto(r.assets[0].uri);
-  };
-  const mandar = async () => {
-    setOcupado(true); setError(null);
-    try {
-      let foto_path: string | null = null;
-      if (foto) {
-        const m = await ImageManipulator.manipulateAsync(foto, [{ resize: { width: 1600 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG });
-        const fd = new FormData();
-        fd.append("foto", { uri: m.uri, name: "incidencia.jpg", type: "image/jpeg" } as unknown as Blob);
-        const r = await llamarApi("/api/conductor/incidencia/foto", { method: "POST", form: fd });
-        const j = (await r.json().catch(() => null)) as { fotoPath?: string; error?: string } | null;
-        if (!r.ok || !j?.fotoPath) { setError(j?.error ?? "No se pudo subir la foto."); return; }
-        foto_path = j.fotoPath;
-      }
-      let lat: number | null = null, lng: number | null = null;
-      if ((await Location.getForegroundPermissionsAsync()).granted) {
-        const pos = await Location.getLastKnownPositionAsync().catch(() => null);
-        if (pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; }
-      }
-      const er = await enviar("/api/conductor/incidencia", { tipo, descripcion: desc, servicio_id: servicioId ?? null, foto_path, lat, lng });
-      if (er) { setError(er); return; }
-      cerrar();
-      Alert.alert("Incidencia enviada", "La central ya la tiene.");
-    } catch { setError("Sin conexión. Inténtalo de nuevo."); }
-    finally { setOcupado(false); }
-  };
-  return (
-    <>
-      <Boton texto="⚠ Incidencia" variante="peligro" onPress={() => setAbierto(true)} />
-      <Modal visible={abierto} animationType="slide" onRequestClose={cerrar}>
-        <ScrollView style={{ backgroundColor: color.fondo }} contentContainerStyle={{ padding: 20, paddingTop: 60, gap: 12 }}>
-          <Text style={e.titulo}>Comunicar incidencia</Text>
-          <View style={e.envolver}>
-            {TIPOS_INCIDENCIA.map((t) => <Opcion key={t.clave} texto={t.nombre} activa={tipo === t.clave} tono="#f87171" onPress={() => setTipo(t.clave)} />)}
-          </View>
-          <TextInput value={desc} onChangeText={setDesc} placeholder="Descripción" placeholderTextColor={color.textoTenue} multiline maxLength={1000} style={[e.entrada, { minHeight: 100 }]} />
-          <Boton texto={foto ? "Repetir foto ✓" : "Hacer foto (opcional)"} variante="secundario" onPress={() => void hacerFoto()} />
-          {error && <Aviso tipo="error" texto={error} />}
-          <Boton texto="Enviar a la central" onPress={() => void mandar()} cargando={ocupado} deshabilitado={!tipo} />
-          <Boton texto="Cancelar" variante="texto" onPress={cerrar} />
-        </ScrollView>
-      </Modal>
-    </>
   );
 }
 

@@ -43,7 +43,7 @@ export default function Hoy() {
   return (
     <ScrollView contentContainerStyle={estilos.contenido}
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={tirar} tintColor={color.marcaClaro} />}>
-      {/* Lo primero, las órdenes de trabajo de hoy; jornada, checklist e incidencias debajo; privacidad al final. */}
+      {/* Lo primero, las órdenes de trabajo de hoy; el checklist debajo (si toca); privacidad al final. Jornada e incidencias: pestaña «Jornada». */}
       <Text style={estilos.titulo} accessibilityRole="header">Hoy</Text>
       {error && <Aviso tipo="error" texto={`Error al cargar: ${error}. Desliza hacia abajo para reintentar.`} />}
       {cargando ? <Aviso texto="Cargando…" />
