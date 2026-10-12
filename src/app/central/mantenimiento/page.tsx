@@ -6,6 +6,9 @@ import { diaMadrid } from "@/lib/dominio/geo";
 import { estadoVehiculo, type PlanVehiculo, type Semaforo } from "@/lib/dominio/mantenimiento";
 import { euros, fechaCorta } from "@/lib/dominio/formato";
 import { guardarPlan, registrarMantenimiento } from "./actions";
+import { SEMAFORO_CIERRE, etiquetaCombustible, etiquetaZona, problemasCierre, ultimoCierrePorVehiculo, type CierreJornada } from "@/lib/dominio/cierre";
+import DiagramaVehiculo from "@/components/comun/DiagramaVehiculo";
+import BotonCierreVisto from "@/components/central/BotonCierreVisto";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +26,17 @@ export default async function Mantenimiento({ searchParams }: { searchParams: Pr
   const sb = clienteAdmin();
   const { data: ajustes } = await sb.from("ajustes").select("modulos").eq("id", 1).maybeSingle();
   if (!leerModulos(ajustes?.modulos).mantenimiento) notFound();
-  const [{ data: vehiculos, error: e1 }, { data: planes, error: e2 }, { data: registros, error: e3 }] = await Promise.all([
+  const [{ data: vehiculos, error: e1 }, { data: planes, error: e2 }, { data: registros, error: e3 }, { data: cierres }, { data: gente }] = await Promise.all([
     sb.from("vehiculos").select("id,matricula,modelo,km_actuales").order("matricula"),
     sb.from("vehiculos_mantenimiento").select("*"),
     sb.from("mantenimientos").select("*").order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(100),
+    // Hojas de cierre de los últimos 60 días: la última de cada vehículo (estado para el día siguiente).
+    sb.from("cierres_jornada").select("*").gte("creado_en", new Date(Date.now() - 60 * 86400e3).toISOString()).order("creado_en", { ascending: false }).limit(500),
+    sb.from("perfiles").select("id,nombre"),
   ]);
+  const ultimoCierre = ultimoCierrePorVehiculo((cierres ?? []) as CierreJornada[]);
+  const nombre = new Map((gente ?? []).map((p) => [p.id as string, p.nombre as string]));
+  const fechaHora = (iso: string) => new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
   const err = e1 ?? e2 ?? e3;
   const hoy = diaMadrid(new Date());
   const planPor = new Map((planes ?? []).map((p) => [p.vehiculo_id as string, p as PlanVehiculo]));
@@ -50,6 +59,25 @@ export default async function Mantenimiento({ searchParams }: { searchParams: Pr
                 <h2 className="font-semibold">{v.matricula} <span className="text-sm font-normal text-slate-400">{v.modelo} · {v.km_actuales.toLocaleString("es-ES")} km</span></h2>
                 <span data-semaforo={e.global} className={`rounded border px-2 py-0.5 text-xs ${COLOR[e.global]}`}>{TEXTO[e.global]}</span>
               </div>
+              {(() => {
+                const c = ultimoCierre.get(v.id);
+                if (!c) return <p data-cierre="ninguno" className="mb-2 rounded border border-slate-700 px-2 py-1 text-sm text-slate-400">Último cierre: sin hojas de cierre</p>;
+                const sem = SEMAFORO_CIERRE[c.gravedad];
+                const problemas = problemasCierre(c);
+                return (
+                  <div data-cierre={c.gravedad} className={`mb-3 flex gap-3 rounded border p-2 text-sm ${COLOR[sem.color]}`}>
+                    {c.zonas.length > 0 && <div className="w-16 shrink-0"><DiagramaVehiculo zonas={c.zonas} mini /></div>}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="flex flex-wrap items-center gap-2"><span className="font-semibold">Último cierre: {sem.texto}</span>
+                        <span className="text-xs opacity-80">{fechaHora(c.creado_en)} · {nombre.get(c.conductor_id) ?? "Conductor"}</span>
+                        {!c.visto && c.gravedad !== "ok" && <BotonCierreVisto id={c.id} />}</p>
+                      {c.zonas.length > 0 && <p><span className="font-medium">Daños:</span> {c.zonas.map(etiquetaZona).join(", ")}</p>}
+                      <p><span className="font-medium">Técnico:</span> {problemas.length ? problemas.join(" · ") : "todo OK"} · combustible {etiquetaCombustible(c.combustible)}{c.km != null ? ` · ${c.km.toLocaleString("es-ES")} km` : ""}</p>
+                      {c.comentario && <p className="italic">«{c.comentario}»</p>}
+                    </div>
+                  </div>
+                );
+              })()}
               <ul className="mb-3 grid grid-cols-2 gap-1 text-sm">
                 {e.items.map((i) => (
                   <li key={i.clave} className={`rounded border px-2 py-1 ${COLOR[i.semaforo]}`}><span className="font-medium">{i.etiqueta}:</span> {i.detalle}</li>
