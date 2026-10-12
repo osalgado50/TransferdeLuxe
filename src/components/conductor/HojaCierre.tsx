@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { cierreConductor } from "@/app/conductor/modulos-actions";
 import DiagramaVehiculo from "@/components/comun/DiagramaVehiculo";
 import {
-  COMBUSTIBLE, ITEMS_TECNICOS, MAX_COMENTARIO, TESTIGOS, alternarZona, gravedadCierre, resumenCierre, tecnicoInicial, validarKm,
+  COMBUSTIBLE, ITEMS_TECNICOS, MAX_COMENTARIO, TESTIGOS, alternarZona, gravedadCierre, normalizarZonas, resumenCierre, tecnicoInicial, validarKm,
   type Combustible, type GravedadCierre, type IdTestigo, type Tecnico,
 } from "@/lib/dominio/cierre";
 
@@ -18,12 +18,14 @@ const COLOR_G: Record<GravedadCierre, string> = {
  * técnico, combustible y km, (3) comentario y «Enviar y cerrar jornada». «Cancelar» no finaliza. Si falla el envío
  * (sin red), lo marcado se conserva y se puede reintentar con el mismo idAccion (sin duplicar).
  */
-export default function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alEnviado }: {
+export default function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alEnviado, zonasIniciales = [], incidenciasHoy = [] }: {
   vehiculos: VehiculoCierre[]; vehiculoInicial: string | null; alCancelar: () => void; alEnviado: (g: GravedadCierre) => void;
+  /** Zonas ya comunicadas hoy en golpes/accidentes (se precargan marcadas) y resumen de las incidencias de hoy (paso 3). */
+  zonasIniciales?: readonly string[]; incidenciasHoy?: readonly string[];
 }) {
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [vehiculo, setVehiculo] = useState(vehiculoInicial && vehiculos.some((v) => v.id === vehiculoInicial) ? vehiculoInicial : "");
-  const [zonas, setZonas] = useState<string[]>([]);
+  const [zonas, setZonas] = useState<string[]>(() => normalizarZonas(zonasIniciales));
   const [tecnico, setTecnico] = useState<Tecnico>(tecnicoInicial);
   const [combustible, setCombustible] = useState<Combustible | "">("");
   const [km, setKm] = useState("");
@@ -91,6 +93,7 @@ export default function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alE
                 </select>
               </label>
               <p className="text-sm text-slate-300">Toca las zonas que se han dañado <strong>hoy</strong> (se marcan en rojo). Si no hay daños, pulsa «Hecho».</p>
+              {zonasIniciales.length > 0 && <p className="rounded-lg bg-red-950 p-3 text-sm font-semibold text-red-100">Ya están marcadas las zonas de los golpes que has comunicado hoy. Añade las que falten.</p>}
               <DiagramaVehiculo zonas={zonas} alAlternar={(id) => setZonas((z) => alternarZona(z, id))} />
               <p className="text-sm text-slate-400" aria-live="polite">{zonas.length ? `${zonas.length} zona${zonas.length > 1 ? "s" : ""} marcada${zonas.length > 1 ? "s" : ""}` : "Sin daños marcados"}</p>
             </>
@@ -138,6 +141,13 @@ export default function HojaCierre({ vehiculos, vehiculoInicial, alCancelar, alE
           {paso === 3 && (
             <>
               <p className={`rounded-xl border-2 p-3 font-semibold ${COLOR_G[gravedad]}`}>{resumenCierre({ zonas, tecnico, combustible: combustible || "lleno", matricula: v?.matricula })}</p>
+              {incidenciasHoy.length > 0 && (
+                <div className="rounded-xl border border-slate-700 bg-slate-900 p-3">
+                  <p className="font-semibold">Incidencias de hoy</p>
+                  <p className="text-sm text-slate-300">{incidenciasHoy.join(" · ")}</p>
+                  <p className="text-xs text-slate-400">Se envían a la central junto con esta hoja.</p>
+                </div>
+              )}
               <label className="block text-sm font-semibold">Comentario para la central (opcional)
                 <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} maxLength={MAX_COMENTARIO} rows={5}
                   placeholder="Ej.: rozadura en el portón al aparcar en el aeropuerto" className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950 p-3 text-base font-normal" />

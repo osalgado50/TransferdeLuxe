@@ -3,22 +3,18 @@ import { leerModulos } from "@/lib/dominio/modulos";
 import { rangosJornada, type Jornada } from "@/lib/dominio/jornada";
 import { debePedirChecklist, itemsActivos, type ItemChecklist } from "@/lib/dominio/checklist";
 import { diaMadrid } from "@/lib/dominio/geo";
-import { cierreObligatorio } from "@/lib/dominio/cierre";
 import type { Perfil } from "@/lib/dominio/tipos";
-import JornadaConductor from "./JornadaConductor";
-import BotonIncidencia from "./BotonIncidencia";
 import ChecklistVehiculo from "./ChecklistVehiculo";
 
-/** Bloque de módulos opcionales en la pantalla principal del conductor (solo los activos en la central). */
+/** Checklist del vehículo en la pantalla de Hoy (si toca). Jornada e incidencias tienen su página: /conductor/jornada. */
 export default async function ModulosConductor({ yo }: { yo: Perfil }) {
   const sb = await clienteServidor();
   const { data: aj } = await sb.from("ajustes").select("modulos").eq("id", 1).maybeSingle();
   const m = leerModulos(aj?.modulos);
-  if (!m.jornada && !m.incidencias && !m.checklist) return null;
+  if (!m.checklist) return null;
   const r = rangosJornada(new Date());
-  const conCierre = cierreObligatorio(m); // sin vehículos no hay hoja (ver hayVehiculos en el servidor)
   const [jor, items, revs, vehs] = await Promise.all([
-    m.jornada || m.checklist
+    m.jornada
       ? sb.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)").eq("conductor_id", yo.id)
           .or(`fin.is.null,fin.gte.${r.semana.desde}`).order("inicio")
       : Promise.resolve({ data: [] }),
@@ -35,10 +31,6 @@ export default async function ModulosConductor({ yo }: { yo: Perfil }) {
     jornadaActiva: m.jornada, jornadaAbierta: jornadas.some((j) => !j.fin), hayVehiculo: vehiculos.length > 0, hayItems: activos.length > 0,
   });
   return (
-    <div className="space-y-3">
-      {m.jornada && <JornadaConductor jornadas={jornadas} cierre={conCierre && vehiculos.length > 0 ? { vehiculos, vehiculoInicial: yo.vehiculo_habitual_id ?? null } : null} />}
-      {pedir && <ChecklistVehiculo items={activos} vehiculos={vehiculos} vehiculoInicial={yo.vehiculo_habitual_id ?? null} />}
-      {m.incidencias && <BotonIncidencia />}
-    </div>
+    pedir ? <ChecklistVehiculo items={activos} vehiculos={vehiculos} vehiculoInicial={yo.vehiculo_habitual_id ?? null} /> : null
   );
 }

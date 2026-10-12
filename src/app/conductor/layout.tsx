@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = { themeColor: "#0b1b2e", width: "device-width", initialScale: 1 };
 
-const NAV = [["/conductor", "Hoy"], ["/conductor/ticket", "Ticket"], ["/conductor/historial", "Historial"]] as const;
+const NAV = [["/conductor", "Hoy"], ["/conductor/jornada", "Jornada"], ["/conductor/ticket", "Ticket"], ["/conductor/historial", "Historial"]] as const;
 
 export default async function LayoutConductor({ children }: { children: React.ReactNode }) {
   const yo = await exigirConductor();
@@ -37,9 +37,9 @@ export default async function LayoutConductor({ children }: { children: React.Re
       </header>
       <main className="p-4">{children}</main>
       {/* El jefe (operador que conduce) vuelve a la central con una pestaña grande, no con un enlace pequeño. */}
-      <nav className={`fixed inset-x-0 bottom-0 z-20 grid ${yo.rol === "operador" ? "grid-cols-5" : "grid-cols-4"} border-t border-slate-800 bg-slate-900`}>
+      <nav className={`fixed inset-x-0 bottom-0 z-20 grid ${yo.rol === "operador" ? "grid-cols-6" : "grid-cols-5"} border-t border-slate-800 bg-slate-900`}>
         {yo.rol === "operador" && <Link href="/central" className="flex min-h-14 items-center justify-center bg-marca text-base font-semibold text-white hover:bg-marca-claro">Central</Link>}
-        {NAV.map(([h, t]) => <Link key={h} href={h} className="flex min-h-14 items-center justify-center text-base font-medium hover:text-marca-claro">{t}</Link>)}
+        {NAV.map(([h, t]) => <Link key={h} href={h} className="flex min-h-14 items-center justify-center text-sm font-medium hover:text-marca-claro sm:text-base">{t}</Link>)}
         <BotonSalir conductorId={yo.id} />
       </nav>
     </div>

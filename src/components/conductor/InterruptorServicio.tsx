@@ -6,6 +6,19 @@ import { suscribirGps } from "@/lib/gps/gestor";
 import { debeEnviar, ENVIO_TIMEOUT_MS, estadoEnvio, REFRESCO_MS } from "@/lib/dominio/gps";
 
 export const EVENTO_APAGAR = "tdl-apagar";
+/** «Iniciar jornada» enciende el GPS: detail.tareas recibe una promesa con el resultado (error = sin permiso de ubicación). */
+export const EVENTO_ENCENDER = "tdl-encender";
+export type ResultadoEncender = { ok: true; aviso?: string } | { ok: false; error: string };
+
+/** Pide la ubicación una vez (muestra el permiso del navegador). Solo un «denegado» impide encender. */
+function comprobarPermiso(): Promise<ResultadoEncender> {
+  return new Promise((res) => {
+    if (!("geolocation" in navigator)) return res({ ok: false, error: "Este navegador no tiene GPS." });
+    navigator.geolocation.getCurrentPosition(() => res({ ok: true }), (e) => res(e.code === e.PERMISSION_DENIED
+      ? { ok: false, error: "El navegador no tiene permiso de ubicación." }
+      : { ok: true, aviso: "Todavía no hay señal GPS; se enviará en cuanto la haya." }), { timeout: 10_000, maximumAge: 60_000 });
+  });
+}
 
 export default function InterruptorServicio({ conductorId }: { conductorId: string }) {
   const clave = `tdl-en-servicio:${conductorId}`;
@@ -102,10 +115,25 @@ export default function InterruptorServicio({ conductorId }: { conductorId: stri
     return () => clearInterval(t);
   }, [activo]);
   useEffect(() => {
-    const h = (e: Event) => { (e as CustomEvent<{ tareas: Promise<unknown>[] }>).detail.tareas.push(apagar()); };
+    const h = (e: Event) => {
+      (e as CustomEvent<{ tareas: Promise<unknown>[] }>).detail.tareas.push(apagar());
+      // Lo apaga la jornada (al finalizar): el botón refleja «Fuera de servicio».
+      setActivo(false); setUltimo(null); setAviso(null); setErrorEnvio(false); ultimoEnvio.current = 0; ultimoIntento.current = 0; setDesde(null);
+      try { localStorage.setItem(clave, "0"); } catch { /* ignorar */ }
+    };
     window.addEventListener(EVENTO_APAGAR, h);
     return () => window.removeEventListener(EVENTO_APAGAR, h);
-  }, [apagar]);
+  }, [apagar, clave]);
+  useEffect(() => {
+    const h = (e: Event) => {
+      (e as CustomEvent<{ tareas: Promise<ResultadoEncender>[] }>).detail.tareas.push(comprobarPermiso().then((r) => {
+        if (r.ok) { setActivo(true); try { localStorage.setItem(clave, "1"); } catch { /* ignorar */ } }
+        return r;
+      }));
+    };
+    window.addEventListener(EVENTO_ENCENDER, h);
+    return () => window.removeEventListener(EVENTO_ENCENDER, h);
+  }, [clave]);
 
   function alternar() {
     const nuevo = !activo;
