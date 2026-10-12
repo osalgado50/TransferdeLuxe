@@ -337,6 +337,37 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   cierre» de cada vehículo con semáforo, fecha, conductor, daños, técnico, combustible, km y comentario. Prueba de punta
   a punta en producción: `scripts/prueba-cierre.mjs`. Sin dependencias nativas nuevas (huella de la app sin cambios:
   la parte nativa llega con una actualización EAS).
+- **12/10/2026 · Jornada en su propia pantalla, GPS automático y parte de golpes en las incidencias**. Petición del
+  responsable: la pestaña «Jornada» de la app abría un menú y la pantalla parecía la principal; tiene que ser una
+  PÁGINA con iniciar / pausa / finalizar, un botón de incidencias con el dibujo del coche para marcar golpes, envío
+  rápido y con alarma de lo grave, todo acumulado en el parte diario, y GPS automático al iniciar la jornada.
+  *App nativa*: `movil/app/(conductor)/(tabs)/jornada.tsx` pasa a ser una pantalla normal (icono de la pestaña según
+  el estado, `IconoJornada.tsx`): tarjeta grande «Sin iniciar / Trabajando desde HH:MM / En pausa desde HH:MM», horas
+  de hoy y de la semana y «📍 GPS activo / apagado»; botones grandes «▶ Iniciar jornada» (verde), «⏸ Pausa» /
+  «▶ Reanudar» (ámbar) y «🏁 Finalizar jornada» (hoja de cierre). «Iniciar» enciende antes el GPS con el mismo flujo
+  de permisos que el interruptor de la cabecera (`encenderServicio` en `movil/lib/gps.ts` y la pantalla explicativa
+  «Ubicación Siempre» compartida, `useExplicacionUbicacion`): sin permiso de ubicación NO se inicia y se explica con
+  «Abrir Ajustes»; con solo «Mientras se usa» se inicia y sale el aviso amarillo. «Finalizar» (tras enviar la hoja)
+  apaga el GPS (`apagarServicio`: `pararGps` + «Fuera de servicio»); la pausa no lo toca. Un pequeño emisor de eventos
+  (`movil/lib/jornada.ts`: `avisarCambioGps` / `alCambiarGps`) mantiene sincronizado el interruptor de la cabecera
+  (mismo almacenamiento). Sección «Incidencias»: «⚠ Comunicar incidencia» (avería, accidente, golpe / daño en el
+  vehículo, cliente no presentado, retraso, otro) a pantalla completa; para accidente y golpe aparece el diagrama de
+  daños (extraído a `movil/components/DiagramaDanos.tsx`, el mismo de la hoja de cierre) + descripción + foto; envío
+  inmediato y lista «Incidencias de hoy» con hora, tipo y zonas. La pantalla Hoy queda en servicios + checklist. La
+  ficha del servicio mantiene su botón Incidencia (ahora con zonas). *PWA*: nueva página `/conductor/jornada` (en el
+  menú inferior) con los mismos botones; «Iniciar» enciende el GPS del navegador a través de `InterruptorServicio`
+  (evento `tdl-encender`, que pide la ubicación y solo con «denegado» impide iniciar) y «Finalizar» lo apaga
+  (`tdl-apagar`); incidencias con `DiagramaVehiculo`. *Datos* (`0024_incidencias_zonas.sql`, aditiva): columna
+  `incidencias.zonas text[]` (por defecto vacía) y tipo `golpe` en el check. El servidor valida las zonas con zod
+  contra `IDS_ZONAS` (`registrarIncidencia`; `/api/conductor/incidencia` y la Server Action las aceptan; las apps
+  antiguas, sin zonas, siguen funcionando). Dominio (`src/lib/dominio/incidencias.ts`): golpe es grave como avería y
+  accidente (`TIPOS_GRAVES`), `validarZonasIncidencia`, y `acumuladoDelDia()` para la hoja de cierre, que al abrirse
+  (app y PWA) precarga marcadas las zonas de los golpes/accidentes de hoy y muestra «Incidencias de hoy: …» en el paso
+  3: el parte diario se envía con todo. *Central*: la tarjeta roja de un golpe/accidente con zonas dibuja el
+  mini-diagrama (web, como en los cierres) o lista las zonas (app); actividad «⚠ GOLPE · Marc · cerca de Reus · Puerta
+  del. izq., Aleta tras. der.»; push con alarma («Daños: …» en el cuerpo); `/central/incidencias` también dibuja las
+  zonas. Tests: `tests/unit/incidencias-golpe.test.ts`. `scripts/prueba-cierre.mjs` añade una tercera jornada con un
+  golpe de 2 zonas y un cierre que las incluye. Sin dependencias nativas (huella sin cambios; llega con EAS update).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -502,6 +533,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   en móvil, fuera de las capas de Tailwind) estiraba las zonas del diagrama y lo deformaba: se anula con estilo en línea
   y los rótulos IZQUIERDA/DERECHA pasan arriba en pantallas estrechas para que las zonas lleguen a ~40 px. Las hojas de
   las pruebas automáticas («PRUEBA AUTOMÁTICA…») no envían push a la central.
+- **Un solo GPS para dos botones (12/10/2026)**: con «Iniciar jornada» encendiendo el GPS y el interruptor «En
+  servicio» de la cabecera también, había riesgo de dos estados distintos (la jornada creyendo que el GPS iba y la
+  cabecera mostrando «Fuera de servicio», o permisos pedidos dos veces con textos diferentes). Solución: el
+  encendido/apagado se sacó del componente a funciones compartidas (`encenderServicio` / `apagarServicio`) que usan el
+  mismo flag persistido de la tarea en segundo plano, y quien cambia el GPS emite un evento en memoria; el interruptor
+  se resincroniza leyendo ese flag (no se pasan estados entre pantallas). La pantalla explicativa de «Ubicación
+  Siempre» devuelve una promesa, así el mismo flujo vale para los dos sitios. En la PWA, igual con eventos del
+  navegador sobre `InterruptorServicio`. Para que una incidencia de prueba no despierte al responsable, el vigilante
+  ignora también las incidencias «PRUEBA AUTOMÁTICA…».
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

@@ -1,7 +1,8 @@
 // Prueba de punta a punta de la HOJA DE CIERRE de jornada contra producción (cuenta demo conductor3; nada se borra).
 // Jornada 1: iniciar → «finalizar» sin hoja rechazado → km menores rechazados → cierre con 2 zonas dañadas + falta aceite
 // (grave) → reenvío idempotente → fila en cierres_jornada, jornada finalizada, km del vehículo actualizado → la central
-// lo ve en actividad/graves → «Visto». Jornada 2: cierre todo OK → info verde. Al final los km se restauran (si nadie los
+// lo ve en actividad/graves → «Visto». Jornada 2: cierre todo OK → info verde. Jornada 3: incidencia GOLPE con 2 zonas
+// (grave con zonas en la central) y hoja de cierre que las incluye. Al final los km se restauran (si nadie los
 // tocó) y los cierres quedan vistos. Las hojas de prueba llevan el comentario «PRUEBA AUTOMÁTICA…» (sin push a la central).
 // Uso: set -a; . ./.env.local; set +a; node scripts/prueba-cierre.mjs [conductorEmail=conductor3@transferdeluxe.test]
 import { createClient } from "@supabase/supabase-js";
@@ -97,8 +98,36 @@ paso(mo?.gravedad === "info" && mo.tipo === "cierre_ok" && mo.texto.startsWith("
 const { data: j2 } = await admin.from("jornadas").select("fin").eq("id", c2.jornada_id).single();
 paso(!!j2?.fin, "Segunda jornada finalizada");
 
+// ── Jornada 3: golpe con parte de daños durante la jornada (grave, al momento) → la hoja de cierre lo acumula ──
+if (mod("incidencias")) {
+  r = await llamar(yo, "POST", "/api/conductor/jornada", { accion: "iniciar" });
+  paso(r.status === 200, "Conductor inicia la tercera jornada");
+  r = await llamar(yo, "POST", "/api/conductor/incidencia", { tipo: "golpe", zonas: ["puerta_del_izq", "ala_delta"], descripcion: NOTA });
+  paso(r.status === 400, "Golpe con una zona inexistente → rechazado", r.j?.error ?? String(r.status));
+  r = await llamar(yo, "POST", "/api/conductor/incidencia", { tipo: "golpe", zonas: [] });
+  paso(r.status === 400, "Golpe sin zonas ni descripción → rechazado", r.j?.error ?? String(r.status));
+  r = await llamar(yo, "POST", "/api/conductor/incidencia", { tipo: "golpe", zonas: ["aleta_tras_der", "puerta_del_izq"], descripcion: `${NOTA}: roce al maniobrar` });
+  paso(r.status === 200, "Incidencia GOLPE con 2 zonas enviada", `${r.ms} ms ${r.j?.error ?? ""}`);
+  const { data: g } = await admin.from("incidencias").select("id,tipo,zonas,creado_en").eq("conductor_id", yo.id).like("descripcion", `${NOTA}%`).eq("tipo", "golpe").single();
+  paso(g?.zonas?.join() === "puerta_del_izq,aleta_tras_der", "Fila en incidencias con las zonas (en el orden del diagrama)", g?.zonas?.join(", ") ?? "no existe");
+  r = await llamar(central, "GET", "/api/central/resumen");
+  const gi = (r.j?.graves ?? []).find((m) => m.id === `inc-${g?.id}`);
+  paso(!!gi && gi.zonasDanadas?.length === 2 && gi.texto.startsWith("⚠ GOLPE"), "Central: GOLPE grave (tarjeta roja) con las zonas", gi?.texto ?? "no aparece");
+  // Precarga de la hoja de cierre: el conductor lee sus incidencias de hoy (RLS).
+  const { data: mias } = await yo.sb.from("incidencias").select("tipo,zonas").eq("id", g.id);
+  paso(mias?.[0]?.zonas?.length === 2, "RLS: el conductor ve las zonas de su golpe (precarga de la hoja)");
+  const id3 = randomUUID();
+  r = await llamar(yo, "POST", "/api/conductor/cierre", { idAccion: id3, vehiculo_id: veh.id, zonas: [...g.zonas, "capo"], tecnico: tecnico(), combustible: "lleno", comentario: NOTA });
+  paso(r.status === 200 && r.j?.gravedad === "grave", "Hoja de cierre con las zonas del golpe + una nueva → GRAVE", `${r.ms} ms ${r.j?.error ?? ""}`);
+  const { data: c3 } = await admin.from("cierres_jornada").select("id,zonas").eq("id_accion", id3).single();
+  paso(c3?.zonas?.join() === "capo,puerta_del_izq,aleta_tras_der", "El cierre guarda todo lo acumulado", c3?.zonas?.join(", ") ?? "no existe");
+  r = await llamar(central, "POST", "/api/central/incidencia-resuelta", { incidenciaId: g.id });
+  paso(r.status === 200, "Central marca el golpe como resuelto");
+} else console.log("(módulo «incidencias» desactivado: no se prueba el golpe)");
+
 // Limpieza suave: nada se borra. Cierres vistos; km restaurados si nadie más los ha cambiado.
 await admin.from("cierres_jornada").update({ visto: true }).like("comentario", `${NOTA}%`);
+await admin.from("incidencias").update({ resuelta: true, resuelta_en: new Date().toISOString() }).eq("conductor_id", yo.id).like("descripcion", `${NOTA}%`).eq("resuelta", false);
 await admin.from("vehiculos").update({ km_actuales: kmAntes }).eq("id", veh.id).eq("km_actuales", kmAntes + 1);
 await Promise.all([central, yo].map((s) => s.sb.auth.signOut().catch(() => {})));
 console.log(`\n${fallos === 0 ? "TODO OK" : `${fallos} FALLO(S)`}`);
