@@ -3,12 +3,13 @@ import { useActionState, useState, useTransition } from "react";
 import CampoDireccion from "@/components/comun/CampoDireccion";
 import { avisoCapacidad, NOMBRE_TIPO } from "@/lib/dominio/capacidad";
 import type { TipoVehiculo } from "@/lib/dominio/tipos";
+import type { LugarEmpresa } from "@/lib/dominio/lugaresEmpresa";
 import { leerDireccionForm, tieneCoordenadas, trayectoCompleto, type Favorito } from "@/lib/dominio/favoritos";
 import { guardarFavoritoDireccion, guardarFavoritoTrayecto, type ResultadoFavorito } from "@/app/central/favoritos/actions";
 import { reservar, type EstadoReserva } from "./actions";
 
 type Accion = (prev: EstadoReserva, fd: FormData) => Promise<EstadoReserva>;
-type Props = { accion?: Accion; modo?: "publico" | "central"; favoritos?: Favorito[]; vuelos?: boolean };
+type Props = { accion?: Accion; modo?: "publico" | "central"; favoritos?: Favorito[]; lugaresEmpresa?: LugarEmpresa[]; vuelos?: boolean };
 type Res = ResultadoFavorito & { aviso?: string };
 type Valor = { texto: string; lat: string; lng: string };
 const VACIO: Valor = { texto: "", lat: "", lng: "" };
@@ -26,7 +27,7 @@ function ErrorCampo({ e, k }: { e?: Record<string, string[]>; k: string }) {
   return e?.[k]?.[0] ? <p className="mt-1 text-sm text-red-400">{e[k][0]}</p> : null;
 }
 
-export default function FormularioReserva({ accion = reservar, modo = "publico", favoritos = [], vuelos = true }: Props) {
+export default function FormularioReserva({ accion = reservar, modo = "publico", favoritos = [], lugaresEmpresa = [], vuelos = true }: Props) {
   const [estado, enviar, pendiente] = useActionState<EstadoReserva, FormData>(accion, {});
   const [conVuelta, setConVuelta] = useState(false);
   const [pax, setPax] = useState(2);
@@ -118,9 +119,9 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
           </label>
         )}
         <CampoDireccion name="origen" etiqueta="Dirección de recogida" requerido error={err("origen_texto")}
-          favoritos={central ? direcciones : undefined} rellenar={rellenoO} onCambio={setOrigen} extra={botonFav("origen", origen)} />
+          favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} rellenar={rellenoO} onCambio={setOrigen} extra={botonFav("origen", origen)} />
         <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")}
-          favoritos={central ? direcciones : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav("destino", destino)} />
+          favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav("destino", destino)} />
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">Fecha de recogida
             <input type="date" name="fecha" required className={cls} /><ErrorCampo e={estado.errores} k="fecha" /></label>
@@ -161,8 +162,10 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
       {conVuelta && (
         <section className={seccion}>
           <h2 className="text-lg font-semibold text-marca-claro">Vuelta</h2>
-          <CampoDireccion name="vuelta_origen" etiqueta="Recogida de la vuelta" requerido error={err("vuelta_origen_texto")} />
-          <CampoDireccion name="vuelta_destino" etiqueta="Destino de la vuelta" requerido error={err("vuelta_destino_texto")} />
+          <CampoDireccion name="vuelta_origen" etiqueta="Recogida de la vuelta" requerido error={err("vuelta_origen_texto")}
+            favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} />
+          <CampoDireccion name="vuelta_destino" etiqueta="Destino de la vuelta" requerido error={err("vuelta_destino_texto")}
+            favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} />
           <div className="grid grid-cols-2 gap-4">
             <label className="block text-sm font-medium">Fecha de la vuelta
               <input type="date" name="vuelta_fecha" required className={cls} /><ErrorCampo e={estado.errores} k="vuelta_fecha" /></label>

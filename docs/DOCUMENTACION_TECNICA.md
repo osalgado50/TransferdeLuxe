@@ -50,7 +50,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Plazo de respuesta**: `pg_cron` cada minuto marca los servicios no aceptados a tiempo y avisa a la central; el conductor aún puede aceptarlos mientras no se reasignen.
 - **Sin cobertura**: cola local por conductor; cada pulsación lleva un `idAccion` y el servidor ignora duplicados.
 - **Tickets**: OCR gratuito en el navegador (Tesseract.js) + reglas de extracción; la foto va a un bucket privado.
-- **Mapas**: Leaflet + OpenStreetMap; geocodificación con Nominatim y lugares frecuentes.
+- **Mapas**: Leaflet + OpenStreetMap; búsqueda de direcciones con Photon (Nominatim de respaldo), lugares de la empresa, favoritos y lugares frecuentes (Google Places preparado, apagado sin clave).
 - **Despliegue**: Hostinger Cloud Startup (Node.js Web App importada de GitHub, redespliegue en cada push) y
   GitHub Actions diario que mantiene activo Supabase y limpia tokens push caducados (sin reiniciar datos).
 - **App nativa TVL Conductor** (`movil/`, Expo SDK 57): GPS en segundo plano con cola sin pérdidas, notificaciones push,
@@ -368,6 +368,26 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   del. izq., Aleta tras. der.»; push con alarma («Daños: …» en el cuerpo); `/central/incidencias` también dibuja las
   zonas. Tests: `tests/unit/incidencias-golpe.test.ts`. `scripts/prueba-cierre.mjs` añade una tercera jornada con un
   golpe de 2 zonas y un cierre que las incluye. Sin dependencias nativas (huella sin cambios; llega con EAS update).
+- **12/10/2026 · Búsqueda de direcciones con Photon y «Lugares de la empresa»**. Petición del responsable: buscar
+  empresas por su nombre (como en Google Maps) sin escribir la dirección completa. *Búsqueda externa*
+  (`src/lib/geocodificacion/buscador.ts`): Photon (photon.komoot.io, datos de OpenStreetMap, gratis; tolera mejor los
+  nombres y encuentra puntos de interés como hoteles) es el proveedor principal, con sesgo a la Costa Dorada
+  (`lat=41.08&lon=1.14`), filtro a España y Andorra, User-Agent propio, timeout de 5 s, caché en memoria de 24 h solo de
+  respuestas buenas y como mucho 1 petición por segundo y proceso; si falla, no tiene hueco o no encuentra nada, se
+  usa Nominatim de respaldo (mismas reglas). Etiquetas «Nombre · Calle nº · Localidad» (`etiquetaPhoton` en
+  `src/lib/dominio/geocodificacion.ts`, pura y con tests). Bajo el desplegable, «Búsqueda: Photon / © OpenStreetMap».
+  *Lugares de la empresa* (`0025_lugares_empresa.sql`, aditiva): clientes y sitios habituales (nombre, dirección,
+  coordenadas, notas, teléfono opcional). RLS: la central lee y escribe; los conductores solo leen (para el futuro
+  servicio inmediato). Gestión en `/central/lugares` (menú y enlace desde Flota y ajustes): añadir, editar y borrar;
+  la dirección se elige con el mismo autocompletado para fijar las coordenadas. En «Nuevo servicio» (origen, destino
+  y vuelta) el autocompletado muestra primero 🏢 empresa, luego ⭐ favoritos, 📍 frecuentes y la búsqueda externa;
+  todo sin acentos ni mayúsculas (`normalizarBusqueda`; también los favoritos y los frecuentes). Los lugares de la
+  empresa se filtran en el navegador de la central: `/api/geocodificar` (pública, la usan `/reservar` y las apps
+  antiguas, misma forma de respuesta + campo `fuente`) nunca los devuelve. *Google Places (preparado, apagado)*:
+  `src/lib/geocodificacion/google.ts` (Autocomplete + Place Details de la API «New»; las coordenadas se piden al
+  elegir la sugerencia con `GET /api/geocodificar?lugar=<placeId>`) solo se activa si existe `GOOGLE_PLACES_API_KEY`
+  (documentada vacía en `.env.example`; es de pago). Tests: `geocodificacion.test.ts`, `lugaresEmpresa.test.ts`,
+  `google-places.test.ts` (fetch simulado).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -542,6 +562,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   Siempre» devuelve una promesa, así el mismo flujo vale para los dos sitios. En la PWA, igual con eventos del
   navegador sobre `InterruptorServicio`. Para que una incidencia de prueba no despierte al responsable, el vigilante
   ignora también las incidencias «PRUEBA AUTOMÁTICA…».
+- **Buscar empresas por nombre sin Google (12/10/2026)**: la empresa de ejemplo del responsable no está en
+  OpenStreetMap, y Nominatim exige casi el nombre exacto. Photon (sobre OSM) tolera mejor los nombres y encuentra
+  hoteles y comercios, pero no admite `lang=es` (devuelve 400: solo default/de/en/fr), así que se usa `lang=default`
+  (nombres locales). Para lo que no está en OSM, los clientes habituales se guardan una vez como «Lugares de la
+  empresa» y salen los primeros. Como son datos privados de clientes, no pasan por la ruta pública de búsqueda: se
+  cargan con la página de la central (servidor, `clienteAdmin`) y se filtran en el navegador. Google Places queda
+  preparado detrás de una variable de entorno, sin clave, para no generar costes.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

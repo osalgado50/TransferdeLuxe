@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
@@ -120,6 +121,12 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
         <h2 className="text-lg font-semibold">Favoritos</h2>
         {errFavoritos && <p role="alert" className="rounded bg-amber-900/50 p-2 text-sm text-amber-200">No se pudieron cargar los favoritos.</p>}
         <GestionFavoritos favoritos={(favoritos ?? []) as Favorito[]} />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Lugares de la empresa</h2>
+        <p className="text-sm text-slate-400">Clientes y sitios habituales (🏢) con su dirección exacta: salen los primeros al escribir su nombre en «Nuevo servicio».</p>
+        <Link href="/central/lugares" className="inline-block rounded border border-slate-600 px-3 py-2 text-sm hover:border-marca-claro">Gestionar lugares de la empresa</Link>
       </section>
 
       <section className="space-y-2">

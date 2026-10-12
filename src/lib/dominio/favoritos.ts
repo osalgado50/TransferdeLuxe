@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizarBusqueda } from "./geocodificacion";
 
 export const TIPOS_VEHICULO = ["sedan", "minivan", "minivan_premium", "microbus", "minibus"] as const;
 
@@ -45,12 +46,12 @@ export function leerDireccionForm(fd: FormData, name: string) {
 export const tieneCoordenadas = (v: { lat: unknown; lng: unknown }) =>
   v.lat != null && v.lng != null && String(v.lat) !== "" && String(v.lng) !== "" && Number.isFinite(Number(v.lat)) && Number.isFinite(Number(v.lng));
 
-/** Favoritos de dirección que casan con lo escrito (primero los que empiezan por ello). */
+/** Favoritos de dirección que casan con lo escrito, sin acentos ni mayúsculas (primero los que empiezan por ello). */
 export function filtrarDirecciones(favs: Favorito[], q: string, max = 5) {
-  const t = q.trim().toLowerCase();
+  const t = normalizarBusqueda(q);
   if (t.length < 2) return [];
   const pts = (f: Favorito) => {
-    const n = f.nombre.toLowerCase(), d = f.origen_texto.toLowerCase();
+    const n = normalizarBusqueda(f.nombre), d = normalizarBusqueda(f.origen_texto);
     return n.startsWith(t) || d.startsWith(t) ? 0 : n.includes(t) || d.includes(t) ? 1 : 2;
   };
   return favs.filter((f) => f.tipo === "direccion" && pts(f) < 2)

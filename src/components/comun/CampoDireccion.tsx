@@ -1,12 +1,17 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { filtrarDirecciones, type Favorito } from "@/lib/dominio/favoritos";
+import { filtrarLugaresEmpresa, sugerenciaEmpresa, type LugarEmpresa } from "@/lib/dominio/lugaresEmpresa";
+import { atribucion, combinarSugerencias, type LugarSugerido } from "@/lib/dominio/geocodificacion";
 
-type Lugar = { etiqueta: string; lat: number | null; lng: number | null; frecuente: boolean; nombreFavorito?: string };
+type Lugar = LugarSugerido;
+const ICONO: Partial<Record<NonNullable<Lugar["fuente"]>, string>> = { empresa: "🏢 ", favorito: "⭐ ", frecuente: "📍 " };
 type Props = {
   name: string; etiqueta: string; requerido?: boolean; valorInicial?: string; error?: string;
   /** Favoritos de dirección (solo modo central): salen primero en las sugerencias. */
   favoritos?: Favorito[];
+  /** Lugares de la empresa (solo modo central, nunca en /reservar): salen los primeros, marcados 🏢. */
+  lugaresEmpresa?: LugarEmpresa[];
   /** Rellena el campo desde fuera (p. ej. al elegir un trayecto favorito); `n` cambia en cada relleno. */
   rellenar?: { n: number; texto: string; lat: number | null; lng: number | null };
   /** Avisa del valor actual (texto y coordenadas como texto). */
@@ -15,7 +20,7 @@ type Props = {
   extra?: ReactNode;
 };
 
-export default function CampoDireccion({ name, etiqueta, requerido, valorInicial = "", error, favoritos, rellenar, onCambio, extra }: Props) {
+export default function CampoDireccion({ name, etiqueta, requerido, valorInicial = "", error, favoritos, lugaresEmpresa, rellenar, onCambio, extra }: Props) {
   const [texto, setTexto] = useState(valorInicial);
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
@@ -33,9 +38,14 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
 
   useEffect(() => { onCambio?.({ texto, lat, lng }); }, [texto, lat, lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const favs: Lugar[] = elegido.current === texto || !favoritos ? []
-    : filtrarDirecciones(favoritos, texto).map((f) => ({ etiqueta: f.origen_texto, lat: f.origen_lat, lng: f.origen_lng, frecuente: true, nombreFavorito: f.nombre }));
-  const todos = [...favs, ...lugares.filter((l) => !favs.some((f) => f.etiqueta === l.etiqueta))];
+  const libre = elegido.current !== texto;
+  const empresa: Lugar[] = libre && lugaresEmpresa ? filtrarLugaresEmpresa(lugaresEmpresa, texto).map(sugerenciaEmpresa) : [];
+  const favs: Lugar[] = libre && favoritos
+    ? filtrarDirecciones(favoritos, texto).map((f) => ({ etiqueta: f.origen_texto, lat: f.origen_lat, lng: f.origen_lng, frecuente: true, fuente: "favorito" as const, nombre: f.nombre }))
+    : [];
+  const locales = [...empresa, ...favs];
+  const todos = combinarSugerencias({ empresa, favoritos: favs, externos: lugares });
+  const pie = atribucion(todos);
 
   useEffect(() => {
     if (texto.trim().length < 3 || elegido.current === texto) { setLugares([]); return; }
@@ -55,6 +65,13 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
     elegido.current = l.etiqueta;
     setTexto(l.etiqueta); setLat(l.lat == null ? "" : String(l.lat)); setLng(l.lng == null ? "" : String(l.lng));
     setLugares([]); setAbierto(false);
+    // Sugerencia de Google: las coordenadas se piden al elegirla (Place Details).
+    if (l.placeId && l.lat == null) {
+      fetch(`/api/geocodificar?lugar=${encodeURIComponent(l.placeId)}`).then((r) => (r.ok ? r.json() : null)).then((d) => {
+        if (!d || elegido.current !== l.etiqueta) return;
+        setLat(String(d.lat)); setLng(String(d.lng));
+      }).catch(() => { /* sin coordenadas: se guarda solo el texto */ });
+    }
   }
 
   return (
@@ -72,16 +89,20 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
       </label>
       <input type="hidden" name={`${name}_lat`} value={lat} />
       <input type="hidden" name={`${name}_lng`} value={lng} />
-      {(abierto || (foco && favs.length > 0)) && todos.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
-          {todos.map((l, i) => (
-            <li key={`${l.etiqueta}-${i}`}>
-              <button type="button" onClick={() => elegir(l)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
-                {l.nombreFavorito ? "⭐ " : l.frecuente ? "📍 " : ""}{l.nombreFavorito ? `${l.nombreFavorito} — ${l.etiqueta}` : l.etiqueta}
-              </button>
-            </li>
-          ))}
-        </ul>
+      {(abierto || (foco && locales.length > 0)) && todos.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
+          <ul className="max-h-60 overflow-auto">
+            {todos.map((l, i) => (
+              <li key={`${l.etiqueta}-${i}`}>
+                <button type="button" onClick={() => elegir(l)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
+                  {ICONO[l.fuente ?? (l.frecuente ? "frecuente" : "photon")] ?? ""}
+                  {l.fuente === "favorito" && l.nombre ? `${l.nombre} — ${l.etiqueta}` : l.etiqueta}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {pie && <p className="border-t border-slate-800 px-3 py-1 text-right text-[11px] text-slate-500">{pie}</p>}
+        </div>
       )}
       {error && <p className="mt-1 text-sm text-red-400">{error}</p>}
     </div>
