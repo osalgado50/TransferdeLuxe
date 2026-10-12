@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { permitir } from "@/lib/limite";
-import { accionJornada, exigirModulo, guardarRevision, registrarIncidencia, subirFotoIncidencia, type Res } from "@/lib/conductor/modulos";
+import { accionJornada, exigirModulo, guardarRevision, registrarCierre, registrarIncidencia, subirFotoIncidencia, type Res, type ResCierre } from "@/lib/conductor/modulos";
 import { ACCIONES_JORNADA, type AccionJornada } from "@/lib/dominio/jornada";
 
 const lento: Res = { ok: false, error: "Demasiadas peticiones. Espera un momento." };
@@ -44,6 +44,15 @@ export async function checklistConductor(p: { vehiculo_id: string; respuestas: R
   const yo = await exigirConductor();
   if (!permitir(`web-checklist:${yo.id}`, 10, 60_000)) return lento;
   const r = await guardarRevision(clienteAdmin(), yo.id, p);
+  revalidatePath("/conductor", "layout");
+  return r.ok ? r : { ok: false, error: r.error };
+}
+
+/** Hoja de cierre de jornada (PWA): guarda el cierre y finaliza la jornada abierta en una transacción. */
+export async function cierreConductor(p: unknown): Promise<ResCierre> {
+  const yo = await exigirConductor();
+  if (!permitir(`web-cierre:${yo.id}`, 10, 60_000)) return { ok: false, error: "Demasiadas peticiones. Espera un momento." };
+  const r = await registrarCierre(clienteAdmin(), yo.id, p);
   revalidatePath("/conductor", "layout");
   return r.ok ? r : { ok: false, error: r.error };
 }
