@@ -51,7 +51,7 @@ export async function vigilarUnaVez(): Promise<number> {
   ]);
   const avisos = construirAvisos({
     eventos: eventos.filter((e) => !prueba.has(e.servicio_id)),
-    incidencias: incidencias.filter((i) => !i.servicio_id || !prueba.has(i.servicio_id)),
+    incidencias: incidencias.filter((i) => (!i.servicio_id || !prueba.has(i.servicio_id)) && !i.descripcion?.startsWith("PRUEBA AUTOMÁTICA")),
     revisiones: revisiones.filter((r) => r.con_fallos),
     cierres: cierres.filter((x) => !x.comentario?.startsWith("PRUEBA AUTOMÁTICA")), // pruebas automáticas: sin push
     servicios: porId,
