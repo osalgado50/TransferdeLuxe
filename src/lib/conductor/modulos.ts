@@ -26,13 +26,19 @@ export async function jornadaAbierta(sb: SupabaseClient, conductorId: string): P
   return (data as Jornada | null) ?? null;
 }
 
+/** Sin ningún vehículo activo no se puede rellenar la hoja: la jornada se finaliza como antes. */
+async function hayVehiculos(sb: SupabaseClient): Promise<boolean> {
+  const { data } = await sb.from("vehiculos").select("id").eq("estado", "activo").limit(1).maybeSingle();
+  return !!data;
+}
+
 export async function accionJornada(sb: SupabaseClient, conductorId: string, accion: AccionJornada): Promise<Res> {
   const m = await exigirModulo(sb, "jornada");
   if (!m.ok) return m;
   const abierta = await jornadaAbierta(sb, conductorId);
   const estado = estadoJornada(abierta);
   // Con la hoja de cierre activa, la jornada se finaliza SOLO enviándola (POST /api/conductor/cierre o cierreConductor).
-  if (accion === "finalizar" && estado !== "fuera" && cierreObligatorio(await modulosActivos(sb))) {
+  if (accion === "finalizar" && estado !== "fuera" && cierreObligatorio(await modulosActivos(sb)) && await hayVehiculos(sb)) {
     return { ok: false, error: "Para finalizar la jornada rellena la hoja de cierre del vehículo (si no te aparece, actualiza la app).", status: 409 };
   }
   if (!accionValida(estado, accion)) {

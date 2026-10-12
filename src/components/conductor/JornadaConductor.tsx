@@ -4,16 +4,21 @@ import { useRouter } from "next/navigation";
 import { jornadaConductor } from "@/app/conductor/modulos-actions";
 import { formatoDuracion, resumenConductor, type AccionJornada, type Jornada } from "@/lib/dominio/jornada";
 import { EVENTO_APAGAR } from "./InterruptorServicio";
+import HojaCierre, { type VehiculoCierre } from "./HojaCierre";
+import { ICONO_GRAVEDAD, type GravedadCierre } from "@/lib/dominio/cierre";
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
 /** Jornada laboral (registro horario). Independiente del interruptor GPS «En servicio». */
-export default function JornadaConductor({ jornadas }: { jornadas: Jornada[] }) {
+/** Con `cierre`, «Finalizar jornada» abre la hoja de cierre del vehículo (la jornada se finaliza al enviarla). */
+export default function JornadaConductor({ jornadas, cierre = null }: { jornadas: Jornada[]; cierre?: { vehiculos: VehiculoCierre[]; vehiculoInicial: string | null } | null }) {
   const router = useRouter();
   const [ahora, setAhora] = useState(() => new Date());
   const [pend, ini] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [sugerirFuera, setSugerirFuera] = useState(false);
+  const [hoja, setHoja] = useState(false);
+  const [enviado, setEnviado] = useState<GravedadCierre | null>(null);
   useEffect(() => { const t = setInterval(() => setAhora(new Date()), 30_000); return () => clearInterval(t); }, []);
   const r = resumenConductor(jornadas, ahora);
 
@@ -43,9 +48,16 @@ export default function JornadaConductor({ jornadas }: { jornadas: Jornada[] }) 
         {r.estado === "fuera" && <button type="button" disabled={pend} onClick={() => hacer("iniciar")} className={`${btn} bg-marca text-white`}>Iniciar jornada</button>}
         {r.estado === "trabajando" && <button type="button" disabled={pend} onClick={() => hacer("pausa")} className={`${btn} border border-amber-500 text-amber-300`}>Pausa</button>}
         {r.estado === "en_pausa" && <button type="button" disabled={pend} onClick={() => hacer("reanudar")} className={`${btn} bg-marca text-white`}>Reanudar</button>}
-        {r.estado !== "fuera" && <button type="button" disabled={pend} onClick={() => { if (confirm("¿Finalizar la jornada de hoy?")) hacer("finalizar"); }} className={`${btn} border border-slate-500`}>Finalizar jornada</button>}
+        {r.estado !== "fuera" && <button type="button" disabled={pend} onClick={() => { if (cierre) { setEnviado(null); setHoja(true); } else if (confirm("¿Finalizar la jornada de hoy?")) hacer("finalizar"); }} className={`${btn} border border-slate-500`}>Finalizar jornada</button>}
       </div>
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+      {enviado && (
+        <p role="status" className="text-sm text-slate-200">{ICONO_GRAVEDAD[enviado]} Hoja de cierre enviada a la central{enviado === "ok" ? ": vehículo listo para mañana." : enviado === "grave" ? ": la central revisará los daños." : ": la central programará el mantenimiento."}</p>
+      )}
+      {hoja && cierre && (
+        <HojaCierre vehiculos={cierre.vehiculos} vehiculoInicial={cierre.vehiculoInicial} alCancelar={() => setHoja(false)}
+          alEnviado={(g) => { setHoja(false); setEnviado(g); setSugerirFuera(true); router.refresh(); }} />
+      )}
       {sugerirFuera && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-800 p-3 text-sm">
           <span className="flex-1">Jornada finalizada. ¿Te pones también fuera de servicio (deja de enviar GPS)?</span>
