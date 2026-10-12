@@ -66,6 +66,16 @@ export async function marcarAlertaVista(servicioId: string): Promise<string | nu
   }
 }
 
+/** «Visto» de una hoja de cierre con daños (para toda la central). Devuelve null si fue bien o el mensaje de error. */
+export async function marcarCierreVisto(cierreId: string): Promise<string | null> {
+  try {
+    const r = await llamarApi("/api/central/cierre-visto", { method: "POST", body: { cierreId } });
+    return r.ok ? null : ((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "No se pudo marcar como vista";
+  } catch {
+    return "Sin conexión. Inténtalo de nuevo.";
+  }
+}
+
 /** «Resuelta» de una incidencia (tarjeta roja de lo grave). Devuelve null si fue bien o el mensaje de error. */
 export async function resolverIncidencia(incidenciaId: string): Promise<string | null> {
   try {

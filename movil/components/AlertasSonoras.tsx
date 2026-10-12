@@ -76,11 +76,12 @@ function useMovimientos(actividad: Movimiento[] | undefined, graves: Movimiento[
     for (const g of sinVer) {
       if (antes.has(g.id) || insistentes.current.has(g.id)) continue;
       nuevaGrave = true;
-      const titulo = [`⚠ ${nombreTipoIncidencia(g.tipo.replace(/^incidencia_/, "")).toUpperCase()}`, g.conductor, g.zona].filter(Boolean).join(" · "); // «⚠ AVERÍA · Laia · cerca de Reus»
+      const titulo = g.cierreId ? g.texto.replace(/ · «.*»$/, "") // «🔴 Daños en Capó · 0001-TDL · Marc»
+        : [`⚠ ${nombreTipoIncidencia(g.tipo.replace(/^incidencia_/, "")).toUpperCase()}`, g.conductor, g.zona].filter(Boolean).join(" · "); // «⚠ AVERÍA · Laia · cerca de Reus»
       const cuerpo = [g.descripcion, g.detalle, g.hora].filter(Boolean).join(" · ") || "Abre la central y llama al conductor";
       insistentes.current.set(g.id, avisoInsistente({
         id: `grave-${g.id}`, titulo, cuerpo: () => cuerpo, cadaMs: 30_000, veces: 5,
-        datos: { tipo: "incidencia", grave: true, ...(g.incidenciaId ? { incidenciaId: g.incidenciaId } : {}), ...(g.servicioId ? { servicioId: g.servicioId } : {}) },
+        datos: { tipo: g.cierreId ? "cierre" : "incidencia", grave: true, ...(g.incidenciaId ? { incidenciaId: g.incidenciaId } : {}), ...(g.cierreId ? { cierreId: g.cierreId } : {}), ...(g.servicioId ? { servicioId: g.servicioId } : {}) },
         sigue: () => pendientes.current.has(g.id), alRepetir: vibrarGrave,
       }));
     }

@@ -2,6 +2,8 @@
 // reanudar o finalizar. Así la pantalla principal empieza directamente por los servicios de hoy.
 import { formatoDuracion, rangosJornada, resumenConductor, type AccionJornada, type Jornada } from "@dominio/jornada";
 import { leerModulos } from "@dominio/modulos";
+import { cierreObligatorio, type GravedadCierre } from "@dominio/cierre";
+import { HojaCierre, type VehiculoCierre } from "./HojaCierre";
 import { useEffect, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
@@ -14,14 +16,23 @@ import { useConsulta } from "~/lib/tiempoReal";
 export function BotonJornada({ yo, pestana = false }: { yo: string; pestana?: boolean }) {
   const { datos, recargar } = useConsulta(async () => {
     const r = rangosJornada(new Date());
-    const [aj, jor] = await Promise.all([
+    const [aj, jor, veh, per] = await Promise.all([
       supabase.from("ajustes").select("modulos").eq("id", 1).maybeSingle(),
       supabase.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)").eq("conductor_id", yo).or(`fin.is.null,fin.gte.${r.semana.desde}`).order("inicio"),
+      supabase.from("vehiculos").select("id,matricula,modelo,km_actuales").eq("estado", "activo").order("matricula"),
+      supabase.from("perfiles").select("vehiculo_habitual_id").eq("id", yo).maybeSingle(),
     ]);
-    return { activo: leerModulos(aj.data?.modulos).jornada, jornadas: (jor.data ?? []) as Jornada[] };
+    const m = leerModulos(aj.data?.modulos);
+    const vehiculos = (veh.data ?? []) as VehiculoCierre[];
+    return {
+      activo: m.jornada, jornadas: (jor.data ?? []) as Jornada[],
+      // Hoja de cierre al finalizar (módulos jornada + checklist + cierre); sin vehículos activos, como antes.
+      cierre: cierreObligatorio(m) && vehiculos.length > 0 ? { vehiculos, habitual: (per.data?.vehiculo_habitual_id as string | null) ?? null } : null,
+    };
   }, [yo]);
   const [ahora, setAhora] = useState(() => new Date());
   const [ocupado, setOcupado] = useState(false);
+  const [hoja, setHoja] = useState(false);
   useEffect(() => { const t = setInterval(() => setAhora(new Date()), 60_000); return () => clearInterval(t); }, []);
   if (!datos?.activo) return pestana ? <View style={{ flex: 1 }} /> : null;
   const r = resumenConductor(datos.jornadas, ahora);
@@ -40,6 +51,17 @@ export function BotonJornada({ yo, pestana = false }: { yo: string; pestana?: bo
     if (a === "finalizar") Alert.alert("Jornada finalizada", "Si has terminado, ponte «Fuera de servicio» con el interruptor de arriba para dejar de enviar GPS.");
   };
   const resumen = `Hoy: ${formatoDuracion(r.msHoy)} · Semana: ${formatoDuracion(r.msSemana)}`;
+  const finalizar = () => { if (datos.cierre) setHoja(true); else void hacer("finalizar"); };
+  const cerrada = async (g: GravedadCierre) => {
+    setHoja(false);
+    await recargar();
+    avisarCambioJornada();
+    const txt = g === "ok" ? "Vehículo listo para mañana." : g === "grave" ? "La central revisará los daños." : "La central programará el mantenimiento.";
+    Alert.alert("Jornada finalizada", `Hoja de cierre enviada. ${txt}\n\nSi has terminado, ponte «Fuera de servicio» con el interruptor de arriba para dejar de enviar GPS.`);
+  };
+  const modal = hoja && datos.cierre
+    ? <HojaCierre vehiculos={datos.cierre.vehiculos} vehiculoInicial={datos.cierre.habitual} alCancelar={() => setHoja(false)} alEnviado={(g) => void cerrada(g)} />
+    : null;
   const menu = () => {
     if (r.estado === "fuera") {
       Alert.alert("Iniciar jornada", `${resumen}\n\n¿Empiezas a trabajar ahora?`, [
@@ -48,7 +70,7 @@ export function BotonJornada({ yo, pestana = false }: { yo: string; pestana?: bo
     }
     Alert.alert(r.estado === "en_pausa" ? "Jornada en pausa" : "Jornada en curso", resumen, [
       r.estado === "trabajando" ? { text: "Hacer una pausa", onPress: () => void hacer("pausa") } : { text: "Reanudar", onPress: () => void hacer("reanudar") },
-      { text: "Finalizar jornada", style: "destructive", onPress: () => void hacer("finalizar") },
+      { text: "Finalizar jornada", style: "destructive", onPress: finalizar },
       { text: "Cancelar", style: "cancel" },
     ]);
   };
@@ -57,21 +79,28 @@ export function BotonJornada({ yo, pestana = false }: { yo: string; pestana?: bo
   if (pestana) {
     // Pestaña del menú inferior: icono + estado, mismo alto que las demás pestañas.
     const icono = r.estado === "fuera" ? "play-circle-outline" : r.estado === "en_pausa" ? "pause-circle-outline" : "time-outline";
+    // El Modal va como hermano (no dentro del Pressable: los toques en zonas vacías del modal no deben llegar a la pestaña).
     return (
-      <Pressable onPress={menu} disabled={ocupado} accessibilityRole="button"
-        accessibilityLabel={r.estado === "fuera" ? "Iniciar jornada" : `Jornada: ${r.estado === "en_pausa" ? "en pausa" : "trabajando"}. ${resumen}`}
-        style={({ pressed }) => [e.pestana, pressed && { opacity: 0.6 }]}>
-        {ocupado ? <ActivityIndicator color={tono} /> : <Ionicons name={icono} size={26} color={tono} />}
-        <Text style={[e.pestanaTexto, { color: tono }]}>{r.estado === "fuera" ? "Jornada" : r.estado === "en_pausa" ? "En pausa" : formatoDuracion(r.msHoy)}</Text>
-      </Pressable>
+      <>
+        <Pressable onPress={menu} disabled={ocupado} accessibilityRole="button"
+          accessibilityLabel={r.estado === "fuera" ? "Iniciar jornada" : `Jornada: ${r.estado === "en_pausa" ? "en pausa" : "trabajando"}. ${resumen}`}
+          style={({ pressed }) => [e.pestana, pressed && { opacity: 0.6 }]}>
+          {ocupado ? <ActivityIndicator color={tono} /> : <Ionicons name={icono} size={26} color={tono} />}
+          <Text style={[e.pestanaTexto, { color: tono }]}>{r.estado === "fuera" ? "Jornada" : r.estado === "en_pausa" ? "En pausa" : formatoDuracion(r.msHoy)}</Text>
+        </Pressable>
+        {modal}
+      </>
     );
   }
   return (
-    <Pressable onPress={menu} disabled={ocupado} accessibilityRole="button" hitSlop={8}
-      accessibilityLabel={r.estado === "fuera" ? "Iniciar jornada" : `Jornada: ${r.estado === "en_pausa" ? "en pausa" : "trabajando"}. ${resumen}`}
-      style={({ pressed }) => [e.boton, { borderColor: tono }, pressed && { opacity: 0.7 }]}>
-      {ocupado ? <ActivityIndicator color={tono} /> : <Text style={[e.texto, { color: tono }]}>{texto}</Text>}
-    </Pressable>
+    <>
+      <Pressable onPress={menu} disabled={ocupado} accessibilityRole="button" hitSlop={8}
+        accessibilityLabel={r.estado === "fuera" ? "Iniciar jornada" : `Jornada: ${r.estado === "en_pausa" ? "en pausa" : "trabajando"}. ${resumen}`}
+        style={({ pressed }) => [e.boton, { borderColor: tono }, pressed && { opacity: 0.7 }]}>
+        {ocupado ? <ActivityIndicator color={tono} /> : <Text style={[e.texto, { color: tono }]}>{texto}</Text>}
+      </Pressable>
+      {modal}
+    </>
   );
 }
 

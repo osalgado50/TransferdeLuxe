@@ -1,13 +1,14 @@
 import type { Movimiento } from "@dominio/actividad";
 import { textoAlertaCentral } from "@dominio/centralMovil";
 import { nombreTipoIncidencia } from "@dominio/incidencias";
+import { etiquetaZona } from "@dominio/cierre";
 import { marcadoresFlota } from "@dominio/mapa";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MapaFlota } from "~/components/MapaFlota";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
-import { marcarAlertaVista, resolverIncidencia, useCentral, type ServicioCentral } from "~/lib/central";
+import { marcarAlertaVista, marcarCierreVisto, resolverIncidencia, useCentral, type ServicioCentral } from "~/lib/central";
 import { fechaHora, fmt } from "~/lib/formato";
 import { color } from "~/lib/tema";
 
@@ -25,6 +26,29 @@ function TarjetaAlerta({ s, nombre, alVisto }: { s: ServicioCentral; nombre: (id
           onPress={async () => { setEnviando(true); await alVisto(); setEnviando(false); }} />
       </View>
     </Tarjeta>
+  );
+}
+
+/** Hoja de cierre con daños / testigo / avería: roja y fija, con conductor, matrícula, zonas y comentario, hasta «Visto» (para toda la central). */
+function TarjetaCierre({ g, alVisto }: { g: Movimiento; alVisto: () => Promise<void> }) {
+  const [enviando, setEnviando] = useState(false);
+  const zonas = g.zonasDanadas ?? [];
+  return (
+    <View style={estilos.grave} accessibilityRole="alert">
+      <Text style={estilos.graveTitulo}>🔴 HOJA DE CIERRE · {g.conductor ?? "Conductor"}</Text>
+      <Text style={estilos.graveZona}>{g.matricula ?? "Vehículo"} · {g.hora}</Text>
+      <Text style={estilos.graveTexto}>{g.texto.replace(/ · «.*»$/, "")}</Text>
+      {zonas.length > 0 && <View accessibilityLabel={`Zonas dañadas: ${zonas.map(etiquetaZona).join(", ")}`}>
+        {zonas.map((z) => <Text key={z} style={estilos.graveMeta}>• {etiquetaZona(z)}</Text>)}
+      </View>}
+      {!!g.descripcion && <Text style={estilos.graveTexto}>«{g.descripcion}»</Text>}
+      <View style={estilos.fila}>
+        {!!g.telefono && <Boton texto="📞 Llamar" variante="peligro" estilo={{ flex: 1 }} etiqueta={`Llamar a ${g.conductor ?? "conductor"}`}
+          onPress={() => { void Linking.openURL(`tel:${g.telefono}`).catch(() => undefined); }} />}
+        <Boton texto="Visto" variante="secundario" estilo={{ flex: 1 }} cargando={enviando} etiqueta={`Marcar vista la hoja de cierre de ${g.conductor ?? "conductor"}`}
+          onPress={async () => { setEnviando(true); await alVisto(); setEnviando(false); }} />
+      </View>
+    </View>
   );
 }
 
@@ -50,6 +74,7 @@ function TarjetaGrave({ g, alVisto, alResuelta }: { g: Movimiento; alVisto: () =
 }
 
 const COLOR_MOV = { grave: "#fca5a5", aviso: "#fcd34d", info: color.texto } as const;
+const VERDE = "#86efac"; // hoja de cierre sin incidencias
 const VISIBLES = 8;
 
 /** Lista compacta de la actividad en vivo (12 h): los 8 más nuevos y «Ver todo». */
@@ -63,7 +88,7 @@ function Actividad({ movimientos }: { movimientos: Movimiento[] }) {
         <View key={m.id} style={[estilos.mov, m.gravedad === "grave" && estilos.movGrave]}>
           <Text style={estilos.movIcono}>{m.icono}</Text>
           <View style={{ flex: 1 }}>
-            <Text style={[estilos.movTexto, { color: COLOR_MOV[m.gravedad] }]}><Text style={estilos.movHora}>{m.hora}  </Text>{m.texto}</Text>
+            <Text style={[estilos.movTexto, { color: m.tipo === "cierre_ok" ? VERDE : COLOR_MOV[m.gravedad] }]}><Text style={estilos.movHora}>{m.hora}  </Text>{m.texto}</Text>
             {!!m.detalle && <Text style={estilos.movDetalle} numberOfLines={1}>{m.detalle}</Text>}
           </View>
         </View>
@@ -88,7 +113,14 @@ export default function Central() {
   return (
     <ScrollView contentContainerStyle={estilos.contenido}
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={tirar} tintColor={color.marcaClaro} />}>
-      {graves.map((g) => (
+      {graves.map((g) => g.cierreId ? (
+        <TarjetaCierre key={g.id} g={g} alVisto={async () => {
+          const e = await marcarCierreVisto(g.cierreId!);
+          setErrorVisto(e);
+          marcarGraveVista(g.id);
+          await recargar();
+        }} />
+      ) : (
         <TarjetaGrave key={g.id} g={g} alVisto={() => marcarGraveVista(g.id)} alResuelta={async () => {
           const e = await resolverIncidencia(g.incidenciaId!);
           setErrorVisto(e);

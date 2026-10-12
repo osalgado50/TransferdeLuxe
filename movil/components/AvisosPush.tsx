@@ -23,7 +23,7 @@ export function AvisosPush({ yo, central }: { yo: string; central?: boolean }) {
     const sus = Notifications.addNotificationReceivedListener((n) => {
       const d = n.request.content.data as DatosPush | undefined;
       if (d?.local || yaAnunciadoLocal(d)) return;
-      const grave = d?.tipo === "incidencia" || d?.tipo === "checklist" || d?.tipo === "rechazado" || d?.tipo === "expirado";
+      const grave = d?.grave || d?.tipo === "cierre_mantenimiento" || d?.tipo === "incidencia" || d?.tipo === "checklist" || d?.tipo === "rechazado" || d?.tipo === "expirado";
       Vibration.vibrate(grave ? [0, 250, 120, 250, 120, 250] : [0, 400]);
       void Haptics.notificationAsync(grave ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Warning).catch(() => {});
     });
