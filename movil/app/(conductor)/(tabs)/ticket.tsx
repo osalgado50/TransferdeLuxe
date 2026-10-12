@@ -30,10 +30,11 @@ export default function Ticket() {
   async function subir(uri: string) {
     setFoto({ uri, estado: "subiendo" });
     try {
-      const m = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG });
-      const fd = new FormData();
-      fd.append("foto", { uri: m.uri, name: "ticket.jpg", type: "image/jpeg" } as unknown as Blob);
-      const r = await llamarApi("/api/conductor/ticket/foto", { method: "POST", form: fd });
+      let m: ImageManipulator.ImageResult;
+      try { m = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }); }
+      catch { setFoto({ uri, estado: "error", error: "No se pudo preparar la foto. Prueba con otra." }); return; }
+      // JSON con base64 (no multipart: el proxy del servidor estropea las subidas troceadas del iPhone).
+      const r = await llamarApi("/api/conductor/ticket/foto", { method: "POST", body: { foto_base64: m.base64 } });
       const j = (await r.json().catch(() => ({}))) as { fotoPath?: string; error?: string };
       if (!r.ok || !j.fotoPath) { setFoto({ uri: m.uri, estado: "error", error: j.error ?? "No se pudo subir la foto" }); return; }
       setFoto({ uri: m.uri, estado: "ok", path: j.fotoPath });

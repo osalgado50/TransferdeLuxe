@@ -49,15 +49,24 @@ export function BotonIncidencia({ servicioId, grande = false, alEnviada }: { ser
     if (!v.ok) { setError(v.error); return; }
     setOcupado(true); setError(null);
     try {
+      // La alarma nunca depende de la foto: si no se puede preparar o subir, la incidencia sale igualmente sin ella.
       let foto_path: string | null = null;
+      let avisoFoto: string | null = null;
       if (foto) {
-        const m = await ImageManipulator.manipulateAsync(foto, [{ resize: { width: 1600 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG });
-        const fd = new FormData();
-        fd.append("foto", { uri: m.uri, name: "incidencia.jpg", type: "image/jpeg" } as unknown as Blob);
-        const r = await llamarApi("/api/conductor/incidencia/foto", { method: "POST", form: fd });
-        const j = (await r.json().catch(() => null)) as { fotoPath?: string; error?: string } | null;
-        if (!r.ok || !j?.fotoPath) { setError(j?.error ?? "No se pudo subir la foto."); return; }
-        foto_path = j.fotoPath;
+        let base64: string | undefined;
+        try {
+          const m = await ImageManipulator.manipulateAsync(foto, [{ resize: { width: 1600 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true });
+          base64 = m.base64;
+        } catch { avisoFoto = "No se pudo preparar la foto"; }
+        if (base64) {
+          try {
+            // JSON con base64 (no multipart: el proxy del servidor estropea las subidas troceadas del iPhone).
+            const r = await llamarApi("/api/conductor/incidencia/foto", { method: "POST", body: { foto_base64: base64 } });
+            const j = (await r.json().catch(() => null)) as { fotoPath?: string; error?: string } | null;
+            if (r.ok && j?.fotoPath) foto_path = j.fotoPath;
+            else avisoFoto = j?.error ?? "No se pudo subir la foto";
+          } catch { avisoFoto = "No se pudo subir la foto (sin conexión)"; }
+        }
       }
       let lat: number | null = null, lng: number | null = null;
       if ((await Location.getForegroundPermissionsAsync()).granted) {
@@ -69,9 +78,10 @@ export function BotonIncidencia({ servicioId, grande = false, alEnviada }: { ser
       const grave = esIncidenciaGrave(tipo);
       reiniciar();
       alEnviada?.();
-      Alert.alert(grave ? "Enviada con alarma" : "Incidencia enviada", grave
+      const sinFoto = avisoFoto ? `\n\n${avisoFoto}: la incidencia se ha enviado sin foto.` : "";
+      Alert.alert(grave ? "Enviada con alarma" : "Incidencia enviada", (grave
         ? "La central ya la tiene y le ha sonado la alarma. Si hay heridos o peligro, llama al 112."
-        : "La central ya la tiene.");
+        : "La central ya la tiene.") + sinFoto);
     } catch { setError("Sin conexión. Inténtalo de nuevo."); }
     finally { setOcupado(false); }
   };
