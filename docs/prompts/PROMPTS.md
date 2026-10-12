@@ -1100,3 +1100,33 @@ ok, avísame cuando esté publicado
 
 ---
 
+## 2026-10-12 11:18 · Claude Code · sesión `b3c0e64f`
+
+Un detalle, la, la página de, de inicio de jornada me sale hoy y próximos días incidencias, como la página principal. Esta página tendría que estar dedicada al, a la jornada. Entonces, eh, haz que sea una página, no un pop-up, eh, cuando le des aquí que tengas el botón de iniciar jornada o de parar, o de pausar, ¿vale? Pues si comen y quieren hacer pausa, eh, un botoncito de incidencias y dentro del botoncito de incidencias cuando le demos a un accidente o un esto que se pueda marcar el parte de, de los de los golpes y se deje guardado. ¿Vale? Todo esto ya una vez haya una incidencia ya, con todo lo que sea grave se envía rápido a central con una alarma. Y al cerrar el, el parte diario se envían todos los datos que tenga acumulados también al iniciar la jornada activa automáticamente el GPS ¿vale? No tiene sentido iniciar la jornada si no se activa el GPS de la aplicación
+
+---
+
+## 2026-10-12 12:08 · Claude Code · sesión `b3c0e64f`
+
+ya he lanzado la compilación de iPhone
+
+---
+
+## 2026-10-12 12:12 · Claude Code · sesión `b3c0e64f`
+
+al enviar un parte en el inicio de jornada, me sale que está sin conexión.
+
+---
+
+## 2026-10-12 12:14 · Claude Code · sesión `b3c0e64f`
+
+En el login, tanto en el, la aplicación móvil como en el, central, cuando le dé al botón de usar, rellena los campos del login y a, y activa el botón de entrar, ¿vale? Para que se active solo el login. Que no tenga que hacer nada más.
+
+---
+
+## 2026-10-12 12:16 · Claude Code · sesión `b3c0e64f`
+
+La base de datos de búsqueda, por ejemplo, del destino o del origen, eh, la puedes ampliar. Por ejemplo, hay empresas en Google Maps que tienen nombre, por ejemplo, esta que te, que te he escrito de Sergio Logistic, y, y tienen la dirección directa, ¿vale? Para facilitar los servicios. No tener que escribir la dirección completa.
+
+---
+
