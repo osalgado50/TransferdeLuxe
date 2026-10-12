@@ -7,7 +7,7 @@ import { validarRespuestas, type ItemChecklist } from "@/lib/dominio/checklist";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { detectarTipoImagen, extensionDe } from "@/lib/firmaImagen";
 import { z } from "zod";
-import { COMBUSTIBLE, IDS_ZONAS, MAX_COMENTARIO, TESTIGOS, cierreObligatorio, gravedadCierre, normalizarZonas, validarKm, type GravedadCierre, type Tecnico } from "@/lib/dominio/cierre";
+import { COMBUSTIBLE, IDS_ZONAS, MAX_COMENTARIO, TESTIGOS, gravedadCierre, normalizarZonas, validarKm, type GravedadCierre, type Tecnico } from "@/lib/dominio/cierre";
 
 // Lógica de servidor de los módulos del conductor (jornada, incidencias, checklist), común a Server Actions y rutas API.
 export type Res = { ok: true } | { ok: false; error: string; status?: number };
@@ -27,20 +27,13 @@ export async function jornadaAbierta(sb: SupabaseClient, conductorId: string): P
 }
 
 /** Sin ningún vehículo activo no se puede rellenar la hoja: la jornada se finaliza como antes. */
-async function hayVehiculos(sb: SupabaseClient): Promise<boolean> {
-  const { data } = await sb.from("vehiculos").select("id").eq("estado", "activo").limit(1).maybeSingle();
-  return !!data;
-}
-
 export async function accionJornada(sb: SupabaseClient, conductorId: string, accion: AccionJornada): Promise<Res> {
   const m = await exigirModulo(sb, "jornada");
   if (!m.ok) return m;
   const abierta = await jornadaAbierta(sb, conductorId);
   const estado = estadoJornada(abierta);
-  // Con la hoja de cierre activa, la jornada se finaliza SOLO enviándola (POST /api/conductor/cierre o cierreConductor).
-  if (accion === "finalizar" && estado !== "fuera" && cierreObligatorio(await modulosActivos(sb)) && await hayVehiculos(sb)) {
-    return { ok: false, error: "Para finalizar la jornada rellena la hoja de cierre del vehículo (si no te aparece, actualiza la app).", status: 409 };
-  }
+  // Con la hoja de cierre activa, las apps actuales finalizan enviándola (POST /api/conductor/cierre). Aquí NO se bloquea:
+  // una app antigua sin la hoja (p. ej. iPhone pendiente de compilación) tiene que poder cerrar la jornada igualmente.
   if (!accionValida(estado, accion)) {
     // Reintentos (doble toque, cola offline): si ya estamos en el estado buscado, no es un error.
     const yaHecho = (accion === "iniciar" && estado !== "fuera") || (accion === "pausa" && estado === "en_pausa")

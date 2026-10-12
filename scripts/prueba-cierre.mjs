@@ -47,10 +47,6 @@ console.log(`Conductor ${EMAIL} · vehículo ${veh.matricula} (${kmAntes} km) ·
 // ── Jornada 1: cierre con daños (grave) ──
 let r = await llamar(yo, "POST", "/api/conductor/jornada", { accion: "iniciar" });
 paso(r.status === 200, "Conductor inicia la jornada", `${r.ms} ms`);
-if (obligatoria) {
-  r = await llamar(yo, "POST", "/api/conductor/jornada", { accion: "finalizar" });
-  paso(r.status === 409, "«Finalizar» sin hoja de cierre → rechazado", r.j?.error ?? String(r.status));
-}
 r = await llamar(yo, "POST", "/api/conductor/cierre", { idAccion: randomUUID(), vehiculo_id: veh.id, zonas: [], tecnico: tecnico(), combustible: "lleno", km: Math.max(0, kmAntes - 1), comentario: NOTA });
 paso(kmAntes === 0 || r.status === 400, "Km menores que los actuales → rechazado", r.j?.error ?? String(r.status));
 r = await llamar(yo, "POST", "/api/conductor/cierre", { idAccion: randomUUID(), vehiculo_id: veh.id, zonas: ["ala_delta"], tecnico: tecnico(), combustible: "lleno", comentario: NOTA });

@@ -60,9 +60,8 @@ describe("hoja de cierre (servidor)", () => {
     const r = await registrarCierre(sbFalso({ modulos: { jornada: false } }).sb, "c", base);
     expect(r.ok === false && r.status).toBe(403);
   });
-  it("«Finalizar jornada» exige la hoja si está activa; sin checklist o sin cierre, como antes", async () => {
-    const r = await accionJornada(sbFalso().sb, "c", "finalizar");
-    expect(r.ok === false && r.status).toBe(409);
+  it("«Finalizar jornada» sin hoja no se bloquea (apps antiguas); con o sin los módulos, finaliza", async () => {
+    expect((await accionJornada(sbFalso().sb, "c", "finalizar")).ok).toBe(true);
     for (const modulos of [{ cierre: false }, { checklist: false }]) {
       const { sb, llamadas } = sbFalso({ modulos });
       expect((await accionJornada(sb, "c", "finalizar")).ok).toBe(true);
