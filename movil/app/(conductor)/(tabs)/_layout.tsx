@@ -19,7 +19,6 @@ function Cabecera() {
         {sinConexion && <Pressable onPress={reintentar} accessibilityRole="button"><Text style={estilos.sinRed}>Sin conexión · tocar para reintentar</Text></Pressable>}
         <EstadoConexion />
       </View>
-      {sesion && <BotonJornada yo={sesion.user.id} />}
       <Pressable onPress={salir} accessibilityRole="button" accessibilityLabel="Cerrar sesión" hitSlop={8}
         style={({ pressed }) => [estilos.salir, pressed && { borderColor: color.marcaClaro }]}>
         <Text style={estilos.salirTexto}>Salir</Text>
@@ -33,7 +32,8 @@ function Cabecera() {
 const icono = (n: keyof typeof Ionicons.glyphMap) => ({ color: c, size }: { color: ColorValue; size: number }) => <Ionicons name={n} color={c as string} size={size + 2} />;
 
 export default function LayoutPestanas() {
-  const { perfil } = useSesion();
+  const { perfil, sesion } = useSesion();
+  const yo = sesion?.user.id;
   // El operador (jefe) entra en el modo central; sus servicios están en la pestaña «Mis servicios».
   if (perfil?.rol === "operador") return <Redirect href="/central" />;
   return (
@@ -47,6 +47,8 @@ export default function LayoutPestanas() {
       <Tabs.Screen name="index" options={{ title: "Hoy", tabBarIcon: icono("today-outline") }} />
       <Tabs.Screen name="historial" options={{ title: "Historial", tabBarIcon: icono("time-outline") }} />
       <Tabs.Screen name="ticket" options={{ title: "Ticket", tabBarIcon: icono("receipt-outline") }} />
+      {/* Jornada: no es una pantalla; la pestaña abre el menú iniciar / pausa / finalizar. */}
+      <Tabs.Screen name="jornada" options={{ title: "Jornada", tabBarButton: () => (yo ? <BotonJornada yo={yo} pestana /> : null) }} />
     </Tabs>
   );
 }
