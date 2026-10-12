@@ -19,7 +19,7 @@ export async function vigilarUnaVez(): Promise<number> {
   await pasadaRecorridos(sb);
   const [{ data: ev }, { data: inc }, { data: rev }, { data: cie }] = await Promise.all([
     sb.from("eventos_servicio").select("id,servicio_id,tipo,actor_id,motivo").gt("id", c.ultimo_evento_id).order("id").limit(LIMITE),
-    sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en").gt("creado_en", c.ultima_incidencia_en).order("creado_en").limit(LIMITE),
+    sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,zonas").gt("creado_en", c.ultima_incidencia_en).order("creado_en").limit(LIMITE),
     sb.from("checklist_revisiones").select("conductor_id,vehiculo_id,con_fallos,creado_en").gt("creado_en", c.ultima_revision_en).order("creado_en").limit(LIMITE),
     c.ultimo_cierre_en
       ? sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en").gt("creado_en", c.ultimo_cierre_en).order("creado_en").limit(LIMITE)

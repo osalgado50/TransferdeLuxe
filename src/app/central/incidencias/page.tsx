@@ -5,6 +5,8 @@ import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { modulosCentral } from "@/lib/central/modulosConductor";
 import { nombreTipoIncidencia, type Incidencia } from "@/lib/dominio/incidencias";
+import { etiquetaZona, normalizarZonas } from "@/lib/dominio/cierre";
+import DiagramaVehiculo from "@/components/comun/DiagramaVehiculo";
 import { BotonResolver } from "@/components/central/BotonResolver";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +41,12 @@ export default async function Incidencias({ searchParams }: { searchParams: Prom
               {i.servicio_id && <> · <Link className="underline" href={`/central/servicios/${i.servicio_id}`}>ver servicio</Link></>}
               {i.lat != null && i.lng != null && <> · <a className="underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${i.lat}&mlon=${i.lng}#map=17/${i.lat}/${i.lng}`}>ubicación</a></>}
             </p>
+            {!!i.zonas?.length && (
+              <div className="flex items-center gap-3">
+                <div className="w-16 shrink-0"><DiagramaVehiculo zonas={i.zonas} mini /></div>
+                <p className="text-sm text-red-100">Daños: {normalizarZonas(i.zonas).map(etiquetaZona).join(", ")}</p>
+              </div>
+            )}
             {i.descripcion && <p className="whitespace-pre-wrap text-sm">{i.descripcion}</p>}
             {i.foto_path && url.get(i.foto_path) && (
               <a href={url.get(i.foto_path)} target="_blank" rel="noreferrer">

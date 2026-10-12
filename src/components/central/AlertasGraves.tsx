@@ -4,10 +4,11 @@ import { useState, useTransition } from "react";
 import { cierreVisto, resolverIncidencia } from "@/app/central/modulos-actions";
 import DiagramaVehiculo from "@/components/comun/DiagramaVehiculo";
 import { nombreTipoIncidencia } from "@/lib/dominio/incidencias";
+import { etiquetaZona } from "@/lib/dominio/cierre";
 import type { Movimiento } from "@/lib/dominio/actividad";
 
 /**
- * Lo GRAVE (avería, accidente) fijado arriba del todo, en rojo, hasta que la central pulsa «Visto» (este navegador)
+ * Lo GRAVE (avería, accidente, golpe) fijado arriba del todo, en rojo, hasta que la central pulsa «Visto» (este navegador)
  * o «Marcar resuelta» (para todos). Con conductor, zona, hora, servicio, descripción, llamada y posición en el mapa.
  */
 export default function AlertasGraves({ graves, alVisto, alCentrar }: {
@@ -61,9 +62,16 @@ export default function AlertasGraves({ graves, alVisto, alCentrar }: {
               <span className="relative flex size-3"><span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex size-3 rounded-full bg-red-500" /></span>
               ⚠ {tipo} · {g.conductor ?? "Conductor"}
             </p>
-            <p className="mt-1 text-base font-medium text-red-100">{g.zona ?? "Zona desconocida (sin GPS)"} · {g.hora}</p>
-            {g.descripcion && <p className="mt-1 text-base text-white">{g.descripcion}</p>}
-            {g.detalle && <p className="mt-1 text-sm text-red-200">Servicio: {g.detalle}</p>}
+            <div className="mt-1 flex flex-wrap gap-3">
+              {/* Parte de golpes (accidente / golpe): mini-diagrama con las zonas, igual que en la hoja de cierre. */}
+              {!!g.zonasDanadas?.length && <div className="w-20 shrink-0"><DiagramaVehiculo zonas={g.zonasDanadas} mini /></div>}
+              <div className="min-w-[10rem] flex-1">
+                <p className="text-base font-medium text-red-100">{g.zona ?? "Zona desconocida (sin GPS)"} · {g.hora}</p>
+                {!!g.zonasDanadas?.length && <p className="mt-1 text-base font-medium text-white">Daños: {g.zonasDanadas.map(etiquetaZona).join(", ")}</p>}
+                {g.descripcion && <p className="mt-1 text-base text-white">{g.descripcion}</p>}
+                {g.detalle && <p className="mt-1 text-sm text-red-200">Servicio: {g.detalle}</p>}
+              </div>
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {g.telefono && <a href={`tel:${g.telefono}`} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500">📞 Llamar a {g.conductor ?? "conductor"}</a>}
               {g.lat != null && g.lng != null && (

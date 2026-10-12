@@ -26,7 +26,7 @@ export default async function PanelCentral() {
     sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").or(`tipo.eq.rechazado,creado_en.gte.${new Date(Date.now() - 20 * 60_000).toISOString()}`).order("creado_en", { ascending: false }).limit(100),
     // «Actividad en vivo»: últimas 12 h de eventos, incidencias (más las graves sin resolver), checklists y jornadas.
     sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(300),
-    sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta")
+    sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta,zonas")
       .or(`creado_en.gte.${hace12h},and(resuelta.is.false,tipo.in.(${TIPOS_GRAVES.join(",")}))`).order("creado_en", { ascending: false }).limit(100),
     sb.from("checklist_revisiones").select("id,conductor_id,vehiculo_id,con_fallos,observaciones,creado_en").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(100),
     sb.from("jornadas").select("id,conductor_id,inicio,fin").or(`inicio.gte.${hace12h},fin.gte.${hace12h}`).order("inicio", { ascending: false }).limit(100),

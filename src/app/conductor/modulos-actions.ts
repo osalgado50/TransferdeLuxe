@@ -17,7 +17,7 @@ export async function jornadaConductor(accion: AccionJornada): Promise<Res> {
   return r.ok ? r : { ok: false, error: r.error };
 }
 
-/** FormData: tipo, descripcion, servicio_id?, lat?, lng?, foto? (ya redimensionada en el navegador). */
+/** FormData: tipo, descripcion, servicio_id?, lat?, lng?, zonas* (parte de golpes), foto? (ya redimensionada en el navegador). */
 export async function incidenciaConductor(fd: FormData): Promise<Res> {
   const yo = await exigirConductor();
   if (!permitir(`web-incidencia:${yo.id}`, 10, 60_000)) return lento;
@@ -34,7 +34,7 @@ export async function incidenciaConductor(fd: FormData): Promise<Res> {
   const num = (k: string) => { const v = fd.get(k); return typeof v === "string" && v ? Number(v) : null; };
   const r = await registrarIncidencia(sb, yo.id, {
     tipo: fd.get("tipo"), descripcion: fd.get("descripcion") ?? "", servicio_id: fd.get("servicio_id") || null,
-    foto_path, lat: num("lat"), lng: num("lng"),
+    foto_path, lat: num("lat"), lng: num("lng"), zonas: fd.getAll("zonas").map(String),
   });
   if (!r.ok && foto_path) await sb.storage.from("incidencias").remove([foto_path]); // sin fotos huérfanas
   return r.ok ? r : { ok: false, error: r.error };

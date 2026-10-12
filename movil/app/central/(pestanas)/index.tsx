@@ -52,7 +52,7 @@ function TarjetaCierre({ g, alVisto }: { g: Movimiento; alVisto: () => Promise<v
   );
 }
 
-/** Lo GRAVE (avería, accidente): rojo, fijo arriba, con conductor, zona y datos, hasta «Visto» o «Resuelta». */
+/** Lo GRAVE (avería, accidente, golpe): rojo, fijo arriba, con conductor, zona y datos, hasta «Visto» o «Resuelta». */
 function TarjetaGrave({ g, alVisto, alResuelta }: { g: Movimiento; alVisto: () => void; alResuelta: () => Promise<void> }) {
   const [enviando, setEnviando] = useState(false);
   const tipo = nombreTipoIncidencia(g.tipo.replace(/^incidencia_/, "")).toUpperCase();
@@ -60,6 +60,10 @@ function TarjetaGrave({ g, alVisto, alResuelta }: { g: Movimiento; alVisto: () =
     <View style={estilos.grave} accessibilityRole="alert">
       <Text style={estilos.graveTitulo}>⚠ {tipo} · {g.conductor ?? "Conductor"}</Text>
       <Text style={estilos.graveZona}>{g.zona ?? "Zona desconocida (sin GPS)"} · {g.hora}</Text>
+      {(g.zonasDanadas ?? []).length > 0 && <View accessibilityLabel={`Zonas dañadas: ${(g.zonasDanadas ?? []).map(etiquetaZona).join(", ")}`}>
+        <Text style={estilos.graveTexto}>Daños:</Text>
+        {(g.zonasDanadas ?? []).map((z) => <Text key={z} style={estilos.graveMeta}>• {etiquetaZona(z)}</Text>)}
+      </View>}
       {!!g.descripcion && <Text style={estilos.graveTexto}>{g.descripcion}</Text>}
       {!!g.detalle && <Text style={estilos.graveMeta}>Servicio: {g.detalle}</Text>}
       <View style={estilos.fila}>

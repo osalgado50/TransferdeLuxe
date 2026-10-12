@@ -1,14 +1,13 @@
-import { nombreTipoIncidencia } from "./incidencias";
-import { esIncidenciaGrave } from "./actividad";
+import { esIncidenciaGrave, nombreTipoIncidencia } from "./incidencias";
 import { leerDeshecho } from "./deshacer";
 import { zonaCercana } from "./zonas";
-import { resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
+import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
 
 /** Lógica pura de los avisos push a la central (vigilante del servidor). */
 export interface AvisoCentral { titulo: string; cuerpo: string; data: { tipo: string; servicioId?: string; incidenciaId?: string; cierreId?: string; grave?: boolean } }
 export interface ServicioAviso { id: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string; origen_pedido: string; conductor_id?: string | null }
 export interface EventoAviso { id: number; servicio_id: string; tipo: string; actor_id: string | null; motivo: string | null }
-export interface IncidenciaAviso { id?: string; conductor_id: string; servicio_id: string | null; tipo: string; descripcion: string; lat?: number | null; lng?: number | null }
+export interface IncidenciaAviso { id?: string; conductor_id: string; servicio_id: string | null; tipo: string; descripcion: string; lat?: number | null; lng?: number | null; zonas?: string[] | null }
 export interface RevisionAviso { conductor_id: string; vehiculo_id: string }
 export interface CierreAviso {
   id: string; conductor_id: string; vehiculo_id: string; zonas: string[]; tecnico: Tecnico; combustible: string; comentario: string | null; gravedad: GravedadCierre;
@@ -57,7 +56,7 @@ export function construirAvisos(e: Entrada): AvisoCentral[] {
       out.push({ titulo: `⏰ ${nombre(cid)} llega tarde a la recogida`, cuerpo: [trayecto(s), zona].filter(Boolean).join(" · "), data });
     }
   }
-  // Lo grave (avería, accidente) va primero (nunca se pierde en el resumen) y con todos los datos: tipo, conductor y zona.
+  // Lo grave (avería, accidente, golpe) va primero (nunca se pierde en el resumen) y con todos los datos: tipo, conductor y zona.
   const graves: AvisoCentral[] = [];
   for (const i of e.incidencias) {
     const s = i.servicio_id ? e.servicios.get(i.servicio_id) : undefined;
@@ -66,9 +65,11 @@ export function construirAvisos(e: Entrada): AvisoCentral[] {
     const desc = i.descripcion.trim() ? recortar(i.descripcion.trim(), 80) : null;
     const data = { tipo: "incidencia", ...(i.servicio_id ? { servicioId: i.servicio_id } : {}), ...(i.id ? { incidenciaId: i.id } : {}) };
     if (esIncidenciaGrave(i.tipo)) {
+      const zs = normalizarZonas(i.zonas ?? []);
+      const danos = zs.length ? zs.map(etiquetaZona).join(", ") : null;
       graves.push({
         titulo: ["⚠ " + nombreTipoIncidencia(i.tipo).toUpperCase(), nombre(i.conductor_id), zona].filter(Boolean).join(" · "),
-        cuerpo: [desc, s ? trayecto(s) : null].filter(Boolean).join(" · ") || "Llama al conductor",
+        cuerpo: [danos ? `Daños: ${danos}` : null, desc, s ? trayecto(s) : null].filter(Boolean).join(" · ") || "Llama al conductor",
         data: { ...data, grave: true },
       });
       continue;

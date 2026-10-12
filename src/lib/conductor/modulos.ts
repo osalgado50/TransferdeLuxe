@@ -52,9 +52,14 @@ export async function accionJornada(sb: SupabaseClient, conductorId: string, acc
   return { ok: true };
 }
 
+/** Parte de golpes de una incidencia: ids del diagrama del coche (los mismos que la hoja de cierre). Opcional (apps antiguas). */
+export const esquemaZonasIncidencia = z.array(z.enum(IDS_ZONAS as [string, ...string[]])).max(IDS_ZONAS.length * 2).nullable().optional();
+
 export async function registrarIncidencia(sb: SupabaseClient, conductorId: string, entrada: unknown): Promise<Res> {
   const m = await exigirModulo(sb, "incidencias");
   if (!m.ok) return m;
+  const zs = esquemaZonasIncidencia.safeParse((entrada && typeof entrada === "object" ? entrada as Record<string, unknown> : {}).zonas);
+  if (!zs.success) return { ok: false, error: "Zona del vehículo no válida.", status: 400 };
   const v = validarIncidencia(entrada, conductorId);
   if (!v.ok) return { ok: false, error: v.error, status: 400 };
   if (v.datos.servicio_id) {

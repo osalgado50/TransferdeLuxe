@@ -8,7 +8,7 @@ export interface InfoSonido { id: Sonido; nombre: string; significado: string; g
 
 /** Catálogo, del más grave al más leve (gravedad: mayor = más importante; decide en una ráfaga). */
 export const SONIDOS: readonly InfoSonido[] = [
-  { id: "alarma", nombre: "Sirena (se repite cada 30 s, máx. 5, hasta pulsar «Visto»)", significado: "GRAVE: avería o accidente de un conductor, o una hoja de cierre con daños, testigo encendido u otra avería", gravedad: 10 },
+  { id: "alarma", nombre: "Sirena (se repite cada 30 s, máx. 5, hasta pulsar «Visto»)", significado: "GRAVE: avería, accidente o golpe en el vehículo de un conductor, o una hoja de cierre con daños, testigo encendido u otra avería", gravedad: 10 },
   { id: "incidencia", nombre: "Tres pitidos", significado: "Aviso: retraso (o conductor que llega tarde a la recogida), cliente no presentado u otra incidencia, checklist con fallos, un paso deshecho o una hoja de cierre que pide mantenimiento (aceite, agua, neumáticos, luces, reserva)", gravedad: 9 },
   { id: "rechazado", nombre: "Dos tonos graves descendentes", significado: "Servicio rechazado o plazo de respuesta vencido", gravedad: 8 },
   { id: "reserva_nueva", nombre: "Dos tonos ascendentes", significado: "Reserva nueva desde la web", gravedad: 7 },

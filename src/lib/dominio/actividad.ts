@@ -1,9 +1,9 @@
 import { leerDeshecho } from "./deshacer";
 import { direccionCorta } from "./direccion";
-import { nombreTipoIncidencia } from "./incidencias";
+import { esIncidenciaGrave, nombreTipoIncidencia } from "./incidencias";
 import { etiquetaEvento } from "./navegacion";
 import { zonaCercana } from "./zonas";
-import { normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
+import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
 
 /**
  * «Actividad en vivo» de la central (lógica pura, compartida por la web y por /api/central/resumen de la app):
@@ -35,7 +35,7 @@ export interface Movimiento {
   descripcion: string | null;
   /** Grave sin resolver: se fija arriba en «Alertas» hasta que la central la marca vista/resuelta. */
   pendiente: boolean;
-  /** Hoja de cierre de jornada: id (para «Visto»), zonas dañadas (mini-diagrama) y matrícula. */
+  /** Hoja de cierre (id para «Visto», matrícula) e incidencias con parte de golpes: zonas dañadas (mini-diagrama). */
   cierreId?: string | null;
   zonasDanadas?: string[];
   matricula?: string | null;
@@ -45,6 +45,8 @@ export interface EventoAct { id: number; servicio_id: string; tipo: string; moti
 export interface IncidenciaAct {
   id: string; conductor_id: string; servicio_id: string | null; tipo: string; descripcion: string;
   lat: number | null; lng: number | null; creado_en: string; resuelta: boolean;
+  /** Parte de golpes (accidente / golpe): zonas dañadas del diagrama. */
+  zonas?: string[] | null;
 }
 export interface RevisionAct { id: string; conductor_id: string; vehiculo_id: string; con_fallos: boolean; observaciones?: string | null; creado_en: string }
 export interface JornadaAct { id: string; conductor_id: string; inicio: string; fin: string | null }
@@ -68,8 +70,7 @@ export interface EntradaActividad {
   ocultos?: Iterable<string>;
 }
 
-export const TIPOS_GRAVES = ["averia", "accidente"] as const;
-export const esIncidenciaGrave = (tipo: string) => (TIPOS_GRAVES as readonly string[]).includes(tipo);
+export { TIPOS_GRAVES, esIncidenciaGrave } from "./incidencias";
 export const LIMITE_ACTIVIDAD = 40;
 export const HORAS_ACTIVIDAD = 12;
 
@@ -204,13 +205,16 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     const grave = esIncidenciaGrave(i.tipo);
     const desc = i.descripcion?.trim() || null;
     const N = nombre(i.conductor_id);
+    const zonas = normalizarZonas(i.zonas ?? []);
+    const danos = zonas.length ? zonas.map(etiquetaZona).join(", ") : null;
+    // «⚠ GOLPE · Marc · cerca de Reus · Puerta del. izq., Aleta tras. der.»
     const texto = grave
-      ? ["⚠ " + nombreTipoIncidencia(i.tipo).toUpperCase(), N, zona, desc ? recortar(desc, 160) : null].filter(Boolean).join(" · ")
+      ? ["⚠ " + nombreTipoIncidencia(i.tipo).toUpperCase(), N, zona, danos, desc ? recortar(desc, 160) : null].filter(Boolean).join(" · ")
       : [`${N} avisa: ${i.tipo === "otro" ? "incidencia" : nombreTipoIncidencia(i.tipo).toLowerCase()}`, zona, desc ? recortar(desc, 160) : null].filter(Boolean).join(" · ");
     out.push({
       ...m, tipo: `incidencia_${i.tipo}`, icono: grave ? "🚨" : i.tipo === "retraso" ? "⏱️" : i.tipo === "no_presentado" ? "🙋" : "⚠️",
       gravedad: grave ? "grave" : "aviso", texto, zona, lat: p?.lat ?? null, lng: p?.lng ?? null, incidenciaId: i.id, descripcion: desc,
-      pendiente: grave && !i.resuelta,
+      pendiente: grave && !i.resuelta, ...(zonas.length ? { zonasDanadas: zonas } : {}),
     });
   }
 

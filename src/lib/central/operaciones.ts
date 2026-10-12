@@ -111,7 +111,7 @@ async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date
     const d = desde.toISOString();
     const [ev, inc, rev, jor, veh, cie] = await Promise.all([
       sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").gte("creado_en", d).order("creado_en", { ascending: false }).limit(150),
-      sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta")
+      sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta,zonas")
         .or(`creado_en.gte.${d},and(resuelta.is.false,tipo.in.(${TIPOS_GRAVES.join(",")}))`).order("creado_en", { ascending: false }).limit(60),
       sb.from("checklist_revisiones").select("id,conductor_id,vehiculo_id,con_fallos,observaciones,creado_en").gte("creado_en", d).order("creado_en", { ascending: false }).limit(60),
       sb.from("jornadas").select("id,conductor_id,inicio,fin").or(`inicio.gte.${d},fin.gte.${d}`).order("inicio", { ascending: false }).limit(60),
