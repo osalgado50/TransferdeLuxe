@@ -9,7 +9,7 @@ import { crearFreno } from "@/lib/dominio/reintento";
 const frenoRefresh = crearFreno(10_000);
 
 export function useTiempoReal<T extends object>(
-  tabla: "servicios" | "posicion_actual" | "eventos_servicio" | "incidencias" | "checklist_revisiones" | "jornadas", iniciales: T[], clave: keyof T,
+  tabla: "servicios" | "posicion_actual" | "eventos_servicio" | "incidencias" | "checklist_revisiones" | "jornadas" | "cierres_jornada", iniciales: T[], clave: keyof T,
   onEstado?: (conectado: boolean) => void,
 ): T[] {
   const router = useRouter();

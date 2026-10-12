@@ -3,7 +3,7 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import { notificarCentral } from "@/lib/push";
 import { esperaBackoff } from "@/lib/dominio/reintento";
 import { actualizarRecorridos } from "@/lib/servicios/recorridos";
-import { construirAvisos, type EventoAviso, type IncidenciaAviso, type RevisionAviso, type ServicioAviso } from "@/lib/dominio/avisosCentral";
+import { construirAvisos, type CierreAviso, type EventoAviso, type IncidenciaAviso, type RevisionAviso, type ServicioAviso } from "@/lib/dominio/avisosCentral";
 
 const LIMITE = 50;
 
@@ -17,15 +17,19 @@ export async function vigilarUnaVez(): Promise<number> {
   const det = await sb.rpc("detectar_retrasos_recogida");
   if (det.error) console.error("[vigilante] retrasos:", det.error.message);
   await pasadaRecorridos(sb);
-  const [{ data: ev }, { data: inc }, { data: rev }] = await Promise.all([
+  const [{ data: ev }, { data: inc }, { data: rev }, { data: cie }] = await Promise.all([
     sb.from("eventos_servicio").select("id,servicio_id,tipo,actor_id,motivo").gt("id", c.ultimo_evento_id).order("id").limit(LIMITE),
     sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en").gt("creado_en", c.ultima_incidencia_en).order("creado_en").limit(LIMITE),
     sb.from("checklist_revisiones").select("conductor_id,vehiculo_id,con_fallos,creado_en").gt("creado_en", c.ultima_revision_en).order("creado_en").limit(LIMITE),
+    c.ultimo_cierre_en
+      ? sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en").gt("creado_en", c.ultimo_cierre_en).order("creado_en").limit(LIMITE)
+      : Promise.resolve({ data: [] }),
   ]);
   const eventos = (ev ?? []) as EventoAviso[];
   const incidencias = (inc ?? []) as (IncidenciaAviso & { creado_en: string })[];
   const revisiones = (rev ?? []) as (RevisionAviso & { con_fallos: boolean; creado_en: string })[];
-  if (!eventos.length && !incidencias.length && !revisiones.length) return 0;
+  const cierres = (cie ?? []) as (CierreAviso & { creado_en: string })[];
+  if (!eventos.length && !incidencias.length && !revisiones.length && !cierres.length) return 0;
 
   const idsServ = [...new Set([...eventos.map((e) => e.servicio_id), ...incidencias.map((i) => i.servicio_id).filter((x): x is string => !!x)])];
   const { data: servs } = idsServ.length
@@ -36,8 +40,8 @@ export async function vigilarUnaVez(): Promise<number> {
   const prueba = new Set(((servs ?? []) as { id: string; es_prueba?: boolean }[]).filter((s) => s.es_prueba).map((s) => s.id));
   // Retraso en la recogida: el evento no tiene actor; se nombra (y se sitúa) al conductor asignado.
   const tarde = eventos.filter((e) => e.tipo === "retraso_recogida").map((e) => porId.get(e.servicio_id)?.conductor_id).filter((x): x is string => !!x);
-  const idsPers = [...new Set([...eventos.map((e) => e.actor_id), ...tarde, ...incidencias.map((i) => i.conductor_id), ...revisiones.map((r) => r.conductor_id)].filter((x): x is string => !!x))];
-  const idsVeh = [...new Set(revisiones.map((r) => r.vehiculo_id))];
+  const idsPers = [...new Set([...eventos.map((e) => e.actor_id), ...tarde, ...incidencias.map((i) => i.conductor_id), ...revisiones.map((r) => r.conductor_id), ...cierres.map((x) => x.conductor_id)].filter((x): x is string => !!x))];
+  const idsVeh = [...new Set([...revisiones.map((r) => r.vehiculo_id), ...cierres.map((x) => x.vehiculo_id)])];
   // Zona de las incidencias sin coordenadas y de los retrasos: última posición del conductor.
   const sinCoord = [...new Set([...incidencias.filter((i) => i.lat == null || i.lng == null).map((i) => i.conductor_id), ...tarde])];
   const [{ data: pers }, { data: vehs }, { data: poss }] = await Promise.all([
@@ -49,6 +53,7 @@ export async function vigilarUnaVez(): Promise<number> {
     eventos: eventos.filter((e) => !prueba.has(e.servicio_id)),
     incidencias: incidencias.filter((i) => !i.servicio_id || !prueba.has(i.servicio_id)),
     revisiones: revisiones.filter((r) => r.con_fallos),
+    cierres,
     servicios: porId,
     nombres: new Map(((pers ?? []) as { id: string; nombre: string }[]).map((p) => [p.id, p.nombre])),
     matriculas: new Map(((vehs ?? []) as { id: string; matricula: string }[]).map((v) => [v.id, v.matricula])),
@@ -59,6 +64,7 @@ export async function vigilarUnaVez(): Promise<number> {
     ultimo_evento_id: eventos.at(-1)?.id ?? c.ultimo_evento_id,
     ultima_incidencia_en: incidencias.at(-1)?.creado_en ?? c.ultima_incidencia_en,
     ultima_revision_en: revisiones.at(-1)?.creado_en ?? c.ultima_revision_en,
+    ...(c.ultimo_cierre_en ? { ultimo_cierre_en: cierres.at(-1)?.creado_en ?? c.ultimo_cierre_en } : {}),
     actualizado_en: new Date().toISOString(),
   }).eq("id", 1);
   for (const a of avisos) await notificarCentral(a.titulo, a.cuerpo, a.data);

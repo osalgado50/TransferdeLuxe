@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { resolverIncidencia } from "@/app/central/modulos-actions";
+import { cierreVisto, resolverIncidencia } from "@/app/central/modulos-actions";
+import DiagramaVehiculo from "@/components/comun/DiagramaVehiculo";
 import { nombreTipoIncidencia } from "@/lib/dominio/incidencias";
 import type { Movimiento } from "@/lib/dominio/actividad";
 
@@ -15,6 +16,11 @@ export default function AlertasGraves({ graves, alVisto, alCentrar }: {
   const [pend, ini] = useTransition();
   const [error, setError] = useState<string | null>(null);
   if (!graves.length) return null;
+  // Hoja de cierre: «Visto» es para toda la central (BD); el resto de graves, por navegador.
+  const visto = (g: Movimiento) => {
+    alVisto(g.id);
+    if (g.cierreId) ini(async () => { const r = await cierreVisto(g.cierreId!); if (!r.ok) setError(r.error); });
+  };
   const resolver = (g: Movimiento) => ini(async () => {
     setError(null);
     const r = await resolverIncidencia(g.incidenciaId!);
@@ -24,6 +30,27 @@ export default function AlertasGraves({ graves, alVisto, alCentrar }: {
     <div className="space-y-3" role="alert" aria-live="assertive">
       {error && <p className="text-sm text-red-300">{error}</p>}
       {graves.map((g) => {
+        if (g.cierreId) return (
+          <article key={g.id} data-alerta="Cierre" className="rounded-xl border-2 border-red-500 bg-red-950 p-4 shadow-lg shadow-red-900/50 ring-2 ring-red-500/40">
+            <div className="flex gap-3">
+              <div className="w-24 shrink-0"><DiagramaVehiculo zonas={g.zonasDanadas ?? []} mini /></div>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 text-xl font-bold text-red-100">
+                  <span className="relative flex size-3"><span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex size-3 rounded-full bg-red-500" /></span>
+                  HOJA DE CIERRE · {g.conductor ?? "Conductor"}{g.matricula ? ` · ${g.matricula}` : ""}
+                </p>
+                <p className="mt-1 text-base font-medium text-white">{g.texto.replace(/ · «.*»$/, "")}</p>
+                {g.descripcion && <p className="mt-1 text-base text-red-100">«{g.descripcion}»</p>}
+                <p className="mt-1 text-sm text-red-200">{g.hora} · el vehículo debe revisarse antes de su próximo servicio</p>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {g.telefono && <a href={`tel:${g.telefono}`} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500">📞 Llamar a {g.conductor ?? "conductor"}</a>}
+              <Link href="/central/mantenimiento" className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-100 hover:bg-red-900">Ver mantenimiento</Link>
+              <button type="button" disabled={pend} onClick={() => visto(g)} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-red-800 disabled:opacity-50">Visto</button>
+            </div>
+          </article>
+        );
         const tipo = nombreTipoIncidencia(g.tipo.replace(/^incidencia_/, "")).toUpperCase();
         return (
           <article key={g.id} data-alerta="Grave" className="rounded-xl border-2 border-red-500 bg-red-950 p-4 shadow-lg shadow-red-900/50 ring-2 ring-red-500/40">

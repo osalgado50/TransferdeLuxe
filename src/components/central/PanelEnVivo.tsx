@@ -2,7 +2,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useTiempoReal } from "@/lib/supabase/useTiempoReal";
 import type { PosicionActual, Servicio, Perfil, Vehiculo } from "@/lib/dominio/tipos";
-import type { IncidenciaAct, JornadaAct, RevisionAct, ServicioAct } from "@/lib/dominio/actividad";
+import type { CierreAct, IncidenciaAct, JornadaAct, RevisionAct, ServicioAct } from "@/lib/dominio/actividad";
 import MapaFlota from "@/components/mapa/MapaFlotaCarga";
 import ColumnaAlertas, { type EventoAlerta } from "./ColumnaAlertas";
 import Contadores from "./Contadores";
@@ -11,10 +11,10 @@ import ActividadEnVivo from "./ActividadEnVivo";
 import { useSonidosCentral } from "./useSonidosCentral";
 import { useActividadCentral } from "./useActividadCentral";
 
-export default function PanelEnVivo({ servicios, posiciones, eventos, conductores, vehiculos, umbralMin, incidencias, revisiones, jornadas, serviciosExtra }: {
+export default function PanelEnVivo({ servicios, posiciones, eventos, conductores, vehiculos, umbralMin, incidencias, revisiones, jornadas, cierres, serviciosExtra }: {
   servicios: Servicio[]; posiciones: PosicionActual[]; eventos: EventoAlerta[];
   conductores: (Pick<Perfil, "id" | "nombre" | "vehiculo_habitual_id"> & { telefono?: string | null })[]; vehiculos: Pick<Vehiculo, "id" | "matricula">[]; umbralMin: number;
-  incidencias: IncidenciaAct[]; revisiones: RevisionAct[]; jornadas: JornadaAct[]; serviciosExtra: ServicioAct[];
+  incidencias: IncidenciaAct[]; revisiones: RevisionAct[]; jornadas: JornadaAct[]; cierres: CierreAct[]; serviciosExtra: ServicioAct[];
 }) {
   const [ok, setOk] = useState(true);
   const sv = useTiempoReal<Servicio>("servicios", servicios, "id", setOk);
@@ -23,9 +23,10 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
   const inc = useTiempoReal<IncidenciaAct>("incidencias", incidencias, "id");
   const rev = useTiempoReal<RevisionAct>("checklist_revisiones", revisiones, "id");
   const jor = useTiempoReal<JornadaAct>("jornadas", jornadas, "id");
+  const cie = useTiempoReal<CierreAct>("cierres_jornada", cierres, "id");
   const pedirSonido = useSonidosCentral(ev, sv);
   const { movimientos, graves, marcarVisto } = useActividadCentral({
-    eventos: ev, incidencias: inc, revisiones: rev, jornadas: jor, servicios: sv, serviciosExtra,
+    eventos: ev, incidencias: inc, revisiones: rev, jornadas: jor, cierres: cie, servicios: sv, serviciosExtra,
     conductores, posiciones: ps, vehiculos, pedir: pedirSonido,
   });
   const [centrar, setCentrar] = useState<{ lat: number; lng: number; n: number } | null>(null);

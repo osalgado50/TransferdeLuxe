@@ -2,15 +2,19 @@ import { nombreTipoIncidencia } from "./incidencias";
 import { esIncidenciaGrave } from "./actividad";
 import { leerDeshecho } from "./deshacer";
 import { zonaCercana } from "./zonas";
+import { resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
 
 /** Lógica pura de los avisos push a la central (vigilante del servidor). */
-export interface AvisoCentral { titulo: string; cuerpo: string; data: { tipo: string; servicioId?: string; incidenciaId?: string; grave?: boolean } }
+export interface AvisoCentral { titulo: string; cuerpo: string; data: { tipo: string; servicioId?: string; incidenciaId?: string; cierreId?: string; grave?: boolean } }
 export interface ServicioAviso { id: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string; origen_pedido: string; conductor_id?: string | null }
 export interface EventoAviso { id: number; servicio_id: string; tipo: string; actor_id: string | null; motivo: string | null }
 export interface IncidenciaAviso { id?: string; conductor_id: string; servicio_id: string | null; tipo: string; descripcion: string; lat?: number | null; lng?: number | null }
 export interface RevisionAviso { conductor_id: string; vehiculo_id: string }
+export interface CierreAviso {
+  id: string; conductor_id: string; vehiculo_id: string; zonas: string[]; tecnico: Tecnico; combustible: string; comentario: string | null; gravedad: GravedadCierre;
+}
 export interface Entrada {
-  eventos: EventoAviso[]; incidencias: IncidenciaAviso[]; revisiones: RevisionAviso[];
+  eventos: EventoAviso[]; incidencias: IncidenciaAviso[]; revisiones: RevisionAviso[]; cierres?: CierreAviso[];
   servicios: Map<string, ServicioAviso>; nombres: Map<string, string>; matriculas: Map<string, string>;
   /** Última posición de cada conductor: zona de la incidencia si no trae coordenadas. */
   posiciones?: Map<string, { lat: number; lng: number }>;
@@ -71,6 +75,14 @@ export function construirAvisos(e: Entrada): AvisoCentral[] {
     }
     const cuerpo = [nombre(i.conductor_id), zona, desc, s ? trayecto(s) : null].filter(Boolean).join(" · ");
     out.push({ titulo: `Incidencia: ${nombreTipoIncidencia(i.tipo)}`, cuerpo, data });
+  }
+  // Hoja de cierre de jornada: grave (daños, testigo, avería) → alarma; mantenimiento → aviso; todo en verde → informativo.
+  for (const c of e.cierres ?? []) {
+    const titulo = resumenCierre({ zonas: c.zonas, tecnico: c.tecnico, combustible: c.combustible, matricula: e.matriculas.get(c.vehiculo_id) ?? "vehículo", conductor: nombre(c.conductor_id) });
+    const coment = c.comentario?.trim() ? `«${recortar(c.comentario.trim(), 100)}»` : null;
+    if (c.gravedad === "grave") graves.push({ titulo, cuerpo: coment ?? "Revisa el vehículo antes de su próximo servicio", data: { tipo: "cierre", cierreId: c.id, grave: true } });
+    else if (c.gravedad === "mantenimiento") out.push({ titulo, cuerpo: coment ?? "Programa el mantenimiento antes de mañana", data: { tipo: "cierre_mantenimiento", cierreId: c.id } });
+    else out.push({ titulo, cuerpo: coment ?? "Vehículo listo para mañana", data: { tipo: "cierre_ok", cierreId: c.id } });
   }
   out.unshift(...graves);
   for (const r of e.revisiones) {

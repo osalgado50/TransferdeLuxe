@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { construirActividad, lugarBreve, lugarDetallado, pasoAlarma, ALARMA_CADA_MS, ALARMA_MAX, type EntradaActividad } from "@/lib/dominio/actividad";
 import { zonaCercana, ZONAS } from "@/lib/dominio/zonas";
+import { tecnicoInicial } from "@/lib/dominio/cierre";
 
 const S = {
   id: "s1", cliente_nombre: "Lucía", origen_texto: "Salou – Plaza Europa", destino_texto: "Aeropuerto de Reus",
@@ -152,5 +153,34 @@ describe("pasoAlarma", () => {
   it("sin graves pendientes: silencio y estado a cero; quitar una no vuelve a sonar", () => {
     expect(pasoAlarma({ ids: ["a"], veces: 2, ultima: 0 }, [], 1)).toEqual({ sonar: false, estado: null });
     expect(pasoAlarma({ ids: ["a", "b"], veces: 5, ultima: 0 }, ["a"], 99_999).sonar).toBe(false);
+  });
+});
+
+describe("hoja de cierre en la actividad", () => {
+  const tec = tecnicoInicial();
+  const cierre = (o: Record<string, unknown>) => ({
+    id: "k1", conductor_id: "c1", vehiculo_id: "v1", zonas: [] as string[], tecnico: { ...tec }, combustible: "1_2", comentario: "",
+    gravedad: "ok" as const, creado_en: "2026-10-11T18:00:00Z", visto: false, ...o,
+  });
+  const veh = [{ id: "v1", matricula: "0001-TDL" }];
+  it("grave: tarjeta roja fija con zonas y matrícula hasta «Visto»", () => {
+    const r = construirActividad(entrada({ vehiculos: veh, cierres: [cierre({ gravedad: "grave", zonas: ["aleta_tras_der", "puerta_del_izq"], comentario: "Golpe al aparcar" })] }));
+    const m = r.movimientos[0];
+    expect(m).toMatchObject({ id: "cie-k1", tipo: "cierre_grave", gravedad: "grave", pendiente: true, cierreId: "k1", matricula: "0001-TDL", descripcion: "Golpe al aparcar" });
+    expect(m.zonasDanadas).toEqual(["puerta_del_izq", "aleta_tras_der"]);
+    expect(m.texto).toBe("🔴 Daños en Puerta del. izq., Aleta tras. der. · 0001-TDL · Marc · «Golpe al aparcar»");
+    expect(r.graves.map((g) => g.id)).toEqual(["cie-k1"]);
+    expect(construirActividad(entrada({ vehiculos: veh, cierres: [cierre({ gravedad: "grave", zonas: ["capo"], visto: true })] })).graves).toEqual([]);
+  });
+  it("mantenimiento → aviso; ok → info verde", () => {
+    const r = construirActividad(entrada({ vehiculos: veh, cierres: [
+      cierre({ id: "a", gravedad: "mantenimiento", tecnico: { ...tec, aceite: "falta" } }),
+      cierre({ id: "b", conductor_id: "c2", creado_en: "2026-10-11T19:00:00Z" }),
+    ] }));
+    expect(r.movimientos.map((m) => [m.id, m.gravedad, m.texto])).toEqual([
+      ["cie-b", "info", "🟢 Cierre sin incidencias · 0001-TDL · Laia"],
+      ["cie-a", "aviso", "🟠 Falta aceite · 0001-TDL · Marc"],
+    ]);
+    expect(r.graves).toEqual([]);
   });
 });

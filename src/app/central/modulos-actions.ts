@@ -17,6 +17,15 @@ export async function resolverIncidencia(id: string, resuelta = true): Promise<R
   return error ? fallo : { ok: true };
 }
 
+/** «Visto» en una hoja de cierre (para toda la central): deja de ser una alerta pendiente. */
+export async function cierreVisto(id: string, visto = true): Promise<Res> {
+  await exigirRol("operador");
+  if (!uuid.safeParse(id).success) return { ok: false, error: "Datos no válidos." };
+  const { error } = await clienteAdmin().from("cierres_jornada").update({ visto }).eq("id", id);
+  revalidatePath("/central/mantenimiento");
+  return error ? fallo : { ok: true };
+}
+
 export async function revisionVista(id: string): Promise<Res> {
   await exigirRol("operador");
   if (!uuid.safeParse(id).success) return { ok: false, error: "Datos no válidos." };

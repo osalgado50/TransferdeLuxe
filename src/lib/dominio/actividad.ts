@@ -3,6 +3,7 @@ import { direccionCorta } from "./direccion";
 import { nombreTipoIncidencia } from "./incidencias";
 import { etiquetaEvento } from "./navegacion";
 import { zonaCercana } from "./zonas";
+import { ICONO_GRAVEDAD, normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
 
 /**
  * «Actividad en vivo» de la central (lógica pura, compartida por la web y por /api/central/resumen de la app):
@@ -34,6 +35,10 @@ export interface Movimiento {
   descripcion: string | null;
   /** Grave sin resolver: se fija arriba en «Alertas» hasta que la central la marca vista/resuelta. */
   pendiente: boolean;
+  /** Hoja de cierre de jornada: id (para «Visto»), zonas dañadas (mini-diagrama) y matrícula. */
+  cierreId?: string | null;
+  zonasDanadas?: string[];
+  matricula?: string | null;
 }
 
 export interface EventoAct { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string; actor_id?: string | null }
@@ -43,12 +48,16 @@ export interface IncidenciaAct {
 }
 export interface RevisionAct { id: string; conductor_id: string; vehiculo_id: string; con_fallos: boolean; observaciones?: string | null; creado_en: string }
 export interface JornadaAct { id: string; conductor_id: string; inicio: string; fin: string | null }
+export interface CierreAct {
+  id: string; conductor_id: string; vehiculo_id: string; zonas: string[]; tecnico: Tecnico; combustible: string;
+  comentario: string | null; gravedad: GravedadCierre; creado_en: string; visto: boolean;
+}
 export interface ServicioAct {
   id: string; cliente_nombre: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string;
   conductor_id: string | null; origen_pedido?: string | null;
 }
 export interface EntradaActividad {
-  eventos?: EventoAct[]; incidencias?: IncidenciaAct[]; revisiones?: RevisionAct[]; jornadas?: JornadaAct[];
+  eventos?: EventoAct[]; incidencias?: IncidenciaAct[]; revisiones?: RevisionAct[]; jornadas?: JornadaAct[]; cierres?: CierreAct[];
   servicios: Iterable<ServicioAct>;
   conductores: { id: string; nombre: string; telefono?: string | null }[];
   posiciones?: { conductor_id: string; lat: number; lng: number }[];
@@ -218,6 +227,21 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
   for (const j of e.jornadas ?? []) {
     out.push({ ...base(`jor-${j.id}-i`, j.inicio, j.conductor_id, undefined), tipo: "jornada_inicio", icono: "▶️", texto: `${nombre(j.conductor_id)} ha empezado la jornada` });
     if (j.fin) out.push({ ...base(`jor-${j.id}-f`, j.fin, j.conductor_id, undefined), tipo: "jornada_fin", icono: "⏹️", texto: `${nombre(j.conductor_id)} ha terminado la jornada` });
+  }
+
+  // Hoja de cierre: grave (daños, testigo, avería) → tarjeta roja fija hasta «Visto»; mantenimiento → aviso; ok → info verde.
+  for (const c of e.cierres ?? []) {
+    const m = base(`cie-${c.id}`, c.creado_en, c.conductor_id, undefined);
+    const zonas = normalizarZonas(c.zonas ?? []);
+    const matricula = matr.get(c.vehiculo_id) ?? null;
+    const coment = c.comentario?.trim() || null;
+    const texto = resumenCierre({ zonas, tecnico: c.tecnico ?? ({} as Tecnico), combustible: c.combustible, matricula: matricula ?? "vehículo", conductor: nombre(c.conductor_id) });
+    out.push({
+      ...m, tipo: `cierre_${c.gravedad}`, icono: ICONO_GRAVEDAD[c.gravedad] ?? "📝",
+      gravedad: c.gravedad === "grave" ? "grave" : c.gravedad === "mantenimiento" ? "aviso" : "info",
+      texto: coment ? `${texto} · «${recortar(coment, 120)}»` : texto, descripcion: coment,
+      pendiente: c.gravedad === "grave" && !c.visto, cierreId: c.id, zonasDanadas: zonas, matricula,
+    });
   }
 
   // Fechas de Supabase/Realtime con formatos distintos («…+00:00», «…Z»): se ordena por instante, no por texto.

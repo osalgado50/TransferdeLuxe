@@ -7,7 +7,7 @@ import { sugerirConductores, type Candidato } from "@/lib/dominio/sugerencia";
 import { conexionConductor } from "@/lib/dominio/conexionConductor";
 import { ESTADOS_AGENDA, construirCandidatos } from "@/lib/dominio/planificacion";
 import { rangosConductor } from "@/lib/dominio/dias";
-import { construirActividad, HORAS_ACTIVIDAD, TIPOS_GRAVES, type ServicioAct } from "@/lib/dominio/actividad";
+import { construirActividad, HORAS_ACTIVIDAD, TIPOS_GRAVES, type CierreAct, type ServicioAct } from "@/lib/dominio/actividad";
 
 /** Lógica de la central compartida por las Server Actions (web) y las rutas /api/central/* (app nativa). */
 export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar" | "deshacer";
@@ -23,6 +23,13 @@ export async function ejecutarAccionOperador(operadorId: string, p: PeticionOper
 export async function marcarAlertaVista(servicioId: string): Promise<void> {
   const { error } = await clienteAdmin().from("servicios").update({ incidencia_vista: true }).eq("id", servicioId);
   if (error) throw new Error(error.message);
+}
+
+/** «Visto» en una hoja de cierre (app nativa, modo central). false si no existe. */
+export async function marcarCierreVisto(cierreId: string): Promise<boolean> {
+  const { data, error } = await clienteAdmin().from("cierres_jornada").update({ visto: true }).eq("id", cierreId).select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
 
 /** Marca una incidencia como resuelta (botón «Resuelta» de lo grave en la app). false si no existe. */
@@ -102,21 +109,23 @@ async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date
   try {
     const desde = new Date(ahora.getTime() - HORAS_ACTIVIDAD * 3600_000);
     const d = desde.toISOString();
-    const [ev, inc, rev, jor, veh] = await Promise.all([
+    const [ev, inc, rev, jor, veh, cie] = await Promise.all([
       sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").gte("creado_en", d).order("creado_en", { ascending: false }).limit(150),
       sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta")
         .or(`creado_en.gte.${d},and(resuelta.is.false,tipo.in.(${TIPOS_GRAVES.join(",")}))`).order("creado_en", { ascending: false }).limit(60),
       sb.from("checklist_revisiones").select("id,conductor_id,vehiculo_id,con_fallos,observaciones,creado_en").gte("creado_en", d).order("creado_en", { ascending: false }).limit(60),
       sb.from("jornadas").select("id,conductor_id,inicio,fin").or(`inicio.gte.${d},fin.gte.${d}`).order("inicio", { ascending: false }).limit(60),
       sb.from("vehiculos").select("id,matricula"),
+      sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en,visto")
+        .or(`creado_en.gte.${d},and(gravedad.eq.grave,visto.is.false)`).order("creado_en", { ascending: false }).limit(60),
     ]);
-    const f = [ev, inc, rev, jor, veh].find((x) => x.error);
+    const f = [ev, inc, rev, jor, veh, cie].find((x) => x.error);
     if (f?.error) throw new Error(f.error.message);
     const ids = [...new Set([...(ev.data ?? []).map((e) => e.servicio_id), ...(inc.data ?? []).map((i) => i.servicio_id)])].filter((x): x is string => !!x);
     const { data: servs } = ids.length ? await sb.from("servicios").select(`${CAMPOS_ACT},es_prueba`).in("id", ids.slice(0, 200)) : { data: [] };
     const filas = (servs ?? []) as (ServicioAct & { es_prueba: boolean })[];
     const r = construirActividad({
-      eventos: ev.data ?? [], incidencias: inc.data ?? [], revisiones: rev.data ?? [], jornadas: jor.data ?? [],
+      eventos: ev.data ?? [], incidencias: inc.data ?? [], revisiones: rev.data ?? [], jornadas: jor.data ?? [], cierres: (cie.data ?? []) as CierreAct[],
       servicios: filas.filter((x) => !x.es_prueba), ocultos: filas.filter((x) => x.es_prueba).map((x) => x.id),
       conductores, posiciones, vehiculos: veh.data ?? [], desde,
     });

@@ -7,7 +7,7 @@ import AvisosMantenimiento from "@/components/central/AvisosMantenimiento";
 import { avisosMantenimiento, type PlanVehiculo } from "@/lib/dominio/mantenimiento";
 import { leerModulos } from "@/lib/dominio/modulos";
 import { diaMadrid } from "@/lib/dominio/geo";
-import { HORAS_ACTIVIDAD, TIPOS_GRAVES, type ServicioAct } from "@/lib/dominio/actividad";
+import { HORAS_ACTIVIDAD, TIPOS_GRAVES, type CierreAct, type ServicioAct } from "@/lib/dominio/actividad";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function PanelCentral() {
   const desde = new Date(Date.now() - 24 * 3600e3).toISOString();
   const hasta = new Date(Date.now() + 48 * 3600e3).toISOString();
   const hace12h = new Date(Date.now() - HORAS_ACTIVIDAD * 3600e3).toISOString();
-  const [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors] = await Promise.all([
+  const [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors, cies] = await Promise.all([
     sb.from("servicios").select("*").eq("es_prueba", false).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
     sb.from("servicios").select("*").eq("es_prueba", false).eq("incidencia_vista", false),
     sb.from("posicion_actual").select("*"),
@@ -30,8 +30,11 @@ export default async function PanelCentral() {
       .or(`creado_en.gte.${hace12h},and(resuelta.is.false,tipo.in.(${TIPOS_GRAVES.join(",")}))`).order("creado_en", { ascending: false }).limit(100),
     sb.from("checklist_revisiones").select("id,conductor_id,vehiculo_id,con_fallos,observaciones,creado_en").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(100),
     sb.from("jornadas").select("id,conductor_id,inicio,fin").or(`inicio.gte.${hace12h},fin.gte.${hace12h}`).order("inicio", { ascending: false }).limit(100),
+    // Hojas de cierre: las de las últimas 12 h y las graves sin ver (aunque sean más antiguas).
+    sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en,visto")
+      .or(`creado_en.gte.${hace12h},and(gravedad.eq.grave,visto.is.false)`).order("creado_en", { ascending: false }).limit(100),
   ]);
-  const fallo = [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors].find((r) => r.error);
+  const fallo = [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors, cies].find((r) => r.error);
   if (fallo?.error) throw new Error(`Panel: ${fallo.error.message}`);
   let avisosMant: ReturnType<typeof avisosMantenimiento> = [];
   if (leerModulos(ajustes.data?.modulos).mantenimiento) {
@@ -60,7 +63,7 @@ export default async function PanelCentral() {
       <AvisosMantenimiento avisos={avisosMant} />
       <PanelEnVivo
         servicios={[...porId.values()]} posiciones={pos.data ?? []} eventos={eventosVisibles}
-        incidencias={incidenciasVisibles} revisiones={revs.data ?? []} jornadas={jors.data ?? []}
+        incidencias={incidenciasVisibles} revisiones={revs.data ?? []} jornadas={jors.data ?? []} cierres={(cies.data ?? []) as CierreAct[]}
         serviciosExtra={(extra ?? []).filter((x) => !x.es_prueba) as ServicioAct[]}
         conductores={perfiles.data ?? []} vehiculos={vehiculos.data ?? []} umbralMin={ajustes.data?.umbral_sin_senal_min ?? 5}
       />

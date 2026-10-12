@@ -8,12 +8,12 @@ import { ALTO_DIAGRAMA, ANCHO_DIAGRAMA, ZONAS_VEHICULO } from "@/lib/dominio/cie
 export default function DiagramaVehiculo({ zonas, alAlternar, mini = false }: { zonas: readonly string[]; alAlternar?: (id: string) => void; mini?: boolean }) {
   const marcadas = new Set(zonas);
   const pct = (v: number, total: number) => `${(v / total) * 100}%`;
-  const rotulo = mini ? "text-[8px]" : "text-[11px] sm:text-xs";
+  const rotulo = mini ? "text-[7px] leading-tight" : "text-[11px] sm:text-xs";
   return (
-    <div className={`rounded-xl bg-slate-200 text-slate-600 ${mini ? "p-1.5" : "p-3"}`}>
-      <p className={`text-center font-bold tracking-widest ${rotulo}`}>DELANTERA</p>
+    <div className={`bg-slate-200 text-slate-600 ${mini ? "rounded-md p-1" : "rounded-xl p-3"}`}>
+      <p aria-hidden={mini} className={`text-center font-bold tracking-widest ${rotulo}`}>{mini ? "DEL." : "DELANTERA"}</p>
       <div className="flex items-center gap-1">
-        <span aria-hidden="true" className={`font-bold tracking-widest [writing-mode:vertical-rl] rotate-180 ${rotulo}`}>IZQUIERDA</span>
+        {!mini && <span aria-hidden="true" className={`font-bold tracking-widest [writing-mode:vertical-rl] rotate-180 ${rotulo}`}>IZQUIERDA</span>}
         <div role={alAlternar ? "group" : "img"} aria-label={alAlternar ? "Diagrama del vehículo: toca las zonas dañadas hoy" : `Zonas dañadas: ${zonas.length ? ZONAS_VEHICULO.filter((z) => marcadas.has(z.id)).map((z) => z.etiqueta).join(", ") : "ninguna"}`}
           className="relative mx-auto w-full" style={{ aspectRatio: `${ANCHO_DIAGRAMA} / ${ALTO_DIAGRAMA}`, maxWidth: mini ? 150 : 420 }}>
           {ZONAS_VEHICULO.map((z) => {
@@ -27,9 +27,9 @@ export default function DiagramaVehiculo({ zonas, alAlternar, mini = false }: { 
               : <span key={z.id} style={estilo} className={clase} title={z.etiqueta}>{mini ? null : z.etiqueta}</span>;
           })}
         </div>
-        <span aria-hidden="true" className={`font-bold tracking-widest [writing-mode:vertical-rl] ${rotulo}`}>DERECHA</span>
+        {!mini && <span aria-hidden="true" className={`font-bold tracking-widest [writing-mode:vertical-rl] ${rotulo}`}>DERECHA</span>}
       </div>
-      <p className={`text-center font-bold tracking-widest ${rotulo}`}>TRASERA</p>
+      <p aria-hidden={mini} className={`text-center font-bold tracking-widest ${rotulo}`}>{mini ? "TRAS." : "TRASERA"}</p>
     </div>
   );
 }

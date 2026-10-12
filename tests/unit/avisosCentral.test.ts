@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { construirAvisos, lugarCorto, MAX_AVISOS, type Entrada } from "@/lib/dominio/avisosCentral";
+import { tecnicoInicial } from "@/lib/dominio/cierre";
+import { sonidoDeAviso } from "@/lib/dominio/sonidoPush";
 
 const S = { id: "s1", origen_texto: "Reus, Tarragona", destino_texto: "Salou", fecha_hora_recogida: "2026-10-11T13:00:00Z", origen_pedido: "web" };
 const base = (o: Partial<Entrada> = {}): Entrada => ({
@@ -57,5 +59,24 @@ describe("construirAvisos", () => {
   });
   test("lugarCorto recorta", () => {
     expect(lugarCorto("Aeropuerto de Barcelona-El Prat Josep Tarradellas, T1")).toHaveLength(28);
+  });
+});
+
+describe("hoja de cierre → push a la central", () => {
+  const c = (o: object) => ({ id: "k1", conductor_id: "c1", vehiculo_id: "v1", zonas: [] as string[], tecnico: tecnicoInicial(), combustible: "lleno", comentario: "", gravedad: "ok" as const, ...o });
+  test("grave primero (alarma), mantenimiento (aviso) y todo en verde", () => {
+    const r = construirAvisos(base({
+      eventos: [{ id: 3, servicio_id: "s1", tipo: "aceptado", actor_id: "c1", motivo: null }],
+      cierres: [
+        c({ id: "ok" }),
+        c({ id: "man", gravedad: "mantenimiento", tecnico: { ...tecnicoInicial(), refrigerante: "falta" } }),
+        c({ id: "gr", gravedad: "grave", zonas: ["capo"], comentario: "Piedra en el capó" }),
+      ],
+    }));
+    expect(r[0]).toEqual({ titulo: "🔴 Daños en Capó · 0002-TDL · Laia Demo", cuerpo: "«Piedra en el capó»", data: { tipo: "cierre", cierreId: "gr", grave: true } });
+    expect(r.map((a) => a.data.tipo)).toEqual(["cierre", "aceptado", "cierre_ok", "cierre_mantenimiento"]);
+    expect(r[2].titulo).toBe("🟢 Cierre sin incidencias · 0002-TDL · Laia Demo");
+    expect(r[3].titulo).toBe("🟠 Falta agua de motor · 0002-TDL · Laia Demo");
+    expect(r.map((a) => sonidoDeAviso(a.data))).toEqual(["alarma", "aceptado", null, "aviso"]);
   });
 });

@@ -7,12 +7,12 @@ export const NOMBRE_CANAL: Record<SonidoPush, string> = {
   servicio_nuevo: "Servicios nuevos", alarma: "Alarmas (averías y accidentes)", aviso: "Avisos (retrasos, rechazos)", aceptado: "Confirmaciones",
 };
 
-const AVISOS = new Set(["rechazado", "expirado", "retraso", "retraso_recogida", "no_presentado", "checklist", "deshecho", "servicio_retirado"]);
+const AVISOS = new Set(["rechazado", "expirado", "retraso", "retraso_recogida", "no_presentado", "checklist", "deshecho", "servicio_retirado", "cierre_mantenimiento"]);
 
 /** Qué sonido corresponde a un aviso según su tipo (y si es grave). null = sonido normal del sistema. */
 export function sonidoDeAviso(d: { tipo?: string; grave?: boolean } | undefined): SonidoPush | null {
   if (!d?.tipo) return null;
-  if (d.grave || d.tipo === "accidente" || d.tipo === "averia") return "alarma";
+  if (d.grave || d.tipo === "accidente" || d.tipo === "averia" || d.tipo === "cierre") return "alarma"; // cierre = hoja de cierre con daños/avería
   if (d.tipo === "servicio_nuevo" || d.tipo === "reserva_nueva" || d.tipo === "recogida_reajustada") return "servicio_nuevo";
   if (d.tipo === "aceptado") return "aceptado";
   if (AVISOS.has(d.tipo) || d.tipo === "incidencia") return "aviso";
