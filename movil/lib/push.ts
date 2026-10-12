@@ -37,8 +37,11 @@ Notifications.setNotificationHandler({
     const clave = claveAviso(d);
     const repetido = yaAnunciadoLocal(d);
     if (!d?.local && clave) anotar(clave, "remoto");
+    // Servicio nuevo con la app abierta: la pantalla del servicio ya lo enseña a pantalla completa; el banner la
+    // taparía (la cuenta atrás). Suena y vibra igual, y queda en la lista de notificaciones.
+    const enPantalla = d?.tipo === "servicio_nuevo";
     return {
-      shouldShowBanner: !repetido, shouldShowList: true, shouldPlaySound: !repetido, shouldSetBadge: false,
+      shouldShowBanner: !repetido && !enPantalla, shouldShowList: true, shouldPlaySound: !repetido, shouldSetBadge: false,
       priority: Notifications.AndroidNotificationPriority.MAX,
     };
   },

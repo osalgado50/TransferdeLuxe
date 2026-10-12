@@ -4,8 +4,8 @@ import { direccionCorta, urlNavegacion } from "@dominio/direccion";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 const TIPOS = {
-  recogida: { titulo: "RECOGIDA · CARGA", fondo: "rgba(220, 38, 38, 0.22)", borde: "#ef4444", acento: "#fca5a5" },
-  destino: { titulo: "DESTINO · DESCARGA", fondo: "rgba(22, 163, 74, 0.22)", borde: "#22c55e", acento: "#86efac" },
+  recogida: { titulo: "RECOGIDA", fondo: "rgba(220, 38, 38, 0.22)", borde: "#ef4444", acento: "#fca5a5" },
+  destino: { titulo: "DESTINO", fondo: "rgba(22, 163, 74, 0.22)", borde: "#22c55e", acento: "#86efac" },
 } as const;
 
 export function BloqueDireccion({ tipo, texto, lat, lng, grande = true }: {
@@ -17,7 +17,7 @@ export function BloqueDireccion({ tipo, texto, lat, lng, grande = true }: {
     <View style={[estilos.caja, { backgroundColor: t.fondo, borderColor: t.borde }]}
       accessible accessibilityLabel={`${tipo === "recogida" ? "Recogida" : "Destino"}: ${d.principal}${d.localidad ? `, ${d.localidad}` : ""}`}>
       <View style={estilos.cabecera}>
-        <Text style={[estilos.titulo, { color: t.acento }]}>{t.titulo}</Text>
+        <Text style={[estilos.titulo, { color: t.acento }]} numberOfLines={1}>{t.titulo}</Text>
         <Pressable onPress={() => void Linking.openURL(urlNavegacion(texto, lat, lng)).catch(() => undefined)}
           accessibilityRole="button" accessibilityLabel={`Navegar a la ${tipo}`} hitSlop={8}
           style={({ pressed }) => [estilos.navegar, { borderColor: t.borde }, pressed && { opacity: 0.7 }]}>
@@ -33,8 +33,8 @@ export function BloqueDireccion({ tipo, texto, lat, lng, grande = true }: {
 const estilos = StyleSheet.create({
   caja: { borderWidth: 2, borderRadius: 14, padding: 14, gap: 4 },
   cabecera: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  titulo: { fontSize: 13, fontWeight: "800", letterSpacing: 1 },
-  navegar: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.25)" },
+  titulo: { flex: 1, flexShrink: 1, fontSize: 14, fontWeight: "800", letterSpacing: 1 },
+  navegar: { flexShrink: 0, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.25)" },
   navegarTexto: { color: "#fff", fontSize: 15, fontWeight: "800" },
   principal: { color: "#fff", fontSize: 23, fontWeight: "800", lineHeight: 29 },
   localidad: { fontSize: 17, fontWeight: "700" },
