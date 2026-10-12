@@ -3,6 +3,7 @@ export const MODULOS = [
   { clave: "jornada", nombre: "Jornada laboral", descripcion: "Inicio/fin de jornada y pausas en la app del conductor (registro horario)" },
   { clave: "incidencias", nombre: "Incidencias", descripcion: "Botón de avería, accidente o cliente no presentado con foto" },
   { clave: "checklist", nombre: "Checklist del vehículo", descripcion: "Revisión del vehículo al empezar el turno" },
+  { clave: "cierre", nombre: "Hoja de cierre del vehículo", descripcion: "Al finalizar la jornada: daños en el diagrama del coche, niveles, combustible, km y comentario (requiere Jornada y Checklist)" },
   { clave: "mantenimiento", nombre: "Mantenimiento de flota", descripcion: "ITV, seguro y revisiones por km con avisos" },
   { clave: "informes", nombre: "Informes", descripcion: "Servicios, km y combustible por conductor y vehículo" },
   { clave: "vuelos", nombre: "Seguimiento de vuelos", descripcion: "Nº de vuelo, enlace de consulta y hora real de llegada" },
