@@ -101,7 +101,7 @@ test("push: forma del mensaje y limpieza DeviceNotRegistered", async () => {
   expect(url).toBe("https://exp.host/--/api/v2/push/send");
   const msgs = JSON.parse(init.body as string);
   expect(msgs[0]).toMatchObject({ to: "ExponentPushToken[a]", title: "Servicio nuevo", body: "10:30 · Aeropuerto → Hotel",
-    data: { servicioId: S, tipo: "servicio_nuevo" }, sound: "default", priority: "high", channelId: "servicios" });
+    data: { servicioId: S, tipo: "servicio_nuevo" }, sound: "servicio_nuevo.wav", priority: "high", channelId: "servicio_nuevo" });
   expect(st.borrados).toEqual([["ExponentPushToken[b]"]]);
 });
 test("push nunca lanza", async () => {

@@ -1,4 +1,5 @@
 import "server-only";
+import { camposSonidoPush } from "@/lib/dominio/sonidoPush";
 import { clienteAdmin } from "@/lib/supabase/admin";
 
 const URL_EXPO = "https://exp.host/--/api/v2/push/send";
@@ -71,7 +72,7 @@ export async function notificarServicioNuevo(servicioId: string): Promise<void> 
     if (!tokens.length) return;
     const mensajes = tokens.map((to) => ({
       to, title: "Servicio nuevo", body: `${hora(s.fecha_hora_recogida)} · ${s.origen_texto} → ${s.destino_texto}`,
-      data: { servicioId: s.id, tipo: "servicio_nuevo" }, sound: "default", priority: "high", channelId: "servicios",
+      data: { servicioId: s.id, tipo: "servicio_nuevo" }, priority: "high", ...camposSonidoPush({ tipo: "servicio_nuevo" }),
     }));
     await enviarExpo(sb, mensajes);
   } catch (e) {
@@ -88,7 +89,7 @@ export async function notificarConductor(servicioId: string, titulo: string, cue
     const { data: disp } = await sb.from("dispositivos_push").select("token").eq("conductor_id", s.conductor_id);
     const tokens = (disp ?? []).map((d: { token: string }) => d.token);
     if (!tokens.length) return;
-    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data: { servicioId, tipo }, sound: "default", priority: "high", channelId: "servicios" })));
+    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data: { servicioId, tipo }, priority: "high", ...camposSonidoPush({ tipo }) })));
   } catch (e) {
     console.error("[push] notificarConductor falló:", e instanceof Error ? e.message : e);
   }
@@ -104,7 +105,7 @@ export async function notificarCentral(titulo: string, cuerpo: string, data: Rec
     const { data: disp } = await sb.from("dispositivos_push").select("token").in("conductor_id", ids);
     const tokens = (disp ?? []).map((d: { token: string }) => d.token);
     if (!tokens.length) return;
-    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data, sound: "default", priority: "high", channelId: "servicios" })));
+    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data, priority: "high", ...camposSonidoPush(data as { tipo?: string; grave?: boolean }) })));
   } catch (e) {
     console.error("[push] notificarCentral falló:", e instanceof Error ? e.message : e);
   }

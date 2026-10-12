@@ -1,3 +1,4 @@
+import { NOMBRE_CANAL, SONIDOS_PUSH, sonidoDeAviso } from "@dominio/sonidoPush";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
@@ -48,6 +49,20 @@ async function canalAndroid() {
   await Notifications.setNotificationChannelAsync(CANAL_SERVICIOS, {
     name: "Servicios", importance: Notifications.AndroidImportance.HIGH, sound: "default", vibrationPattern: [0, 300, 150, 300],
   });
+  // Un canal por sonido propio (Android fija el sonido al crear el canal). Ficheros en assets/sonidos.
+  for (const s of SONIDOS_PUSH) {
+    await Notifications.setNotificationChannelAsync(s, {
+      name: NOMBRE_CANAL[s], importance: s === "aceptado" ? Notifications.AndroidImportance.DEFAULT : Notifications.AndroidImportance.MAX,
+      sound: `${s}.wav`, vibrationPattern: s === "alarma" ? [0, 600, 200, 600, 200, 600] : [0, 300, 150, 300],
+      bypassDnd: s === "alarma",
+    });
+  }
+}
+
+/** Sonido (iOS: fichero) y canal (Android) de una notificación local según su tipo. */
+function sonidoLocal(datos: DatosPush & { grave?: boolean }): { sound: string; channelId: string } {
+  const s = sonidoDeAviso(datos);
+  return s ? { sound: `${s}.wav`, channelId: s } : { sound: "default", channelId: CANAL_SERVICIOS };
 }
 
 const explicar = () => new Promise<void>((ok) =>
@@ -133,8 +148,8 @@ export async function avisoLocal(id: string, titulo: string, cuerpo: string, dat
     await canalAndroid().catch(() => undefined);
     await Notifications.scheduleNotificationAsync({
       identifier: id,
-      content: { title: titulo, body: cuerpo, sound: "default", data: { ...datos, local: true }, priority: Notifications.AndroidNotificationPriority.MAX },
-      trigger: Platform.OS === "android" ? { channelId: CANAL_SERVICIOS } : null,
+      content: { title: titulo, body: cuerpo, sound: sonidoLocal(datos).sound, data: { ...datos, local: true }, priority: Notifications.AndroidNotificationPriority.MAX },
+      trigger: Platform.OS === "android" ? { channelId: sonidoLocal(datos).channelId } : null,
     });
   } catch { /* sin permiso: queda lo que se ve en pantalla y la vibración */ }
 }

@@ -38,7 +38,8 @@ const config: ExpoConfig = {
     "expo-router",
     [
       "expo-splash-screen",
-      { image: "./assets/images/splash-icon.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#0b1b2e" },
+      // Logo con margen: Android 12+ recorta la imagen de arranque en un círculo (antes se cortaba «COSTA DORADA»).
+      { image: "./assets/images/splash-icon-v2.png", imageWidth: 220, resizeMode: "contain", backgroundColor: "#0b1b2e" },
     ],
     "expo-image",
     [
@@ -58,7 +59,11 @@ const config: ExpoConfig = {
     ],
     [
       "expo-notifications",
-      { color: "#0167a9", defaultChannel: "servicios" },
+      {
+        color: "#0167a9", defaultChannel: "servicios",
+        // Sonidos propios (sintetizados para el proyecto, sin derechos de terceros): ver src/lib/dominio/sonidoPush.ts.
+        sounds: ["./assets/sonidos/servicio_nuevo.wav", "./assets/sonidos/alarma.wav", "./assets/sonidos/aviso.wav", "./assets/sonidos/aceptado.wav"],
+      },
     ],
     [
       "expo-image-picker",
