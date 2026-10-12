@@ -306,6 +306,37 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   giradas (sin `react-native-svg`: no está instalado) y, al tocar, un modal con el mapa MapLibre
   (GeoJSONSource + Layer), km y duración. Sin dependencias nativas nuevas (huella de la app sin cambios).
   `scripts/prueba-recorrido.mjs` lo prueba en producción con un servicio de prueba (Salou → Aeropuerto de Reus).
+- **12/10/2026 · Hoja de cierre de jornada (estado del vehículo)**. Petición del responsable: «cuando termine la
+  jornada, una pantalla en la que el conductor marque si el vehículo ha sufrido algún daño, con un mapa del coche visto
+  desde arriba… una hoja de cierre del estado del vehículo para que al día siguiente esté preparado». Lógica pura en
+  `src/lib/dominio/cierre.ts` (tests en `tests/unit/cierre.test.ts`): 25 `ZONAS_VEHICULO` (parachoques, faros, aletas,
+  capó, parabrisas, ruedas, retrovisores, puertas, techo, luna trasera, portón, pilotos) con posición en una rejilla de
+  100 × 155 que dibujan igual la web (divs con %) y la app (Views absolutas escaladas al ancho de pantalla, sin
+  `react-native-svg`); `ITEMS_TECNICOS` (neumáticos, aceite, agua de motor, luces, testigos del cuadro —motor, revisión,
+  inspección— y otra avería) con OK / Revisar|Falta; combustible (lleno…reserva); km opcional ≥ km actuales;
+  comentario ≤ 1000. `gravedadCierre()`: **grave** (daños, testigo encendido u otra avería), **mantenimiento** (falta
+  aceite/agua, neumáticos o luces a revisar, reserva) u **ok**; `resumenCierre()` redacta «🔴 Daños en Puerta del. izq.,
+  Aleta tras. der. · testigo de motor · 0001-TDL · Marc» o «🟢 Cierre sin incidencias · 0001-TDL · Laia».
+  *Base de datos* (`0023_cierres_jornada.sql`): tabla `cierres_jornada` (un cierre por jornada, `id_accion` único,
+  RLS: el conductor lee los suyos, la central todo, escritura solo service role, en Realtime) y función
+  `cerrar_jornada(...)` (solo `service_role`) que en UNA transacción inserta el cierre, sube `vehiculos.km_actuales`
+  con `greatest` y finaliza pausas y jornada abiertas; idempotente por `idAccion` y por jornada. *Servidor*:
+  `registrarCierre` en `src/lib/conductor/modulos.ts` (zod), ruta `POST /api/conductor/cierre` (Bearer) y Server
+  Action `cierreConductor` (PWA). Nuevo módulo «Hoja de cierre del vehículo» (`cierre`, en Flota y ajustes → Módulos,
+  activo por defecto): con jornada + checklist + cierre activos (y algún vehículo activo), «Finalizar jornada» solo se
+  puede hacer enviando la hoja (la acción `finalizar` suelta responde 409); si no, funciona como antes. *Conductor*:
+  en la PWA (`HojaCierre.tsx`) y en la app (`movil/components/HojaCierre.tsx`, Modal a pantalla completa con su propio
+  `SafeAreaProvider`), 3 pasos: diagrama tocable («Borrar todo» / «Hecho» en rojo; zonas ≥ 40 px, accesibles con
+  etiqueta y estado seleccionado), estado técnico con botones grandes + combustible + km, y comentario con resumen en
+  color + «Enviar y cerrar jornada». «Atrás» entre pasos, «Cancelar» no finaliza; vehículo habitual o selector; sin
+  red, error y «Reintentar» con el mismo `idAccion` (no se pierde lo marcado). *Central*: la actividad en vivo muestra
+  el cierre (grave → tarjeta roja fija con mini-diagrama, sirena insistente y push con alarma hasta «Visto», que es
+  para toda la central; mantenimiento → aviso ámbar con tres pitidos y push con sonido de aviso; ok → línea verde con
+  el arpegio de cierre). El vigilante avisa por push (cursor `ultimo_cierre_en`). La app central lista las zonas de la
+  tarjeta roja y tiene «Visto» (`POST /api/central/cierre-visto`). `/central/mantenimiento` muestra el «Último
+  cierre» de cada vehículo con semáforo, fecha, conductor, daños, técnico, combustible, km y comentario. Prueba de punta
+  a punta en producción: `scripts/prueba-cierre.mjs`. Sin dependencias nativas nuevas (huella de la app sin cambios:
+  la parte nativa llega con una actualización EAS).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -461,10 +492,23 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   200 km/h, las ráfagas de ruido del GPS con horas casi iguales se toleran (< 50 m) y un primer punto erróneo no
   arrastra al resto. En la app nativa no había `react-native-svg` (añadirlo exige compilar de nuevo): la miniatura se
   dibuja con Views giradas, con la línea ya simplificada a nivel de píxel para no crear cientos de vistas.
+- **Cerrar la jornada y guardar la hoja sin estados a medias (12/10/2026)**: si la hoja se guardaba y la jornada se
+  finalizaba en dos llamadas, un corte de red entre ambas dejaba la jornada abierta con su hoja ya enviada (o al revés).
+  Por eso todo va en una función SQL (`cerrar_jornada`) con la jornada bloqueada `for update`: cierre + km + fin de
+  pausas y jornada, o nada. La idempotencia cubre los reintentos del móvil sin cobertura (`idAccion` único y un cierre
+  por jornada); si la respuesta se perdió y el reintento llega sin jornada abierta, se reconoce el cierre reciente y se
+  responde OK. Para que la app instalada (sin la hoja) no se salte el control, el servidor rechaza «finalizar» suelto
+  cuando la hoja es obligatoria, con un mensaje que pide actualizar la app. En la PWA, una regla global (botones ≥ 44 px
+  en móvil, fuera de las capas de Tailwind) estiraba las zonas del diagrama y lo deformaba: se anula con estilo en línea
+  y los rótulos IZQUIERDA/DERECHA pasan arriba en pantallas estrechas para que las zonas lleguen a ~40 px. Las hojas de
+  las pruebas automáticas («PRUEBA AUTOMÁTICA…») no envían push a la central.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
 Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.
+Hoja de cierre de jornada: `docs/capturas/cierre-1-danos-pwa.jpg` (diagrama con 2 zonas marcadas),
+`docs/capturas/cierre-2-tecnico-pwa.jpg` (estado técnico) y `docs/capturas/cierre-3-mantenimiento.jpg` (último cierre en
+Mantenimiento).
 
 ### App nativa N2 — Backend para la app (10/10/2026)
 - Endpoints `POST /api/conductor/{accion,llegando,fuera-de-servicio,push-token}` con `Authorization: Bearer` (validado con `auth.getUser`), zod y límite por usuario; `/api/ruta` acepta también Bearer.
