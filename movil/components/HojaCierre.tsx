@@ -65,7 +65,7 @@ export function DiagramaVehiculo({ zonas, alAlternar, ancho, laterales = true }:
                 style={({ pressed }) => [e.zona, {
                   left: z.x * k, top: z.y * k, width: z.w * k, height: z.h * k, backgroundColor: fondo, borderColor: borde, borderRadius: radio,
                 }, pressed && { opacity: 0.7 }]}>
-                <Text style={[e.zonaTexto, { color: tinta, fontWeight: on ? "800" : "600" }]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.7}>{z.etiqueta}</Text>
+                <Text style={[e.zonaTexto, { color: tinta, fontWeight: on ? "800" : "600" }]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.7}>{z.corta ?? z.etiqueta}</Text>
               </Pressable>
             );
           })}

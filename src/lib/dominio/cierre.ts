@@ -3,7 +3,11 @@
 import type { EstadoModulos } from "./modulos";
 
 /** Zona del diagrama del coche visto desde arriba (DELANTERA arriba). Posición en una rejilla de ANCHO_DIAGRAMA × ALTO_DIAGRAMA. */
-export interface ZonaVehiculo { id: string; etiqueta: string; x: number; y: number; w: number; h: number; tipo: "carroceria" | "luz" | "cristal" | "rueda" | "retrovisor" }
+export interface ZonaVehiculo {
+  id: string; etiqueta: string; x: number; y: number; w: number; h: number; tipo: "carroceria" | "luz" | "cristal" | "rueda" | "retrovisor";
+  /** Rótulo dentro del diagrama si la etiqueta no cabe. */
+  corta?: string;
+}
 
 export const ANCHO_DIAGRAMA = 100;
 export const ALTO_DIAGRAMA = 155;
@@ -19,8 +23,8 @@ export const ZONAS_VEHICULO: readonly ZonaVehiculo[] = [
   { id: "rueda_del_izq", etiqueta: "Rueda del. izq.", x: 3, y: 16, w: 15, h: 20, tipo: "rueda" },
   { id: "rueda_del_der", etiqueta: "Rueda del. der.", x: 82, y: 16, w: 15, h: 20, tipo: "rueda" },
   { id: "parabrisas", etiqueta: "Parabrisas", x: 20, y: 38, w: 60, h: 12, tipo: "cristal" },
-  { id: "retrovisor_izq", etiqueta: "Retrovisor izq.", x: 3, y: 51, w: 15, h: 12, tipo: "retrovisor" },
-  { id: "retrovisor_der", etiqueta: "Retrovisor der.", x: 82, y: 51, w: 15, h: 12, tipo: "retrovisor" },
+  { id: "retrovisor_izq", etiqueta: "Retrovisor izq.", corta: "Retrov. izq.", x: 3, y: 51, w: 15, h: 12, tipo: "retrovisor" },
+  { id: "retrovisor_der", etiqueta: "Retrovisor der.", corta: "Retrov. der.", x: 82, y: 51, w: 15, h: 12, tipo: "retrovisor" },
   { id: "puerta_del_izq", etiqueta: "Puerta del. izq.", x: 20, y: 51, w: 14, h: 26, tipo: "carroceria" },
   { id: "techo", etiqueta: "Techo", x: 35, y: 51, w: 30, h: 53, tipo: "carroceria" },
   { id: "puerta_del_der", etiqueta: "Puerta del. der.", x: 66, y: 51, w: 14, h: 26, tipo: "carroceria" },

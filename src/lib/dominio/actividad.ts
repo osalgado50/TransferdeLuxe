@@ -3,7 +3,7 @@ import { direccionCorta } from "./direccion";
 import { nombreTipoIncidencia } from "./incidencias";
 import { etiquetaEvento } from "./navegacion";
 import { zonaCercana } from "./zonas";
-import { ICONO_GRAVEDAD, normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
+import { normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
 
 /**
  * «Actividad en vivo» de la central (lógica pura, compartida por la web y por /api/central/resumen de la app):
@@ -237,7 +237,7 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     const coment = c.comentario?.trim() || null;
     const texto = resumenCierre({ zonas, tecnico: c.tecnico ?? ({} as Tecnico), combustible: c.combustible, matricula: matricula ?? "vehículo", conductor: nombre(c.conductor_id) });
     out.push({
-      ...m, tipo: `cierre_${c.gravedad}`, icono: ICONO_GRAVEDAD[c.gravedad] ?? "📝",
+      ...m, tipo: `cierre_${c.gravedad}`, icono: "🚐", // el color (🔴/🟠/🟢) ya va al principio del texto
       gravedad: c.gravedad === "grave" ? "grave" : c.gravedad === "mantenimiento" ? "aviso" : "info",
       texto: coment ? `${texto} · «${recortar(coment, 120)}»` : texto, descripcion: coment,
       pendiente: c.gravedad === "grave" && !c.visto, cierreId: c.id, zonasDanadas: zonas, matricula,

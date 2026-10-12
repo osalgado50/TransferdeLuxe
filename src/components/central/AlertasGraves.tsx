@@ -30,27 +30,30 @@ export default function AlertasGraves({ graves, alVisto, alCentrar }: {
     <div className="space-y-3" role="alert" aria-live="assertive">
       {error && <p className="text-sm text-red-300">{error}</p>}
       {graves.map((g) => {
-        if (g.cierreId) return (
-          <article key={g.id} data-alerta="Cierre" className="rounded-xl border-2 border-red-500 bg-red-950 p-4 shadow-lg shadow-red-900/50 ring-2 ring-red-500/40">
-            <div className="flex gap-3">
-              <div className="w-24 shrink-0"><DiagramaVehiculo zonas={g.zonasDanadas ?? []} mini /></div>
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 text-xl font-bold text-red-100">
-                  <span className="relative flex size-3"><span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex size-3 rounded-full bg-red-500" /></span>
-                  HOJA DE CIERRE · {g.conductor ?? "Conductor"}{g.matricula ? ` · ${g.matricula}` : ""}
-                </p>
-                <p className="mt-1 text-base font-medium text-white">{g.texto.replace(/ · «.*»$/, "")}</p>
-                {g.descripcion && <p className="mt-1 text-base text-red-100">«{g.descripcion}»</p>}
-                <p className="mt-1 text-sm text-red-200">{g.hora} · el vehículo debe revisarse antes de su próximo servicio</p>
+        if (g.cierreId) {
+          const problemas = g.texto.replace(/ · «.*»$/, "").replace(/^🔴 /, "").split(" · ").filter((p) => p !== g.matricula && p !== g.conductor).join(" · ");
+          return (
+            <article key={g.id} data-alerta="Cierre" className="rounded-xl border-2 border-red-500 bg-red-950 p-4 shadow-lg shadow-red-900/50 ring-2 ring-red-500/40">
+              <p className="flex items-center gap-2 text-lg font-bold text-red-100">
+                <span className="relative flex size-3 shrink-0"><span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex size-3 rounded-full bg-red-500" /></span>
+                <span>HOJA DE CIERRE · {g.conductor ?? "Conductor"}{g.matricula ? ` · ${g.matricula}` : ""}</span>
+              </p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {!!g.zonasDanadas?.length && <div className="w-20 shrink-0"><DiagramaVehiculo zonas={g.zonasDanadas} mini /></div>}
+                <div className="min-w-[10rem] flex-1 space-y-1">
+                  <p className="text-base font-medium text-white">{problemas}</p>
+                  {g.descripcion && <p className="text-base text-red-100">«{g.descripcion}»</p>}
+                  <p className="text-sm text-red-200">{g.hora} · revisar el vehículo antes de su próximo servicio</p>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {g.telefono && <a href={`tel:${g.telefono}`} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500">📞 Llamar a {g.conductor ?? "conductor"}</a>}
-              <Link href="/central/mantenimiento" className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-100 hover:bg-red-900">Ver mantenimiento</Link>
-              <button type="button" disabled={pend} onClick={() => visto(g)} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-red-800 disabled:opacity-50">Visto</button>
-            </div>
-          </article>
-        );
+              <div className="mt-3 flex flex-wrap gap-2">
+                {g.telefono && <a href={`tel:${g.telefono}`} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500">📞 Llamar a {g.conductor ?? "conductor"}</a>}
+                <Link href="/central/mantenimiento" className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-100 hover:bg-red-900">Mantenimiento</Link>
+                <button type="button" disabled={pend} onClick={() => visto(g)} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-red-800 disabled:opacity-50">Visto</button>
+              </div>
+            </article>
+          );
+        }
         const tipo = nombreTipoIncidencia(g.tipo.replace(/^incidencia_/, "")).toUpperCase();
         return (
           <article key={g.id} data-alerta="Grave" className="rounded-xl border-2 border-red-500 bg-red-950 p-4 shadow-lg shadow-red-900/50 ring-2 ring-red-500/40">
