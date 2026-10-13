@@ -10,7 +10,8 @@ import { sugerirConductores } from "@/lib/dominio/sugerencia";
 import { duracionServicio, textoDuracion } from "@/lib/dominio/duracion";
 import { indicadoresPuntualidad, type IndicadorPuntualidad, type PosicionPuntualidad } from "@/lib/dominio/puntualidadCentral";
 import ChipPuntualidad from "./ChipPuntualidad";
-import { cabeServicio, fueraDeTurno, segmentosDia, textoTramos, tramosDelDia, vehiculoDelTurno, type HorarioConductor } from "@/lib/dominio/horarios";
+import { cabeServicio, tramosDelDia, vehiculoDelTurno, type HorarioConductor } from "@/lib/dominio/horarios";
+import BarraTurno from "./BarraTurno";
 import type { Punto } from "@/lib/dominio/tipos";
 
 export type TarjetaRuta = {
@@ -50,19 +51,6 @@ function Traslado({ t, vivo }: { t: Transicion; vivo?: IndicadorPuntualidad }) {
 const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 const MOVIBLES: EstadoServicio[] = ["pendiente", "asignado", "aceptado"];
 const SIN = "sin-asignar";
-
-/** Turno del conductor en 24 h: verde en turno, gris rayado fuera (pausa de comida, antes y después). */
-function BarraTurno({ tramos }: { tramos: { inicio: string; fin: string }[] }) {
-  return (
-    <div className="space-y-0.5" data-turno-dia={textoTramos(tramos)}>
-      <div className="relative h-2.5 overflow-hidden rounded bg-[repeating-linear-gradient(135deg,#1e293b_0_4px,#0f172a_4px_8px)]" aria-hidden>
-        {segmentosDia(tramos).map((x) => <span key={x.tramo.inicio} className="absolute inset-y-0 bg-green-600/70" style={{ left: `${x.desde}%`, width: `${x.hasta - x.desde}%` }} />)}
-      </div>
-      <p className="text-[11px] text-slate-400">{tramos.length ? `Turno ${textoTramos(tramos)}` : "Libre (horario)"}
-        {tramos.length > 0 && fueraDeTurno(tramos).length > 0 && <span className="sr-only"> · fuera de turno: {fueraDeTurno(tramos).map((t) => `${t.inicio}–${t.fin}`).join(", ")}</span>}</p>
-    </div>
-  );
-}
 
 function Tarjeta({ s, chip, onAsignar, punt, fueraTurno }: { s: TarjetaRuta; chip?: Chip | null; onAsignar?: (c: Conductor) => void; punt?: IndicadorPuntualidad;
   /** Motivo si el servicio cae fuera del horario de su conductor (pausa, fuera de turno, no vuelve a la base). */

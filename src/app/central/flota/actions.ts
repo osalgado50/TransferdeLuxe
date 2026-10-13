@@ -117,6 +117,23 @@ export async function guardarAjustes(fd: FormData) {
   volver();
 }
 
+const coord = (min: number, max: number) => z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number().min(min).max(max).nullable());
+const esquemaBase = z.object({ base_texto: z.string().trim().max(300).transform((v) => v || null), base_lat: coord(-90, 90), base_lng: coord(-180, 180) });
+
+/** Base / depósito: el coche sale de aquí y vuelve aquí en cada tramo (relevo entre conductores). Vacío = sin base. */
+export async function guardarBase(fd: FormData) {
+  await exigirRol("operador");
+  const r = esquemaBase.safeParse({ base_texto: fd.get("base_texto") ?? "", base_lat: fd.get("base_lat"), base_lng: fd.get("base_lng") });
+  if (!r.success) volver("Dirección de la base no válida");
+  const d = r.data!;
+  // Sin texto, ni coordenadas; con texto pero sin elegir de la lista, se guarda el texto sin coordenadas.
+  const datos = d.base_texto ? { ...d, ...(d.base_lat == null || d.base_lng == null ? { base_lat: null, base_lng: null } : {}) } : { base_texto: null, base_lat: null, base_lng: null };
+  const { error } = await clienteAdmin().from("ajustes").update(datos).eq("id", 1);
+  if (error) volver(amigable(error));
+  revalidatePath("/central", "layout");
+  volver();
+}
+
 export async function guardarModulos(fd: FormData) {
   await exigirRol("operador");
   const { error } = await clienteAdmin().from("ajustes").update({ modulos: modulosDesdeFormulario(fd.entries() as Iterable<[string, unknown]>) }).eq("id", 1);

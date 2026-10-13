@@ -5,7 +5,8 @@ import CamposNuevoVehiculo from "@/components/central/CamposNuevoVehiculo";
 import GestionFavoritos from "@/components/central/GestionFavoritos";
 import AyudaSonidos from "@/components/central/AyudaSonidos";
 import type { Favorito } from "@/lib/dominio/favoritos";
-import { guardarVehiculo, guardarConductor, guardarOperador, guardarAjustes, guardarModulos } from "./actions";
+import { guardarVehiculo, guardarConductor, guardarOperador, guardarAjustes, guardarModulos, guardarBase } from "./actions";
+import CampoBase from "@/components/central/CampoBase";
 import { MODULOS, leerModulos } from "@/lib/dominio/modulos";
 import { CampoContrasena } from "@/components/comun/CampoContrasena";
 
@@ -148,6 +149,16 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           Si un conductor marca CARGA o DESCARGA a más de esa distancia de la recogida o del destino, la central recibe un aviso.
           El margen mínimo es el tiempo que debe sobrar entre la llegada a una recogida y su hora, desde el fin del servicio anterior
           (lo usan «Asignar automáticamente» y el semáforo de la hoja de ruta).</p>
+      </section>
+
+      <section id="base" className="space-y-2">
+        <h2 className="text-lg font-semibold">Base / depósito</h2>
+        <p className="text-sm text-slate-400">Donde se guardan los coches y se hace el relevo: el primer servicio de cada tramo sale de aquí y el último
+          tiene que poder volver antes del fin del turno. Los horarios de cada conductor se configuran en <Link href="/central/horarios" className="text-marca-claro hover:underline">Horarios</Link>.</p>
+        <form action={guardarBase} className="flex flex-wrap items-end gap-3">
+          <CampoBase texto={ajustes?.base_texto ?? null} lat={ajustes?.base_lat ?? null} lng={ajustes?.base_lng ?? null} />
+          <button className={boton}>Guardar base</button>
+        </form>
       </section>
 
       <section className="space-y-2">
