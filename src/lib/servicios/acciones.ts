@@ -51,6 +51,10 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   if (p.accion === "asignar" || p.accion === "reasignar") {
     Object.assign(cambios, { conductor_id: p.conductorId, vehiculo_id: p.vehiculoId ?? null, asignado_en: new Date().toISOString(), incidencia_vista: true });
   }
+  if (p.accion === "subcontratar" && s.conductor_id) {
+    // Se lo quitamos al conductor que no respondió: ya no debe verlo como servicio nuevo.
+    Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, incidencia_vista: true });
+  }
   if (p.accion === "rechazar") {
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
   }

@@ -35,9 +35,10 @@ describe("transicion", () => {
     expect(transicion("aceptado", "reasignar", operador)).toMatchObject({ ok: true, nuevo: "asignado", evento: "reasignado" });
     expect(transicion("recogido", "reasignar", operador).ok).toBe(false);
   });
-  test("subcontratar solo desde pendiente", () => {
+  test("subcontratar desde pendiente o asignado (plazo vencido), no después de aceptar", () => {
     expect(transicion("pendiente", "subcontratar", operador)).toMatchObject({ ok: true, nuevo: "subcontratado" });
-    expect(transicion("asignado", "subcontratar", operador).ok).toBe(false);
+    expect(transicion("asignado", "subcontratar", operador)).toMatchObject({ ok: true, nuevo: "subcontratado" });
+    expect(transicion("aceptado", "subcontratar", operador).ok).toBe(false);
   });
   test("botón siguiente del conductor", () => {
     expect(ACCION_SIGUIENTE_CONDUCTOR.aceptado?.accion).toBe("salir");

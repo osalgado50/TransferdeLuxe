@@ -13,7 +13,8 @@ const REGLAS: Record<Exclude<Accion, "deshacer">, Regla> = {
   asignar:      { desde: ["pendiente"], hacia: "asignado", quien: "operador", evento: "asignado" },
   reasignar:    { desde: ["asignado", "aceptado"], hacia: "asignado", quien: "operador", evento: "reasignado" },
   cancelar:     { desde: ["pendiente", "asignado", "aceptado"], hacia: "cancelado", quien: "operador", evento: "cancelado" },
-  subcontratar: { desde: ["pendiente"], hacia: "subcontratado", quien: "operador", evento: "subcontratado" },
+  // También desde «asignado» (plazo vencido sin respuesta: el servicio sigue asignado y la central decide subcontratar).
+  subcontratar: { desde: ["pendiente", "asignado"], hacia: "subcontratado", quien: "operador", evento: "subcontratado" },
   aceptar:      { desde: ["asignado"], hacia: "aceptado", quien: "conductor", evento: "aceptado" },
   rechazar:     { desde: ["asignado"], hacia: "pendiente", quien: "conductor", evento: "rechazado" },
   salir:        { desde: ["aceptado"], hacia: "en_camino", quien: "conductor", evento: "en_camino" },
