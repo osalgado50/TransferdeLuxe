@@ -10,6 +10,8 @@ import { sugerirConductores } from "@/lib/dominio/sugerencia";
 import { duracionServicio, textoDuracion } from "@/lib/dominio/duracion";
 import { indicadoresPuntualidad, type IndicadorPuntualidad, type PosicionPuntualidad } from "@/lib/dominio/puntualidadCentral";
 import ChipPuntualidad from "./ChipPuntualidad";
+import { cabeServicio, fueraDeTurno, segmentosDia, textoTramos, tramosDelDia, vehiculoDelTurno, type HorarioConductor } from "@/lib/dominio/horarios";
+import type { Punto } from "@/lib/dominio/tipos";
 
 export type TarjetaRuta = {
   id: string; estado: EstadoServicio; conductor_id: string | null; fecha_hora_recogida: string; origen_texto: string; destino_texto: string;
@@ -49,7 +51,22 @@ const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour:
 const MOVIBLES: EstadoServicio[] = ["pendiente", "asignado", "aceptado"];
 const SIN = "sin-asignar";
 
-function Tarjeta({ s, chip, onAsignar, punt }: { s: TarjetaRuta; chip?: Chip | null; onAsignar?: (c: Conductor) => void; punt?: IndicadorPuntualidad }) {
+/** Turno del conductor en 24 h: verde en turno, gris rayado fuera (pausa de comida, antes y después). */
+function BarraTurno({ tramos }: { tramos: { inicio: string; fin: string }[] }) {
+  return (
+    <div className="space-y-0.5" data-turno-dia={textoTramos(tramos)}>
+      <div className="relative h-2.5 overflow-hidden rounded bg-[repeating-linear-gradient(135deg,#1e293b_0_4px,#0f172a_4px_8px)]" aria-hidden>
+        {segmentosDia(tramos).map((x) => <span key={x.tramo.inicio} className="absolute inset-y-0 bg-green-600/70" style={{ left: `${x.desde}%`, width: `${x.hasta - x.desde}%` }} />)}
+      </div>
+      <p className="text-[11px] text-slate-400">{tramos.length ? `Turno ${textoTramos(tramos)}` : "Libre (horario)"}
+        {tramos.length > 0 && fueraDeTurno(tramos).length > 0 && <span className="sr-only"> · fuera de turno: {fueraDeTurno(tramos).map((t) => `${t.inicio}–${t.fin}`).join(", ")}</span>}</p>
+    </div>
+  );
+}
+
+function Tarjeta({ s, chip, onAsignar, punt, fueraTurno }: { s: TarjetaRuta; chip?: Chip | null; onAsignar?: (c: Conductor) => void; punt?: IndicadorPuntualidad;
+  /** Motivo si el servicio cae fuera del horario de su conductor (pausa, fuera de turno, no vuelve a la base). */
+  fueraTurno?: string | null }) {
   const plan = aPlan(s);
   const desglose = textoDuracion(duracionServicio({ origen: plan.origen, destino: plan.destino, origenTexto: s.origen_texto, destinoTexto: s.destino_texto,
     guardadaMin: s.duracion_estimada_min }), plan.duracionMin);
@@ -58,7 +75,8 @@ function Tarjeta({ s, chip, onAsignar, punt }: { s: TarjetaRuta; chip?: Chip | n
   return (
     <div ref={setNodeRef}
       style={transform ? { transform: `translate(${transform.x}px,${transform.y}px)` } : undefined}
-      className={`rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm ${movible ? "" : "opacity-70"} ${isDragging ? "z-10 shadow-lg" : ""}`}>
+      data-fuera-turno={fueraTurno ? "si" : undefined}
+      className={`rounded-lg border p-3 text-sm ${fueraTurno ? "border-amber-600/70 bg-[repeating-linear-gradient(135deg,#0f172a_0_6px,#1c1917_6px_12px)]" : "border-slate-700 bg-slate-900"} ${movible ? "" : "opacity-70"} ${isDragging ? "z-10 shadow-lg" : ""}`}>
       <div className="flex items-center justify-between gap-2">
         {movible && <button type="button" aria-label="Arrastrar servicio" {...attributes} {...listeners} className="-m-1 flex min-h-11 min-w-11 cursor-grab touch-none select-none items-center justify-center p-1 text-slate-500">⋮⋮</button>}
         <strong>{hora.format(new Date(s.fecha_hora_recogida))}</strong><EstadoBadge estado={s.estado} />
@@ -68,6 +86,7 @@ function Tarjeta({ s, chip, onAsignar, punt }: { s: TarjetaRuta; chip?: Chip | n
         {fmtHora(new Date(s.fecha_hora_recogida))} → {fmtHora(finDe(plan))} · {fmtDuracion(plan.duracionMin)} · {s.pasajeros} pax
       </p>
       <ChipPuntualidad ind={punt} className="mt-1 flex" />
+      {fueraTurno && <p className="mt-1 text-xs text-amber-300">🕒 {fueraTurno}</p>}
       {s.numero_vuelo && <EnlaceVuelo codigo={s.numero_vuelo} className="text-xs" />}
       {chip && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-marca/10 px-2 py-1 text-xs text-marca-claro">
@@ -80,20 +99,23 @@ function Tarjeta({ s, chip, onAsignar, punt }: { s: TarjetaRuta; chip?: Chip | n
   );
 }
 
-function Columna({ id, titulo, items, chips, traslados, onAsignar, punt = {} }: {
+function Columna({ id, titulo, items, chips, traslados, onAsignar, punt = {}, turno, fuera = {} }: {
   id: string; titulo: string; items: TarjetaRuta[]; chips?: Record<string, Chip | null>; traslados?: Record<string, Transicion>;
   onAsignar?: (s: TarjetaRuta, c: Conductor) => void; punt?: Record<string, IndicadorPuntualidad>;
+  /** Tramos del conductor ese día (null = sin horario: no se pinta la barra). */
+  turno?: { inicio: string; fin: string }[] | null; fuera?: Record<string, string | null>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <section ref={setNodeRef} className={`w-64 shrink-0 space-y-2 rounded-xl border p-3 ${isOver ? "border-marca-claro bg-slate-800" : "border-slate-800 bg-slate-950"}`}>
       <h2 className="font-medium text-marca-claro">{titulo} <span className="text-xs text-slate-400">({items.length})</span></h2>
+      {turno && <BarraTurno tramos={turno} />}
       {items.map((s) => {
         const t = traslados?.[s.id];
         return (
           <div key={s.id} className="space-y-2">
             {t && <Traslado t={t} vivo={punt[s.id]} />}
-            <Tarjeta s={s} chip={chips?.[s.id]} punt={punt[s.id]} onAsignar={onAsignar && MOVIBLES.includes(s.estado) ? (c) => onAsignar(s, c) : undefined} />
+            <Tarjeta s={s} chip={chips?.[s.id]} punt={punt[s.id]} fueraTurno={fuera[s.id]} onAsignar={onAsignar && MOVIBLES.includes(s.estado) ? (c) => onAsignar(s, c) : undefined} />
           </div>
         );
       })}
@@ -102,7 +124,8 @@ function Columna({ id, titulo, items, chips, traslados, onAsignar, punt = {} }: 
   );
 }
 
-export default function TableroRuta({ servicios, conductores, vehiculos = [], contexto = [], margenMinimo = 15, posiciones = null, umbralMin = 5 }: {
+export default function TableroRuta({ servicios, conductores, vehiculos = [], contexto = [], margenMinimo = 15, posiciones = null, umbralMin = 5,
+  dia, horarios = {}, base = null }: {
   servicios: TarjetaRuta[]; conductores: Conductor[]; vehiculos?: Vehiculo[];
   /** Servicios fuera del día mostrado (víspera 18:00 – día siguiente 06:00): solo cuentan para la viabilidad. */
   contexto?: TarjetaRuta[];
@@ -110,6 +133,8 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
   margenMinimo?: number;
   /** Solo hoy: posiciones para el semáforo de puntualidad en vivo (null otros días). */
   posiciones?: PosicionPuntualidad[] | null; umbralMin?: number;
+  /** Día mostrado, horarios por conductor y base: barra de turno, tarjetas fuera de turno y sugerencias según horario. */
+  dia?: string; horarios?: Record<string, HorarioConductor>; base?: Punto | null;
 }) {
   const [asignacion, setAsignacion] = useState<Record<string, string | null>>({});
   const [pendiente, setPendiente] = useState<{ s: TarjetaRuta; c: Conductor; razon: string } | null>(null);
@@ -134,6 +159,17 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
     return cid && enAgenda(estado) ? [{ ...x, conductor_id: cid, estado }] : [];
   });
   const agendaDe = (conductorId: string) => agenda.filter((x) => x.conductor_id === conductorId).map(aPlan);
+  // Horario: vehículo del turno (relevo en la base) y si cada servicio cabe en el turno de su conductor.
+  const vehiculoTurno = (c: Conductor) => (dia ? vehiculoDelTurno(horarios[c.id], dia) : null) ?? c.vehiculo_habitual_id;
+  const horarioDe = (c: Conductor, s: TarjetaRuta) => {
+    const plan = aPlan(s);
+    return cabeServicio(horarios[c.id], plan, { base, agenda: agendaDe(c.id).filter((x) => x.id !== s.id).map((x) => ({ id: x.id, inicio: x.inicio.getTime(), fin: finDe(x).getTime() })) });
+  };
+  const fuera: Record<string, string | null> = {};
+  for (const s of servicios) {
+    const c = conductores.find((x) => x.id === actual(s));
+    if (c && horarios[c.id]) { const r = horarioDe(c, s); fuera[s.id] = r.cabe ? null : r.motivo; }
+  }
   const traslados: Record<string, Transicion> = {};
   for (const c of conductores) for (const t of planDia(agendaDe(c.id), margenMinimo).transiciones) traslados[t.siguienteId] = t;
   // Semáforo en vivo (hoy): se refresca cada 30 s y con cada recarga de datos.
@@ -152,7 +188,8 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
     const c = conductores.find((x) => x.id === destino);
     if (!c) return;
     const r = encaja(aPlan(s), agendaDe(c.id), margenMinimo);
-    if (!r.encaja) { setPendiente({ s, c, razon: r.razon ?? "No encaja en su agenda" }); return; }
+    const hz = horarioDe(c, s);
+    if (!r.encaja || !hz.cabe) { setPendiente({ s, c, razon: [!r.encaja ? r.razon ?? "No encaja en su agenda" : null, hz.cabe ? null : hz.motivo].filter(Boolean).join(" · ") }); return; }
     asignar(s, c);
   }
 
@@ -164,7 +201,7 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
     iniciar(async () => {
       const r = await accionCentral({
         idAccion: crypto.randomUUID(), servicioId: s.id, accion: previo ? "reasignar" : "asignar",
-        conductorId: destino, vehiculoId: c.vehiculo_habitual_id ?? undefined,
+        conductorId: destino, vehiculoId: vehiculoTurno(c) ?? undefined,
       });
       if (r.ok) setAviso({ t: `Servicio asignado a ${c.nombre}`, error: false });
       else { setAsignacion((a) => ({ ...a, [s.id]: previo })); setAviso({ t: r.error, error: true }); }
@@ -177,10 +214,11 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
   const chips = useMemo(() => {
     const ahora = new Date();
     const res: Record<string, Chip | null> = {};
-    const candidatos = construirCandidatos(conductores, vehiculos, agenda);
+    const candidatos = construirCandidatos(conductores.map((c) => ({ ...c, vehiculo_habitual_id: vehiculoTurno(c) })), vehiculos, agenda)
+      .map((c) => ({ ...c, horario: horarios[c.conductorId] ?? null }));
     for (const s of servicios.filter((x) => !actual(x) && MOVIBLES.includes(x.estado))) {
       const p = aPlan(s);
-      const mejor = sugerirConductores({ ...p, pasajeros: s.pasajeros, maletas: s.maletas }, candidatos, ahora).find((x) => x.apto);
+      const mejor = sugerirConductores({ ...p, pasajeros: s.pasajeros, maletas: s.maletas }, candidatos, ahora, { base }).find((x) => x.apto);
       const c = mejor && conductores.find((x) => x.id === mejor.conductorId);
       if (!mejor || !c) { res[s.id] = null; continue; }
       const ant = encaja(p, candidatos.find((x) => x.conductorId === c.id)!.agenda.map(deTramo)).anterior;
@@ -192,14 +230,18 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
     }
     return res;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [servicios, contexto, conductores, vehiculos, asignacion]);
+  }, [servicios, contexto, conductores, vehiculos, asignacion, horarios, base, dia]);
 
   return (
     <DndContext id="tablero-ruta" sensors={sensores} onDragEnd={alSoltar}>
       {aviso && <p role="status" className={`rounded-lg px-3 py-2 text-sm ${aviso.error ? "bg-red-500/20 text-red-300" : "bg-green-500/20 text-green-300"}`}>{aviso.t}</p>}
       <div className="flex max-w-full gap-3 overflow-x-auto pb-3">
         <Columna id={SIN} titulo="Sin asignar" items={de(SIN)} chips={chips} onAsignar={asignar} />
-        {conductores.map((c) => <Columna key={c.id} id={c.id} titulo={c.nombre} items={de(c.id)} traslados={traslados} punt={punt} />)}
+        {conductores.map((c) => {
+          const d = dia ? tramosDelDia(horarios[c.id], dia) : null;
+          return <Columna key={c.id} id={c.id} titulo={c.nombre} items={de(c.id)} traslados={traslados} punt={punt}
+            turno={d?.restringido ? d.tramos : null} fuera={fuera} />;
+        })}
       </div>
       {pendiente && (
         <div role="dialog" aria-modal="true" aria-label="Confirmar asignación" onClick={() => setPendiente(null)}

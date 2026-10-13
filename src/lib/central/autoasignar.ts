@@ -19,6 +19,7 @@ import type { Punto } from "@/lib/dominio/tipos";
 import { cargarDisponibilidad, disponibilidadDe, type Disponibilidad } from "@/lib/central/disponibilidad";
 import { NOMBRE_FRANJA, NOMBRE_TIPO_AUSENCIA } from "@/lib/dominio/ausencias";
 import { MOTIVO_JORNADA_CERRADA } from "@/lib/dominio/finJornada";
+import { textoTramos, tramosDelDia, vehiculoDelTurno } from "@/lib/dominio/horarios";
 
 /** Lógica de servidor de la asignación automática: la usan las Server Actions (web) y /api/central/autoasignar/*. */
 
@@ -73,6 +74,8 @@ export interface ConductorInfo {
   vehiculo: { id: string; matricula: string; plazas: number; maletas: number; estado: "activo" | "taller" } | null;
   /** «No disponible · vacaciones», «Jornada cerrada hoy»… en ese día (no sale marcado si es todo el día). */
   noDisponible?: string | null;
+  /** «Turno 08:00–13:00 · 16:00–20:00» ese día; null sin horario. */
+  turno?: string | null;
 }
 
 /** Aviso del diálogo para un conductor en un día: ausencia (todo el día o media) o jornada ya cerrada hoy. */
@@ -80,7 +83,19 @@ function noDisponibleDia(d: Disponibilidad, conductorId: string, dia: string): {
   const a = d.ausencias.find((x) => x.conductor_id === conductorId && dia >= x.desde && dia <= x.hasta);
   if (a) return { texto: `No disponible · ${NOMBRE_TIPO_AUSENCIA[a.tipo]}${a.franja === "dia" ? "" : ` (${NOMBRE_FRANJA[a.franja]})`}`, todoElDia: a.franja === "dia" };
   if (d.cerradasHoy.has(conductorId) && dia === d.hoy) return { texto: MOTIVO_JORNADA_CERRADA, todoElDia: true };
+  const h = tramosDelDia(d.horarios.get(conductorId), dia);
+  if (h.restringido && !h.tramos.length) return { texto: "Libre ese día (horario)", todoElDia: true };
   return null;
+}
+/** «Turno 08:00–13:00 · 16:00–20:00» para el diálogo; null sin horario. */
+function turnoDia(d: Disponibilidad, conductorId: string, dia: string): string | null {
+  const h = tramosDelDia(d.horarios.get(conductorId), dia);
+  return h.restringido && h.tramos.length ? `Turno ${textoTramos(h.tramos)}` : null;
+}
+/** Vehículo del turno de ese día (relevo en la base) o, si no hay, el habitual. */
+function vehiculoParaDia<V extends { id: string }>(d: Disponibilidad, c: Perfil, vehiculos: (c: Perfil) => V | null, todos: V[], dia: string): V | null {
+  const turno = vehiculoDelTurno(d.horarios.get(c.id), dia);
+  return (turno ? todos.find((v) => v.id === turno) : undefined) ?? vehiculos(c);
 }
 function info(f: Fila): ServicioInfo {
   const origen = punto(f.origen_lat, f.origen_lng), destino = punto(f.destino_lat, f.destino_lng);
@@ -110,7 +125,7 @@ async function cargarConductores(ahora: Date, umbral: number) {
   if (f?.error) throw new Error(f.error.message);
   const vehiculos = (v.data ?? []) as Vehiculo[];
   return {
-    perfiles: (g.data ?? []) as Perfil[], posiciones: p.data ?? [],
+    perfiles: (g.data ?? []) as Perfil[], posiciones: p.data ?? [], vehiculos,
     vehiculoDe: (c: Perfil) => vehiculos.find((x) => x.id === c.vehiculo_habitual_id) ?? null,
     conexionDe: (id: string) => conexionConductor(p.data?.find((x) => x.conductor_id === id), ahora, umbral),
   };
@@ -142,11 +157,11 @@ export async function datosAutoasignar(diaPedido?: string, ahora = new Date()) {
   const filas = (data ?? []) as Fila[];
   const compromisos = await cargarCompromisos(cs.perfiles.map((c) => c.id), Date.parse(r.desde), Date.parse(r.hasta));
   const conductores: ConductorInfo[] = cs.perfiles.map((c) => {
-    const v = cs.vehiculoDe(c);
+    const v = vehiculoParaDia(disp, c, cs.vehiculoDe, cs.vehiculos, dia);
     const nd = noDisponibleDia(disp, c.id, dia);
     return {
       id: c.id, nombre: c.nombre, conexion: cs.conexionDe(c.id), vehiculo: v, marcado: !!v && v.estado === "activo" && !nd?.todoElDia,
-      compromisos: compromisos.filter((x) => x.conductor_id === c.id).length, noDisponible: nd?.texto ?? null,
+      compromisos: compromisos.filter((x) => x.conductor_id === c.id).length, noDisponible: nd?.texto ?? null, turno: turnoDia(disp, c.id, dia),
     };
   });
   return {
@@ -170,7 +185,9 @@ export async function construirEntrada(p: { dia?: string; servicioIds?: string[]
   const filas = (data ?? []) as Fila[];
   const diasFilas = filas.map((f) => diaMadrid(f.fecha_hora_recogida)).sort();
   const disp = await cargarDisponibilidad(sb, diasFilas[0] ?? dia, diasFilas.at(-1) ?? dia, ahora);
-  const elegidos = cs.perfiles.filter((c) => (p.conductorIds?.length ? p.conductorIds.includes(c.id) : (cs.vehiculoDe(c)?.estado === "activo")));
+  const diaRef = diasFilas[0] ?? dia;
+  const vehiculoDe = (c: Perfil) => vehiculoParaDia(disp, c, cs.vehiculoDe, cs.vehiculos, diaRef);
+  const elegidos = cs.perfiles.filter((c) => (p.conductorIds?.length ? p.conductorIds.includes(c.id) : (vehiculoDe(c)?.estado === "activo")));
   // Compromisos: de 12 h antes del primer servicio a 12 h después del último (sirven para encajar).
   const tiempos = filas.map((f) => Date.parse(f.fecha_hora_recogida));
   const desde = (tiempos.length ? Math.min(...tiempos) : Date.parse(rangoDia(dia).desde)) - 12 * 3600e3;
@@ -178,23 +195,25 @@ export async function construirEntrada(p: { dia?: string; servicioIds?: string[]
   const fijos = await cargarCompromisos(elegidos.map((c) => c.id), desde, hasta);
   const diasServicios = new Set(filas.map((f) => diaMadrid(f.fecha_hora_recogida)));
   const conductores: ConductorAuto[] = elegidos.map((c) => {
-    const v = cs.vehiculoDe(c);
+    const v = vehiculoDe(c);
     return {
       id: c.id, nombre: c.nombre,
       vehiculo: v ? { id: v.id, plazas: v.plazas, maletas: v.maletas, estado: v.estado } : null,
       compromisos: fijos.filter((x) => x.conductor_id === c.id).map((x) => aServicio(x, diasServicios.has(diaMadrid(x.fecha_hora_recogida)))),
       posicion: gpsReciente(cs.posiciones.find((x) => x.conductor_id === c.id), ahora.getTime(), umbral),
-      // Vacaciones / fiesta / baja y jornada cerrada hoy: no se le propone nada en esos huecos.
+      // Vacaciones / fiesta / baja, jornada cerrada hoy y horario: no se le propone nada en esos huecos.
       ...disponibilidadDe(disp, c.id),
     };
   });
   const entrada: EntradaAuto = {
     servicios: filas.map((f) => aServicio(f)), conductores, estrategia: p.estrategia, margenMinimoMin: p.margenMinimo ?? margen, ahora: ahora.getTime(),
+    base: disp.base,
   };
   const infoServicios = Object.fromEntries(filas.map((f) => [f.id, info(f)]));
   const infoConductores: Record<string, ConductorInfo> = Object.fromEntries(elegidos.map((c) => [c.id, {
-    id: c.id, nombre: c.nombre, conexion: cs.conexionDe(c.id), vehiculo: cs.vehiculoDe(c), marcado: true,
+    id: c.id, nombre: c.nombre, conexion: cs.conexionDe(c.id), vehiculo: vehiculoDe(c), marcado: true,
     compromisos: fijos.filter((x) => x.conductor_id === c.id).length, noDisponible: noDisponibleDia(disp, c.id, dia)?.texto ?? null,
+    turno: turnoDia(disp, c.id, dia),
   }]));
   return { entrada, infoServicios, infoConductores };
 }

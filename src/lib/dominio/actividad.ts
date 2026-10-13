@@ -8,6 +8,7 @@ import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type
 import { agruparFinJornada, textoDevueltosFinJornada, textoJornadaConPendientes } from "./finJornada";
 import { leerMotivoAnomalia, textoAnomalia } from "./anomalias";
 import { PREFIJO_ASIGNADO_AUSENTE } from "./ausencias";
+import { PREFIJO_FUERA_HORARIO } from "./horarios";
 
 /**
  * «Actividad en vivo» de la central (lógica pura, compartida por la web y por /api/central/resumen de la app):
@@ -66,7 +67,10 @@ export interface ServicioAct {
   id: string; cliente_nombre: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string;
   conductor_id: string | null; origen_pedido?: string | null;
 }
+/** Alerta de horario (tabla alertas_horario, la escribe el vigilante): fuera de horario, sin iniciar jornada, fin de turno. */
+export interface AlertaHorarioAct { id: string; tipo: string; conductor_id: string; servicio_id: string | null; texto: string; creado_en: string }
 export interface EntradaActividad {
+  alertasHorario?: AlertaHorarioAct[];
   eventos?: EventoAct[]; incidencias?: IncidenciaAct[]; revisiones?: RevisionAct[]; jornadas?: JornadaAct[]; cierres?: CierreAct[];
   servicios: Iterable<ServicioAct>;
   conductores: { id: string; nombre: string; telefono?: string | null }[];
@@ -191,6 +195,8 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
         texto = `${Serv} ${ev.tipo === "asignado" ? "enviado" : "reasignado"} a ${cid ? N : "un conductor"}${T}`;
         // Asignado igualmente a un conductor ausente (vacaciones, baja…): queda registrado.
         if (ev.motivo?.startsWith(`${PREFIJO_ASIGNADO_AUSENTE}:`)) { texto += ` · aunque estaba de ${ev.motivo.slice(PREFIJO_ASIGNADO_AUSENTE.length + 1).trim()}`; m.gravedad = "aviso"; }
+        // Asignado igualmente fuera de su horario (pausa, fuera de turno, sin tiempo de volver a la base).
+        else if (ev.motivo?.startsWith(`${PREFIJO_FUERA_HORARIO}:`)) { texto += ` · fuera de su horario (${ev.motivo.slice(PREFIJO_FUERA_HORARIO.length + 1).trim()})`; m.gravedad = "aviso"; }
         break;
       }
       case "desasignado": {
@@ -298,6 +304,16 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
         texto: textoJornadaConPendientes(nombre(j.conductor_id), j.pendientes_cierre.map((x) => x.hora)),
         servicioId: j.pendientes_cierre[0]?.id ?? null, lat: p?.lat ?? null, lng: p?.lng ?? null, zona: p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null });
     } else if (j.fin) out.push({ ...base(`jor-${j.id}-f`, j.fin, j.conductor_id, undefined), tipo: "jornada_fin", icono: "⏹️", texto: `${nombre(j.conductor_id)} ha terminado la jornada` });
+  }
+
+  // Alertas de horario (una por caso): tarjeta ámbar con «Ver en el mapa» y «Llamar».
+  for (const a of e.alertasHorario ?? []) {
+    if (a.servicio_id && ocultos.has(a.servicio_id)) continue;
+    const s = a.servicio_id ? servicios.get(a.servicio_id) : undefined;
+    const m = base(`ah-${a.id}`, a.creado_en, a.conductor_id, s);
+    const p = pos.get(a.conductor_id);
+    out.push({ ...m, tipo: `horario_${a.tipo}`, icono: a.tipo === "sin_jornada" ? "⏰" : a.tipo === "fin_turno" ? "🕒" : "⚠️", gravedad: "aviso", alerta: true,
+      texto: a.texto, lat: p?.lat ?? null, lng: p?.lng ?? null, zona: p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null });
   }
 
   // Hoja de cierre: grave (daños, testigo, avería) → tarjeta roja fija hasta «Visto»; mantenimiento → aviso; ok → info verde.

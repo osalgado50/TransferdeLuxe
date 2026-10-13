@@ -391,3 +391,27 @@ describe("uso en la sugerencia y en la asignación automática", () => {
     expect(auditarPropuesta(e, p)).toEqual(["a: Fuera de horario (pausa 13:00–16:00) (s1)"]);
   });
 });
+
+describe("actividad de la central", () => {
+  test("alertas de horario: tarjeta de aviso con posición; ocultas si el servicio es de prueba", async () => {
+    const { construirActividad } = await import("@/lib/dominio/actividad");
+    const r = construirActividad({
+      servicios: [], conductores: [{ id: "c1", nombre: "Marc", telefono: "600" }], posiciones: [{ conductor_id: "c1", lat: 41.08, lng: 1.14 }],
+      alertasHorario: [
+        { id: "a1", tipo: "sin_jornada", conductor_id: "c1", servicio_id: null, texto: "⏰ Marc no ha iniciado la jornada", creado_en: "2026-10-19T06:20:00Z" },
+        { id: "a2", tipo: "fuera_horario", conductor_id: "c1", servicio_id: "s-prueba", texto: "⚠️ …", creado_en: "2026-10-19T06:21:00Z" },
+      ],
+      ocultos: ["s-prueba"],
+    });
+    expect(r.movimientos).toHaveLength(1);
+    expect(r.avisos[0]).toMatchObject({ id: "ah-a1", tipo: "horario_sin_jornada", gravedad: "aviso", alerta: true, telefono: "600", lat: 41.08 });
+  });
+  test("asignado igualmente fuera de horario: queda en el texto del movimiento", async () => {
+    const { construirActividad } = await import("@/lib/dominio/actividad");
+    const s = { id: "s1", cliente_nombre: "Ana", origen_texto: "Salou", destino_texto: "Aeropuerto de Reus", fecha_hora_recogida: "2026-10-19T12:00:00Z", conductor_id: "c1" };
+    const r = construirActividad({ servicios: [s], conductores: [{ id: "c1", nombre: "Marc" }],
+      eventos: [{ id: 1, servicio_id: "s1", tipo: "asignado", motivo: motivoAsignadoFueraHorario("Fuera de horario (pausa 13:00–16:00)"), creado_en: "2026-10-19T08:00:00Z" }] });
+    expect(r.movimientos[0].texto).toMatch(/fuera de su horario \(Fuera de horario \(pausa 13:00–16:00\)\)$/);
+    expect(r.movimientos[0].gravedad).toBe("aviso");
+  });
+});

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   construirActividad, esIncidenciaGrave, pasoAlarma, HORAS_ACTIVIDAD,
-  type CierreAct, type EstadoAlarma, type EventoAct, type IncidenciaAct, type JornadaAct, type RevisionAct, type ServicioAct,
+  type AlertaHorarioAct, type CierreAct, type EstadoAlarma, type EventoAct, type IncidenciaAct, type JornadaAct, type RevisionAct, type ServicioAct,
 } from "@/lib/dominio/actividad";
 import type { Sonido } from "@/lib/dominio/sonidos";
 
@@ -23,20 +23,20 @@ const RECIENTE_MS = 2 * 60_000;
  */
 export function useActividadCentral(o: {
   eventos: EventoAct[]; incidencias: IncidenciaAct[]; revisiones: RevisionAct[]; jornadas: JornadaAct[]; cierres: CierreAct[];
-  servicios: ServicioAct[]; serviciosExtra: ServicioAct[];
+  servicios: ServicioAct[]; serviciosExtra: ServicioAct[]; alertasHorario?: AlertaHorarioAct[];
   conductores: { id: string; nombre: string; telefono?: string | null }[];
   posiciones: { conductor_id: string; lat: number; lng: number }[]; vehiculos: { id: string; matricula: string }[];
   pedir: (s: Sonido) => void;
 }) {
-  const { eventos, incidencias, revisiones, jornadas, cierres, servicios, serviciosExtra, conductores, posiciones, vehiculos, pedir } = o;
+  const { eventos, incidencias, revisiones, jornadas, cierres, servicios, serviciosExtra, conductores, posiciones, vehiculos, pedir, alertasHorario } = o;
   const [ahora, setAhora] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setAhora(Date.now()), 60_000); return () => clearInterval(t); }, []);
 
   const { movimientos, graves, avisos } = useMemo(() => construirActividad({
-    eventos, incidencias, revisiones, jornadas, cierres, conductores, posiciones, vehiculos,
+    eventos, incidencias, revisiones, jornadas, cierres, conductores, posiciones, vehiculos, alertasHorario,
     servicios: [...serviciosExtra, ...servicios], // los del panel (en vivo) pisan a los extra
     desde: new Date(ahora - HORAS_ACTIVIDAD * 3600e3),
-  }), [eventos, incidencias, revisiones, jornadas, cierres, servicios, serviciosExtra, conductores, posiciones, vehiculos, ahora]);
+  }), [eventos, incidencias, revisiones, jornadas, cierres, servicios, serviciosExtra, conductores, posiciones, vehiculos, alertasHorario, ahora]);
 
   // null hasta leer el navegador (evita que la alarma suene por graves ya vistas antes de cargarlas).
   const [vistos, setVistos] = useState<Set<string> | null>(null);
@@ -55,7 +55,7 @@ export function useActividadCentral(o: {
     const vistosAntes = conocidos.current;
     const ahoraMs = Date.now();
     const claves = [...incidencias.map((i) => `inc-${i.id}`), ...revisiones.map((r) => `rev-${r.id}`), ...cierres.map((c) => `cie-${c.id}`),
-      ...jornadas.filter((j) => j.pendientes_cierre?.length).map((j) => `jorp-${j.id}`)];
+      ...jornadas.filter((j) => j.pendientes_cierre?.length).map((j) => `jorp-${j.id}`), ...(alertasHorario ?? []).map((a) => `ah-${a.id}`)];
     if (!vistosAntes) { conocidos.current = new Set(claves); return; }
     const reciente = (iso: string) => ahoraMs - Date.parse(iso) <= RECIENTE_MS;
     let aviso = false;
@@ -84,9 +84,15 @@ export function useActividadCentral(o: {
       vistosAntes.add(`jorp-${j.id}`);
       if (j.fin && ahoraMs - Date.parse(j.fin) <= 90 * 60_000) aviso = true;
     }
+    // Alertas de horario (fuera de horario, sin iniciar jornada, fin de turno): tres pitidos.
+    for (const a of alertasHorario ?? []) {
+      if (vistosAntes.has(`ah-${a.id}`)) continue;
+      vistosAntes.add(`ah-${a.id}`);
+      if (reciente(a.creado_en)) aviso = true;
+    }
     if (aviso) pedir("incidencia");
     else if (verde) pedir("completado");
-  }, [incidencias, revisiones, cierres, jornadas, pedir]);
+  }, [incidencias, revisiones, cierres, jornadas, alertasHorario, pedir]);
 
   // Alarma insistente para las graves sin ver.
   const alarma = useRef<EstadoAlarma | null>(null);

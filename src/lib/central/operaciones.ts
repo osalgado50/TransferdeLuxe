@@ -9,9 +9,11 @@ import { ESTADOS_AGENDA, construirCandidatos } from "@/lib/dominio/planificacion
 import { rangosConductor } from "@/lib/dominio/dias";
 import { indicadoresHoy } from "@/lib/central/puntualidad";
 import { construirActividad, HORAS_ACTIVIDAD, TIPOS_GRAVES, type CierreAct, type ServicioAct } from "@/lib/dominio/actividad";
-import { cargarDisponibilidad, disponibilidadDe } from "@/lib/central/disponibilidad";
+import { cargarDisponibilidad, cargarHorarios, disponibilidadDe } from "@/lib/central/disponibilidad";
 import { ausenciaEn, motivoAsignadoAusente } from "@/lib/dominio/ausencias";
 import { diaMadrid } from "@/lib/dominio/geo";
+import { cabeServicio, motivoAsignadoFueraHorario, vehiculoDelTurno } from "@/lib/dominio/horarios";
+import { aPlan, aTramo } from "@/lib/dominio/planificacion";
 
 /** Lógica de la central compartida por las Server Actions (web) y las rutas /api/central/* (app nativa). */
 export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar" | "deshacer" | "desasignar";
@@ -21,8 +23,13 @@ export interface PeticionOperador { idAccion: string; servicioId: string; accion
 
 /** Ejecuta la acción como operador. Devuelve además si hay que avisar por push al conductor asignado. */
 export async function ejecutarAccionOperador(operadorId: string, p: PeticionOperador): Promise<{ r: ResultadoAccion; avisar: () => Promise<void> }> {
-  // Asignar a mano a un conductor ausente (vacaciones, baja…): no se impide, pero queda registrado en el evento.
-  const motivo = (p.accion === "asignar" || p.accion === "reasignar") && p.conductorId ? await motivoSiAusente(p.servicioId, p.conductorId) : undefined;
+  // Asignar a mano a un conductor ausente (vacaciones, baja…) o fuera de su horario: no se impide (apps antiguas,
+  // urgencias), pero queda registrado en el evento.
+  const asigna = (p.accion === "asignar" || p.accion === "reasignar") && !!p.conductorId;
+  const hz = asigna ? await horarioDeAsignacion(p.servicioId, p.conductorId!) : {};
+  const motivo = asigna ? (await motivoSiAusente(p.servicioId, p.conductorId!)) ?? hz.motivo : undefined;
+  // Sin vehículo indicado: el del turno de ese día (el coche que coge en la base), si lo hay.
+  if (asigna && !p.vehiculoId && hz.vehiculoId) p = { ...p, vehiculoId: hz.vehiculoId };
   // Desasignar: a quién se le quita (para avisarle), leído antes de cambiar.
   const antes = p.accion === "desasignar"
     ? (await clienteAdmin().from("servicios").select("conductor_id,fecha_hora_recogida,origen_texto").eq("id", p.servicioId).maybeSingle()).data
@@ -49,6 +56,32 @@ async function motivoSiAusente(servicioId: string, conductorId: string): Promise
     if (a) console.warn(`[central] asignación a un conductor ausente (${a.tipo}) · servicio ${servicioId}`);
     return a ? motivoAsignadoAusente(a) : undefined;
   } catch { return undefined; }
+}
+
+/**
+ * Horario del conductor para esa asignación: `motivo` «fuera_horario: Fuera de horario (pausa 13:00–16:00)» si el servicio
+ * no cabe (se registra, no se impide) y `vehiculoId` del turno de ese día. Vacío sin horario o si algo falla.
+ */
+async function horarioDeAsignacion(servicioId: string, conductorId: string): Promise<{ motivo?: string; vehiculoId?: string }> {
+  try {
+    const sb = clienteAdmin();
+    const { data: s } = await sb.from("servicios").select("id,fecha_hora_recogida,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng,origen_texto,destino_texto").eq("id", servicioId).maybeSingle();
+    if (!s) return {};
+    const dia = diaMadrid(s.fecha_hora_recogida);
+    const { horarios, base } = await cargarHorarios(sb, dia, dia);
+    const h = horarios.get(conductorId);
+    if (!h) return {};
+    const vehiculoId = vehiculoDelTurno(h, dia) ?? undefined;
+    const inicio = Date.parse(s.fecha_hora_recogida);
+    const { data: agenda } = await sb.from("servicios").select("id,fecha_hora_recogida,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng,origen_texto,destino_texto")
+      .eq("conductor_id", conductorId).eq("es_prueba", false).in("estado", [...ESTADOS_AGENDA]).neq("id", servicioId)
+      .gte("fecha_hora_recogida", new Date(inicio - 16 * 3600e3).toISOString()).lte("fecha_hora_recogida", new Date(inicio + 16 * 3600e3).toISOString()).limit(100);
+    const p = aPlan(s);
+    const r = cabeServicio(h, p, { base, agenda: (agenda ?? []).map((x) => { const t = aTramo(aPlan(x)); return { id: x.id, inicio: t.inicio.getTime(), fin: t.fin.getTime() }; }) });
+    if (r.cabe) return { vehiculoId };
+    console.warn(`[central] asignación fuera de horario · servicio ${servicioId} · ${r.motivo}`);
+    return { motivo: motivoAsignadoFueraHorario(r.motivo!), vehiculoId };
+  } catch { return {}; }
 }
 
 export async function marcarAlertaVista(servicioId: string): Promise<void> {
@@ -90,14 +123,22 @@ export async function sugerenciasServicio(servicioId: string) {
   const ahora = new Date();
   const gps: Record<string, Candidato["posicion"]> = {};
   for (const p of posiciones ?? []) if (p.en_servicio) gps[p.conductor_id] = { punto: { lat: p.lat, lng: p.lng }, registradoEn: new Date(p.registrado_en) };
-  // Ausencias y jornada cerrada hoy: «No disponible · vacaciones», «Jornada cerrada hoy».
-  const candidatos = construirCandidatos(conductores ?? [], vehiculos ?? [], agenda ?? [], gps).map((c) => ({ ...c, ...disponibilidadDe(disp, c.conductorId) }));
+  // Ausencias, jornada cerrada hoy y horario: «No disponible · vacaciones», «Jornada cerrada hoy», «Fuera de horario (pausa…)».
+  // Vehículo: el del turno de ese día si lo hay (relevo en la base); si no, el habitual.
+  const dia = diaMadrid(inicio);
+  const vehiculoDe = (id: string) => {
+    const turno = vehiculoDelTurno(disp.horarios.get(id), dia);
+    return vehiculos?.find((x) => x.id === (turno ?? conductores?.find((c) => c.id === id)?.vehiculo_habitual_id));
+  };
+  const candidatos = construirCandidatos((conductores ?? []).map((c) => ({ ...c, vehiculo_habitual_id: vehiculoDe(c.id)?.id ?? c.vehiculo_habitual_id })),
+    vehiculos ?? [], agenda ?? [], gps).map((c) => ({ ...c, ...disponibilidadDe(disp, c.conductorId) }));
   const origen = s.origen_lat != null ? { lat: s.origen_lat, lng: s.origen_lng } : null;
   const destino = s.destino_lat != null ? { lat: s.destino_lat, lng: s.destino_lng } : null;
-  return sugerirConductores({ id: s.id, inicio, duracionMin: s.duracion_estimada_min, pasajeros: s.pasajeros, maletas: s.maletas, origen,
-    destino, origenTexto: s.origen_texto, destinoTexto: s.destino_texto }, candidatos, new Date())
+  const duracionMin = aPlan(s).duracionMin;
+  return sugerirConductores({ id: s.id, inicio, duracionMin, pasajeros: s.pasajeros, maletas: s.maletas, origen,
+    destino, origenTexto: s.origen_texto, destinoTexto: s.destino_texto }, candidatos, new Date(), { base: disp.base })
     .map((sg) => {
-      const v = vehiculos?.find((x) => x.id === conductores?.find((c) => c.id === sg.conductorId)?.vehiculo_habitual_id);
+      const v = vehiculoDe(sg.conductorId);
       const conexion = conexionConductor(posiciones?.find((p) => p.conductor_id === sg.conductorId), ahora, aj?.umbral_sin_senal_min ?? 5);
       return { ...sg, vehiculoId: v?.id ?? null, matricula: v?.matricula ?? null, conexion };
     });
@@ -144,7 +185,7 @@ async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date
   try {
     const desde = new Date(ahora.getTime() - HORAS_ACTIVIDAD * 3600_000);
     const d = desde.toISOString();
-    const [ev, inc, rev, jor, veh, cie] = await Promise.all([
+    const [ev, inc, rev, jor, veh, cie, alh] = await Promise.all([
       sb.from("eventos_servicio").select("id,servicio_id,tipo,motivo,creado_en,actor_id").gte("creado_en", d).order("creado_en", { ascending: false }).limit(150),
       sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta,zonas")
         .or(`creado_en.gte.${d},and(resuelta.is.false,tipo.in.(${TIPOS_GRAVES.join(",")}))`).order("creado_en", { ascending: false }).limit(60),
@@ -153,6 +194,7 @@ async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date
       sb.from("vehiculos").select("id,matricula"),
       sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en,visto")
         .or(`creado_en.gte.${d},and(gravedad.eq.grave,visto.is.false)`).order("creado_en", { ascending: false }).limit(60),
+      sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,texto,creado_en").gte("creado_en", d).order("creado_en", { ascending: false }).limit(60),
     ]);
     const f = [ev, inc, rev, jor, veh, cie].find((x) => x.error);
     if (f?.error) throw new Error(f.error.message);
@@ -160,6 +202,8 @@ async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date
     const { data: servs } = ids.length ? await sb.from("servicios").select(`${CAMPOS_ACT},es_prueba`).in("id", ids.slice(0, 200)) : { data: [] };
     const filas = (servs ?? []) as (ServicioAct & { es_prueba: boolean })[];
     const r = construirActividad({
+      // Alertas de horario: si la tabla falla (servidor sin migrar), simplemente sin ellas.
+      alertasHorario: alh.error ? [] : alh.data ?? [],
       eventos: ev.data ?? [], incidencias: inc.data ?? [], revisiones: rev.data ?? [], jornadas: jor.data ?? [], cierres: (cie.data ?? []) as CierreAct[],
       servicios: filas.filter((x) => !x.es_prueba), ocultos: filas.filter((x) => x.es_prueba).map((x) => x.id),
       conductores, posiciones, vehiculos: veh.data ?? [], desde,

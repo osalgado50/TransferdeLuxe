@@ -7,6 +7,7 @@ import type { TarjetaRuta } from "@/components/central/TableroRuta";
 import { leerModulos } from "@/lib/dominio/modulos";
 import TableroRuta from "@/components/central/TableroRutaCliente";
 import DialogoAutoasignar from "@/components/central/DialogoAutoasignar";
+import { cargarHorarios } from "@/lib/central/disponibilidad";
 
 function desplazar(dia: string, n: number): string {
   return new Date(Date.parse(`${dia}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
@@ -31,6 +32,8 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
     // Posiciones solo para el semáforo de puntualidad de hoy.
     esHoy ? sb.from("posicion_actual").select("conductor_id,lat,lng,en_servicio,registrado_en") : Promise.resolve({ data: [] }),
   ]);
+  // Horarios de ese día (y la base): la hoja de ruta sombrea las horas fuera de turno y no propone a quien no está en turno.
+  const { horarios, base } = await cargarHorarios(sb, desplazar(dia, -1), desplazar(dia, 1));
   const conVuelos = leerModulos(aj?.modulos).vuelos;
   const todos = ((servicios ?? []) as TarjetaRuta[]).map((x) => (conVuelos ? x : { ...x, numero_vuelo: null }));
   const t0 = Date.parse(desde), t1 = Date.parse(hasta);
@@ -50,7 +53,8 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
       </div>
       {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
         : <TableroRuta servicios={delDia} contexto={contexto} conductores={conductores ?? []} vehiculos={vehiculos ?? []}
-          margenMinimo={aj?.margen_minimo_min ?? 15} posiciones={esHoy ? posiciones ?? [] : null} umbralMin={aj?.umbral_sin_senal_min ?? 5} />}
+          margenMinimo={aj?.margen_minimo_min ?? 15} posiciones={esHoy ? posiciones ?? [] : null} umbralMin={aj?.umbral_sin_senal_min ?? 5}
+          dia={dia} horarios={Object.fromEntries(horarios)} base={base} />}
     </div>
   );
 }

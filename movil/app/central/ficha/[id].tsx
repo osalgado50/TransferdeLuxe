@@ -4,6 +4,7 @@ import { COLOR_CONEXION } from "@dominio/conexionConductor";
 import { urlVuelo } from "@dominio/vuelos";
 import { avisosCentral } from "@dominio/avisoCliente";
 import { preguntaAsignarAusente } from "@dominio/ausencias";
+import { preguntaAsignarFueraHorario } from "@dominio/horarios";
 import { AvisoCliente } from "~/components/AvisoCliente";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -106,9 +107,11 @@ export default function Ficha() {
       setSugs(null); setHecho(`${accion === "asignar" ? "Asignado" : "Reasignado"} a ${g.nombre}`);
       await recargar();
     };
-    // Ausente (vacaciones, baja…): el servidor no lo impide, pero se pregunta y queda registrado.
+    // Ausente (vacaciones, baja…) o fuera de su horario: el servidor no lo impide, pero se pregunta y queda registrado.
     Alert.alert(accion === "asignar" ? "Asignar servicio" : "Reasignar servicio",
-      g.ausencia ? `${g.nombre}: ${preguntaAsignarAusente(g.ausencia)}` : `¿${accion === "asignar" ? "Asignar" : "Reasignar"} a ${g.nombre}?`,
+      g.ausencia ? `${g.nombre}: ${preguntaAsignarAusente(g.ausencia)}`
+        : g.fueraHorario ? `${g.nombre}: ${preguntaAsignarFueraHorario(g.fueraHorario)}`
+        : `¿${accion === "asignar" ? "Asignar" : "Reasignar"} a ${g.nombre}?`,
       [{ text: "Cancelar", style: "cancel" }, { text: "Sí", onPress: () => void hacer() }]);
   };
 
