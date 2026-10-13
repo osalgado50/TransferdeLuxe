@@ -435,6 +435,52 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   alertas con «Asignar», app central) y el servicio aparece en «Sin asignar». Tras devolver, la app ofrece «Avisar al
   cliente del cambio». Prueba en producción: `scripts/prueba-aviso.mjs` (23 comprobaciones, todo OK).
 
+- **13/10/2026 · Duración por servicio, «⚡ Asignar automáticamente» y semáforo de puntualidad en la central**.
+  Petición del responsable: «cada servicio tendría que calcular lo que tarda más o menos, para evitar que al
+  distribuir servicios haya muy poco margen y el conductor no llegue; con muchos servicios acumulados, un botón
+  "Asignar automáticamente": se selecciona la lista de conductores disponibles y la lógica asigna» y «indicador visual
+  en los servicios del centro de control: verde llegamos bien, naranja justo, rojo retrasado». *Duración*
+  (`src/lib/dominio/duracion.ts`, pura): trayecto (ruta OSRM si ya está en la caché de la instancia —`rutaEnCache`, sin
+  pedir nada—; si no, recta × 1,3 a 70 km/h) + carga en el origen + descarga en el destino: 15 min en aeropuertos y
+  estaciones (por texto —«Aeropuerto», «Aeroport», «T1», «Estació», «Renfe»…— o por estar a ≤ 1,2 km de los de
+  `zonas.ts`), 5 min en el resto; mínimo 15. Los servicios nuevos guardan ya esa duración y el plan (`aPlan`) usa la
+  mayor entre la guardada y la calculada (conservador con los antiguos). Se ve en la ficha («≈ 50 min (trayecto 30 +
+  carga 15 en aeropuerto + descarga 5)») y en la hoja de ruta. Nuevo ajuste `ajustes.margen_minimo_min` (migración
+  0026, aditiva, por defecto 15, editable en Flota y ajustes): margen que debe sobrar entre la llegada a una recogida
+  y su hora desde el fin del servicio anterior; también marca «justa» (naranja) la franja de traslado de la hoja de ruta.
+  *Asignación automática* (`src/lib/dominio/autoasignacion.ts`, pura y determinista, 45 tests): entrada = pendientes
+  elegidos + conductores elegidos (vehículo habitual con plazas/maletas, taller, compromisos fijos asignado…recogido,
+  posición GPS reciente) + estrategia + margen. Ordena por hora y hace inserción voraz comprobando capacidad, solapes,
+  llegada con ≥ margen desde el servicio anterior (o desde la posición si la recogida es en < 3 h) y que no rompe el
+  siguiente compromiso; un grupo que no cabe en ningún vehículo elegido sale como «subcontratar». Después, mejora local
+  (mover y luego intercambiar servicios entre conductores, hasta 6 pasadas, solo movimientos que mantienen todo
+  factible) según la estrategia: *equitativo* (suma de cuadrados del nº de servicios del día, contando los que ya
+  tienen, y después km), *menos km* (km en vacío) o *equilibrado* (menos km sin que nadie pase de 2× el que menos;
+  tope blando: si nadie más puede, se asigna igual). Sin coordenadas se supone un traslado de 30 min. Salida por línea:
+  conductor o motivo, llegada estimada, margen, km en vacío, y métricas por conductor (servicios, horas, km).
+  *Servidor* (`src/lib/central/autoasignar.ts`): datos del diálogo, propuesta y confirmación; la confirmación vuelve a
+  leer todo, reevalúa la asignación completa (`evaluarAsignacion`) y salta las líneas que ya no están pendientes o ya
+  no encajan (salvo «Asignar igualmente»); cada línea va por `ejecutarAccionOperador` (push al conductor) con un
+  `idAccion` derivado del lote y el servicio (UUID v5), así reintentar el mismo lote no duplica nada («ya asignado»).
+  *UI web* (`DialogoAutoasignar`, en Servicios y Hoja de ruta): día (pendientes preseleccionados, se pueden desmarcar),
+  conductores con conexión, vehículo y plazas (marcados los que conducen y no tienen el vehículo en taller), estrategia
+  y margen → «Calcular propuesta» → tabla con selector de conductor por línea (al cambiarlo se recalcula en el
+  navegador y avisa en rojo/naranja), no asignables con motivo y resumen por conductor → «Confirmar y enviar» con
+  contadores. *API* para la app/pruebas: `GET|POST /api/central/autoasignar/propuesta` y `POST …/confirmar` (Bearer
+  de la central). *Semáforo* (`src/lib/dominio/puntualidadCentral.ts`, pura): para asignado/aceptado/en camino de hoy,
+  ETA desde la posición GPS reciente encadenando lo que el conductor lleva antes (lo que va a bordo + descarga, y
+  servicios previos), con el modelo de traslado (sin OSRM); sin GPS reciente, por hora y plan con la etiqueta gris
+  «sin GPS». Clasifica con `calcularPuntualidad` (la misma regla que ve el conductor): «a tiempo · 12 min de margen»,
+  «justo · 3 min», «retraso +8 min». Se ve en la lista de servicios, en los contadores del panel en vivo («En curso»
+  y «Esperando respuesta» desglosan cuántos van tarde o justos, también en su ventana), en la hoja de ruta (chip en cada
+  tarjeta y la franja de traslado toma el color en vivo si el GPS dice que va peor que el plan), en la ficha y en la app
+  nativa (lista y ficha del modo central) con el campo `puntualidad` de `/api/central/resumen`. App: sin dependencias
+  nativas (huella sin cambios). Prueba de punta a punta en producción: `scripts/prueba-autoasignar.mjs` (6 servicios
+  de prueba para mañana entre 09:00 y 10:30 con orígenes distintos y 3 conductores demo, estrategia equitativa): 19
+  comprobaciones OK — reparto 2/2/2, sin solapes ni márgenes < 15 min (auditoría independiente en el script),
+  confirmar asigna los 6 con el vehículo habitual, cada conductor ve solo los suyos, reintento del lote sin duplicar,
+  lote nuevo sobre uno ya asignado → saltado; al final quedan `es_prueba` y cancelados.
+
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
   plano), Mindee, Tabscanner, Azure y Google Document AI. Se elige Claude Haiku 5.5 porque devuelve los datos ya
@@ -636,6 +682,20 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   aviso del cambio, y el servidor le permite redactarlo si fue él quien lo devolvió en las últimas 6 h. Un detalle
   salido de los tests: el aviso al cliente era el «último evento» del servicio y tapaba la tarjeta «Llegando» de la
   central; ahora `llegandoReciente` lo ignora.
+
+- **Asignar automáticamente sin que nadie llegue tarde (13/10/2026)**: un reparto «óptimo» (programación lineal
+  entera) sería opaco, lento de validar y no determinista entre versiones; se optó por una heurística explicable
+  (inserción voraz por hora + mejora local) con una regla dura que se comprueba siempre igual: la llegada desde el fin
+  del servicio anterior debe dejar el margen mínimo, y el siguiente compromiso también. Para que el servidor no se fíe
+  del navegador, la confirmación recalcula todo con los datos del momento y salta lo que haya cambiado; y para los
+  reintentos sin cobertura el `idAccion` se deriva del lote, así un doble clic no asigna dos veces. Los tests incluyen
+  escenarios generados con semilla fija (30 servicios, 6 conductores, un vehículo en taller, compromisos y posiciones)
+  con una auditoría independiente de solapes, márgenes y capacidad para las tres estrategias. El tope de
+  «equilibrado» tuvo que ser blando: con vehículos de distinta capacidad, a veces solo un conductor puede llevar un grupo.
+- **Semáforo sin llamar a OSRM en cada carga**: calcular la ruta real de cada servicio en cada refresco del panel
+  dispararía el límite del servidor público (1 petición/s). El semáforo usa el modelo de traslado (instantáneo, también
+  en el navegador con los datos en tiempo real) y solo la duración del servicio aprovecha una ruta OSRM si ya estaba en
+  caché. El orden importa: si el conductor lleva pasajeros, su ETA a la siguiente recogida pasa por el destino actual.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
