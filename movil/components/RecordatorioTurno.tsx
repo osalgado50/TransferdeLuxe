@@ -1,3 +1,4 @@
+import { sumarDias } from "@dominio/dias";
 import { agruparHorarios, recordatoriosTurno } from "@dominio/horarios";
 import { diaMadrid } from "@dominio/geo";
 import { leerModulos } from "@dominio/modulos";
@@ -26,7 +27,7 @@ export function RecordatorioTurno({ yo }: { yo: string }) {
         const hoy = diaMadrid(new Date());
         const [hor, exc, jor, aj] = await Promise.all([
           supabase.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").eq("conductor_id", yo),
-          supabase.from("excepciones_horario").select("conductor_id,fecha,tramos,nota").eq("conductor_id", yo).eq("fecha", hoy),
+          supabase.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").eq("conductor_id", yo).gte("fecha", sumarDias(hoy, -1)).lte("fecha", hoy),
           supabase.from("jornadas").select("id").eq("conductor_id", yo).is("fin", null).limit(1),
           supabase.from("ajustes").select("modulos").eq("id", 1).maybeSingle(),
         ]);

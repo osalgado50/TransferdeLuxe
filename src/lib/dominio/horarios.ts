@@ -11,7 +11,7 @@ import { tiempoTraslado } from "./planificacion";
  *
  * Reglas:
  * - Sin horario definido (ninguna fila de semana tipo ni excepción ese día) = disponible todo el día (como antes).
- * - Excepción de ese día > semana tipo > sin restricción. Tramos [] = libre ese día.
+ * - Día con fecha (cambio puntual o planificación de semanas/meses) > semana tipo > sin restricción. Tramos [] = libre.
  * - Con semana tipo, un día sin fila también es libre (la central ve los 7 días en el editor).
  * - Horas de pared de Madrid («08:00»); «24:00» = medianoche del día siguiente.
  * - Turno de noche: un tramo cuyo fin es anterior a su inicio (22:00–06:00) termina al día siguiente. Pertenece al día en
@@ -21,7 +21,9 @@ import { tiempoTraslado } from "./planificacion";
  */
 export interface Tramo { inicio: string; fin: string }
 export interface DiaSemanaHorario { dia_semana: number; tramos: Tramo[]; vehiculo_id?: string | null; plantilla_id?: string | null }
-export interface ExcepcionHorario { fecha: string; tramos: Tramo[]; nota?: string | null }
+/** Día con fecha: «cambio» puntual (médico, cambio con un compañero) o «plan» (planificación de semanas / meses). */
+export type TipoExcepcion = "cambio" | "plan";
+export interface ExcepcionHorario { fecha: string; tramos: Tramo[]; nota?: string | null; vehiculo_id?: string | null; tipo?: TipoExcepcion }
 export interface HorarioConductor { semana: DiaSemanaHorario[]; excepciones: ExcepcionHorario[] }
 export interface Plantilla { id: string; nombre: string; tramos: Tramo[] }
 
@@ -103,25 +105,30 @@ export const tipoJornada = (ts: readonly Tramo[]) => (ts.length === 0 ? "Libre" 
 /** Agrupa las filas de la BD por conductor. */
 export function agruparHorarios(
   semana: readonly { conductor_id: string; dia_semana: number; tramos: unknown; vehiculo_id?: string | null; plantilla_id?: string | null }[],
-  excepciones: readonly { conductor_id: string; fecha: string; tramos: unknown; nota?: string | null }[],
+  excepciones: readonly { conductor_id: string; fecha: string; tramos: unknown; nota?: string | null; vehiculo_id?: string | null; tipo?: string | null }[],
 ): Map<string, HorarioConductor> {
   const m = new Map<string, HorarioConductor>();
   const de = (id: string) => { let h = m.get(id); if (!h) { h = { semana: [], excepciones: [] }; m.set(id, h); } return h; };
   for (const f of semana) de(f.conductor_id).semana.push({ dia_semana: f.dia_semana, tramos: leerTramos(f.tramos), vehiculo_id: f.vehiculo_id ?? null, plantilla_id: f.plantilla_id ?? null });
-  for (const f of excepciones) de(f.conductor_id).excepciones.push({ fecha: f.fecha, tramos: leerTramos(f.tramos), nota: f.nota ?? null });
+  for (const f of excepciones) {
+    de(f.conductor_id).excepciones.push({ fecha: f.fecha, tramos: leerTramos(f.tramos), nota: f.nota ?? null, vehiculo_id: f.vehiculo_id ?? null, tipo: f.tipo === "plan" ? "plan" : "cambio" });
+  }
   return m;
 }
 
 export type DiaHorario =
   | { restringido: false; vehiculoId: string | null }
-  | { restringido: true; tramos: Tramo[]; fuente: "excepcion" | "semanal"; nota: string | null; vehiculoId: string | null };
+  | { restringido: true; tramos: Tramo[]; fuente: "excepcion" | "plan" | "semanal"; nota: string | null; vehiculoId: string | null };
 
-/** Tramos de ese día: excepción > semana tipo > sin restricción. */
-export function tramosDelDia(h: HorarioConductor | null | undefined, fecha: string): DiaHorario {
+/**
+ * Tramos de ese día: día con fecha (cambio o plan) > semana tipo > sin restricción. El vehículo del turno: el del día
+ * con fecha si lo tiene; si no, el de la semana tipo. `sinCambios`: ignora los cambios puntuales (para copiar meses).
+ */
+export function tramosDelDia(h: HorarioConductor | null | undefined, fecha: string, o: { sinCambios?: boolean } = {}): DiaHorario {
   const fila = h?.semana.find((d) => d.dia_semana === diaSemana(fecha));
-  const vehiculoId = fila?.vehiculo_id ?? null;
-  const ex = h?.excepciones.find((e) => e.fecha === fecha);
-  if (ex) return { restringido: true, tramos: ordenar(ex.tramos), fuente: "excepcion", nota: ex.nota ?? null, vehiculoId };
+  const ex = h?.excepciones.find((e) => e.fecha === fecha && !(o.sinCambios && e.tipo !== "plan"));
+  const vehiculoId = ex?.vehiculo_id ?? fila?.vehiculo_id ?? null;
+  if (ex) return { restringido: true, tramos: ordenar(ex.tramos), fuente: ex.tipo === "plan" ? "plan" : "excepcion", nota: ex.nota ?? null, vehiculoId };
   if (!h || h.semana.length === 0) return { restringido: false, vehiculoId };
   return { restringido: true, tramos: ordenar(fila?.tramos ?? []), fuente: "semanal", nota: null, vehiculoId };
 }

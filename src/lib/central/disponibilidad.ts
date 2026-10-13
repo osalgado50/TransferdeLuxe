@@ -24,7 +24,8 @@ export async function cargarHorarios(sb: SupabaseClient, desdeDia: string, hasta
   try {
     const [h, e, a] = await Promise.all([
       sb.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id,plantilla_id").limit(5000),
-      sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota").gte("fecha", desdeDia).lte("fecha", hastaDia).limit(5000),
+      // Desde la víspera: la madrugada de un turno de noche cuenta en el día siguiente.
+      sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").gte("fecha", sumarDias(desdeDia, -1)).lte("fecha", hastaDia).limit(5000),
       sb.from("ajustes").select("base_lat,base_lng").eq("id", 1).maybeSingle(),
     ]);
     for (const x of [h, e, a]) if (x.error) console.error("[disponibilidad] horarios:", x.error.message);

@@ -555,6 +555,20 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   Validación: no puede durar cero ni pisar el primer tramo del día (22:00–09:00 con 08:00–12:00 se rechaza) y el solape
   de vehículo tiene en cuenta la madrugada (la furgo del turno de noche choca con quien la coge a las 05:00, no con el
   relevo de las 06:00). Incluye el cambio de hora: la noche del 24 al 25/10 dura 9 h. 10 pruebas nuevas (713 en total).
+- **Planificación de horarios por semanas, meses y año (13/10/2026)**. El responsable detecta que, al pasar a la semana
+  siguiente y cambiar el horario, «no se mantiene»: la semana tipo es una sola para todas las semanas, así que cambiarla
+  mirando la semana que viene cambia también esta. Pide planificar los turnos de un mes o de todo el año, con
+  «planificación recursiva» y un botón de copiar al mes siguiente. Diseño (migración `0030`, aditiva): cada día
+  planificado es una fila de `excepciones_horario` con `tipo = 'plan'` y su vehículo del turno; manda sobre la semana
+  tipo, que sigue siendo la base (y sin nada, disponible todo el día). Los «cambios de un día» de siempre son
+  `tipo = 'cambio'` (médico, cambio con un compañero): mandan, pero no se copian ni se pisan. Lógica pura en
+  `src/lib/dominio/planHorarios.ts`: copiar un mes al siguiente respetando el día de la semana (cada día toma el de 4
+  semanas antes, o 5 si aún cae en el mes nuevo), encadenado hasta el mes que se elija (todo el año = hasta diciembre);
+  repetir un bloque de 1–4 semanas hasta una fecha (rotaciones mañanas/tardes) y solapes de vehículo por fecha. En la
+  página «Horarios»: pestañas *Semana* / *Mes (planificar)*; en la semana, editar «Solo la semana del …» o la «Semana
+  tipo (todas las semanas)»; en el mes, la plantilla × días con 📅/✎, editar un día con un clic, copiar a los meses
+  siguientes, repetir semanas y quitar lo planificado del mes. Todos los lectores (vigilante, asignación, app del
+  conductor) leen ya el vehículo del día planificado y la víspera (madrugada de los turnos de noche). 10 pruebas nuevas.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto

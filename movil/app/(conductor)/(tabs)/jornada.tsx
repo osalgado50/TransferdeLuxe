@@ -1,3 +1,4 @@
+import { sumarDias } from "@dominio/dias";
 // Pantalla «Jornada»: estado de la jornada (horas de hoy y de la semana, GPS), botones grandes Iniciar / Pausa / Reanudar /
 // Finalizar e incidencias del día. Iniciar la jornada enciende antes el GPS (sin permiso de ubicación NO se inicia);
 // finalizarla (tras enviar la hoja de cierre) lo apaga. La pausa no toca el GPS.
@@ -67,7 +68,7 @@ export default function PantallaJornada() {
       supabase.from("ausencias").select("id,conductor_id,desde,hasta,franja,tipo,nota").eq("conductor_id", yo).gte("hasta", diaMadrid(new Date())).order("desde").limit(10),
       // Su horario (semana tipo + cambio de hoy). Con un servidor sin las tablas, simplemente no se muestra.
       supabase.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").eq("conductor_id", yo),
-      supabase.from("excepciones_horario").select("conductor_id,fecha,tramos,nota").eq("conductor_id", yo).eq("fecha", diaMadrid(new Date())),
+      supabase.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").eq("conductor_id", yo).gte("fecha", sumarDias(diaMadrid(new Date()), -1)).lte("fecha", diaMadrid(new Date())),
     ]);
     if (jor.error) throw new Error(jor.error.message);
     const m = leerModulos(aj.data?.modulos);

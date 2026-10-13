@@ -1,7 +1,9 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { borrarExcepcion, borrarPlantilla, guardarExcepcion, guardarPlantilla, guardarSemana, quitarHorario, type Resultado } from "@/app/central/horarios/actions";
+import { borrarExcepcion, borrarPlantilla, guardarExcepcion, guardarPlan, guardarPlantilla, guardarSemana, quitarHorario, quitarPlan, type Resultado } from "@/app/central/horarios/actions";
+import { planSemana } from "@/lib/dominio/planHorarios";
+import { sumarDias } from "@/lib/dominio/dias";
 import {
   DIAS_SEMANA, MAX_TRAMOS, NOMBRE_DIA, copiarATodos, esNocturno, minutos, textoTramos, tipoJornada, validarTramos,
   type DiaSemanaHorario, type ExcepcionHorario, type Plantilla, type Tramo,
@@ -21,13 +23,13 @@ function tramoNuevo(ts: Tramo[]): Tramo | null {
   return { inicio: hora(ult + 60), fin: hora(Math.min(ult + 300, 1440)) };
 }
 
-function Mensaje({ r }: { r: Resultado | null }) {
+export function Mensaje({ r }: { r: Resultado | null }) {
   if (!r) return null;
   return r.ok ? <p role="status" className="text-sm text-green-300">{r.mensaje}</p> : <p role="alert" className="text-sm text-red-400">{r.error}</p>;
 }
 
 /** Editor de tramos (inicio/fin, quitar, + añadir tramo). */
-function EditorTramos({ tramos, onChange, etiqueta }: { tramos: Tramo[]; onChange: (t: Tramo[]) => void; etiqueta: string }) {
+export function EditorTramos({ tramos, onChange, etiqueta }: { tramos: Tramo[]; onChange: (t: Tramo[]) => void; etiqueta: string }) {
   const nuevo = tramoNuevo(tramos);
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -55,10 +57,16 @@ function EditorTramos({ tramos, onChange, etiqueta }: { tramos: Tramo[]; onChang
 
 type Vehiculo = { id: string; matricula: string; modelo: string; estado: string };
 
-/** Semana tipo de un conductor: 7 días con tramos, vehículo del turno y plantilla; copiar a toda la semana; guardar. */
-export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHorario }: {
+/**
+ * Semana de un conductor: 7 días con tramos, vehículo del turno y plantilla; copiar el lunes a toda la semana; guardar.
+ * Sin `concreta`: la semana tipo (vale para todas las semanas). Con `concreta`: solo esa semana (días con fecha que
+ * mandan sobre la semana tipo).
+ */
+export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHorario, concreta }: {
   conductor: { id: string; nombre: string; vehiculo_habitual_id: string | null }; semana: DiaSemanaHorario[]; plantillas: Plantilla[];
   vehiculos: Vehiculo[]; tieneHorario: boolean;
+  /** Semana concreta: lunes, «19–25 oct» y si ya tiene días planificados. */
+  concreta?: { lunes: string; etiqueta: string; planificada: boolean };
 }) {
   const router = useRouter();
   const [dias, setDias] = useState<DiaSemanaHorario[]>(() => DIAS_SEMANA.map((d) => {
@@ -78,11 +86,18 @@ export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHo
     setDias((ds) => ds.map((d) => ({ ...d, tramos: p.tramos.map((t) => ({ ...t })), plantilla_id: p.id })));
   };
   const guardar = () => ini(async () => {
-    const res = await guardarSemana(conductor.id, dias.map((d) => ({ dia_semana: d.dia_semana, tramos: d.tramos, vehiculo_id: d.vehiculo_id ?? null, plantilla_id: d.plantilla_id ?? null })));
+    const res = concreta
+      ? await guardarPlan(conductor.id, planSemana(concreta.lunes, dias))
+      : await guardarSemana(conductor.id, dias.map((d) => ({ dia_semana: d.dia_semana, tramos: d.tramos, vehiculo_id: d.vehiculo_id ?? null, plantilla_id: d.plantilla_id ?? null })));
     setR(res);
     if (res.ok) router.refresh();
   });
   const quitar = () => {
+    if (concreta) {
+      if (!confirm(`¿La semana del ${concreta.etiqueta} de ${conductor.nombre} vuelve a su semana tipo?`)) return;
+      ini(async () => { const res = await quitarPlan([conductor.id], concreta.lunes, sumarDias(concreta.lunes, 6)); setR(res); if (res.ok) router.refresh(); });
+      return;
+    }
     if (!confirm(`¿Quitar el horario de ${conductor.nombre}? Quedará disponible todo el día (como antes).`)) return;
     ini(async () => { const res = await quitarHorario(conductor.id); setR(res); if (res.ok) router.refresh(); });
   };
@@ -90,9 +105,13 @@ export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHo
   return (
     <section aria-label={`Semana tipo de ${conductor.nombre}`} className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Semana tipo de {conductor.nombre}</h2>
-        {!tieneHorario && <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">Sin horario: disponible todo el día</span>}
+        <h2 className="text-lg font-semibold">{concreta ? `Semana del ${concreta.etiqueta} · ${conductor.nombre}` : `Semana tipo de ${conductor.nombre}`}</h2>
+        {concreta
+          ? <span className={`rounded px-2 py-0.5 text-xs ${concreta.planificada ? "bg-sky-900/60 text-sky-200" : "bg-slate-800 text-slate-300"}`}>{concreta.planificada ? "📅 Planificada" : "Sale de la semana tipo"}</span>
+          : !tieneHorario && <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">Sin horario: disponible todo el día</span>}
       </div>
+      {concreta && <p className="text-sm text-sky-200">Solo cambia esta semana: las demás siguen con su semana tipo o con lo que tengan planificado.</p>}
+      {concreta && !tieneHorario && !concreta.planificada && <p className="text-sm text-amber-300">Ahora no tiene horario (disponible todo el día). Si guardas, los días sin tramos quedarán libres esta semana.</p>}
       <p className="text-sm text-slate-400">Jornada continua (un tramo) o partida (dos tramos con un rato para comer). Un día sin tramos es libre. El coche
         sale de la base y vuelve a ella en cada tramo: allí se hace el relevo con el siguiente conductor.</p>
       <div className="flex flex-wrap items-end gap-2">
@@ -132,8 +151,12 @@ export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHo
         ))}
       </ul>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={pend || hayErrores} onClick={guardar} className={boton}>{pend ? "Guardando…" : "Guardar horario"}</button>
-        {tieneHorario && <button type="button" disabled={pend} onClick={quitar} className="min-h-10 rounded-lg border border-red-500 px-3 text-sm text-red-300 disabled:opacity-50">Quitar horario</button>}
+        <button type="button" disabled={pend || hayErrores} onClick={guardar} className={boton}>{pend ? "Guardando…" : concreta ? "Guardar solo esta semana" : "Guardar semana tipo"}</button>
+        {(concreta ? concreta.planificada : tieneHorario) && (
+          <button type="button" disabled={pend} onClick={quitar} className="min-h-10 rounded-lg border border-red-500 px-3 text-sm text-red-300 disabled:opacity-50">
+            {concreta ? "Volver a la semana tipo" : "Quitar horario"}
+          </button>
+        )}
         <Mensaje r={r} />
       </div>
     </section>
@@ -201,7 +224,7 @@ export function GestionExcepciones({ conductor, excepciones, hoy }: { conductor:
   return (
     <section aria-label={`Cambios de un día de ${conductor.nombre}`} className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
       <h2 className="text-lg font-semibold">Cambios de un día · {conductor.nombre}</h2>
-      <p className="text-sm text-slate-400">Para un día concreto (cambio de turno con un compañero, médico…): manda sobre la semana tipo. Sin tramos = libre ese día.</p>
+      <p className="text-sm text-slate-400">Para un día concreto (cambio de turno con un compañero, médico…): manda sobre la semana tipo y lo planificado, y no se copia ni se pisa al copiar meses o repetir semanas. Sin tramos = libre ese día.</p>
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-sm">Fecha<br /><input type="date" value={fecha} min={hoy} onChange={(e) => setFecha(e.target.value)} className={campo} /></label>
         <div className="text-sm">Horario ese día<br /><EditorTramos tramos={tramos} etiqueta="Cambio de un día" onChange={setTramos} /></div>
@@ -217,7 +240,7 @@ export function GestionExcepciones({ conductor, excepciones, hoy }: { conductor:
         <ul className="space-y-2">
           {excepciones.map((e) => (
             <li key={e.fecha} data-excepcion={e.fecha} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 px-3 py-2 text-sm">
-              <span><b className="capitalize">{fmt(e.fecha)}</b> · {textoTramos(e.tramos)}{e.nota ? <span className="text-slate-400"> · {e.nota}</span> : null}</span>
+              <span><b className="inline-block first-letter:uppercase">{fmt(e.fecha)}</b> · {textoTramos(e.tramos)}{e.nota ? <span className="text-slate-400"> · {e.nota}</span> : null}</span>
               <button type="button" disabled={pend} onClick={() => ini(async () => { setR(await borrarExcepcion(conductor.id, e.fecha)); router.refresh(); })}
                 className="rounded border border-red-500 px-3 py-1 text-red-300 disabled:opacity-50">Borrar</button>
             </li>

@@ -40,7 +40,7 @@ export default async function PanelCentral() {
     // Horarios: alertas de las últimas 12 h y turnos de hoy (si las tablas fallan, el panel sigue sin ellos).
     sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,texto,creado_en").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(100),
     sb.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").limit(2000),
-    sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota").gte("fecha", hoy).lte("fecha", sumarDias(hoy, 1)).limit(1000),
+    sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").gte("fecha", sumarDias(hoy, -1)).lte("fecha", sumarDias(hoy, 1)).limit(1000),
   ]);
   const fallo = [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors, cies].find((r) => r.error);
   const horarios = Object.fromEntries(agruparHorarios(hor.data ?? [], exc.data ?? []));

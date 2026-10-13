@@ -1,3 +1,4 @@
+import { sumarDias } from "@/lib/dominio/dias";
 import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { leerModulos } from "@/lib/dominio/modulos";
@@ -28,7 +29,7 @@ export default async function PaginaJornada() {
     sb.from("ausencias").select("id,conductor_id,desde,hasta,franja,tipo,nota").eq("conductor_id", yo.id).gte("hasta", hoy).order("desde").limit(10),
     // Su horario (semana tipo + cambio de hoy), solo lectura. Sin horario o si la tabla falla: no se muestra nada.
     sb.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").eq("conductor_id", yo.id),
-    sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota").eq("conductor_id", yo.id).eq("fecha", hoy),
+    sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").eq("conductor_id", yo.id).gte("fecha", sumarDias(hoy, -1)).lte("fecha", hoy),
   ]);
   const horarioHoy = textoHorarioHoy(agruparHorarios(hor.data ?? [], exc.data ?? []).get(yo.id), hoy);
   const ausencias = proximasAusencias((aus.data ?? []) as Ausencia[], hoy);
