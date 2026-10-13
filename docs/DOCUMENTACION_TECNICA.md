@@ -50,7 +50,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Plazo de respuesta**: `pg_cron` cada minuto marca los servicios no aceptados a tiempo y avisa a la central; el conductor aún puede aceptarlos mientras no se reasignen.
 - **Sin cobertura**: cola local por conductor; cada pulsación lleva un `idAccion` y el servidor ignora duplicados.
 - **Tickets**: OCR gratuito en el navegador (Tesseract.js) + reglas de extracción; la foto va a un bucket privado.
-- **Mapas**: Leaflet + OpenStreetMap; búsqueda de direcciones con Photon (Nominatim de respaldo), lugares de la empresa, favoritos y lugares frecuentes (Google Places preparado, apagado sin clave).
+- **Mapas**: Leaflet + OpenStreetMap; búsqueda de direcciones con Photon y Nominatim en paralelo (consulta limpiada, localidad detectada, número aproximado), lugares de la empresa, favoritos y lugares frecuentes (Google Places preparado, apagado sin clave).
 - **Despliegue**: Hostinger Cloud Startup (Node.js Web App importada de GitHub, redespliegue en cada push) y
   GitHub Actions diario que mantiene activo Supabase y limpia tokens push caducados (sin reiniciar datos).
 - **App nativa TVL Conductor** (`movil/`, Expo SDK 57): GPS en segundo plano con cola sin pérdidas, notificaciones push,
@@ -388,6 +388,31 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   elegir la sugerencia con `GET /api/geocodificar?lugar=<placeId>`) solo se activa si existe `GOOGLE_PLACES_API_KEY`
   (documentada vacía en `.env.example`; es de pago). Tests: `geocodificacion.test.ts`, `lugaresEmpresa.test.ts`,
   `google-places.test.ts` (fetch simulado).
+- **13/10/2026 · Direcciones de calle en el autocompletado**. Medido en producción: los lugares («aeropuerto reus»)
+  salían, pero las direcciones no: «Dr. Eduard Punset 7, 3-1 de Salou. Tarragona» y «Carrer Eduard Punset Salou» sin
+  resultados (la calle es «Avinguda del Doctor Eduard Punset»), «Carrer Barcelona 10 Salou» devolvía «Carrer de Salou
+  10 · Barcelona» y «hotel piramide salou» nada. Se probaron las URLs reales de Photon y Nominatim (≈30 peticiones a
+  cada uno, 1 por segundo) antes de programar: con una caja alrededor de la localidad los dos encuentran la calle
+  aunque el tipo de vía no coincida; cuando el portal no está en OpenStreetMap devuelven la calle sin número; y
+  «hotel piramide» no da nada pero «piramide» sí. *Limpieza de la consulta* (`src/lib/dominio/consultaDireccion.ts`,
+  pura): `analizarConsulta` / `normalizarConsulta` expanden abreviaturas (Dr./Dra., Avda./Av., C/, Pg./Pº, Ctra.,
+  Pl./Pza., Urb., s/n, nº), quitan piso/puerta/escalera tras el portal («3-1», «3º 1ª», «3o 1a», «bajo», «ático»,
+  «esc. B», «piso», «puerta», «izq.»), código postal, país y la provincia sobrante («Salou, Tarragona»), y «de Salou» →
+  «Salou». Detectan la localidad conocida (las de `zonas.ts` sin aeropuertos ni estaciones, con alias sin acentos:
+  La Pineda/Vila-seca, Mont-roig/Miami Platja, L'Hospitalet de l'Infant…), sin confundirla con el nombre de la calle
+  («Carrer Barcelona 10 Salou» → Salou; «Avinguda de Tarragona 5 Reus» → Reus). Dan también un *núcleo* de respaldo:
+  la calle o el nombre sin número ni palabras genéricas («hotel piramide» → «piramide»). *Búsqueda*
+  (`buscador.ts`): Photon y Nominatim en paralelo, cada uno con su cola de 1 petición/s (espera hasta 2 s; si no,
+  se salta) y caché de 24 h por URL; con localidad, Photon con `bbox` de ~8 km (15 km en capitales de provincia) y
+  Nominatim con `viewbox` + `bounded=1`. Si la consulta limpia no da nada, se prueba el núcleo. *Fusión*
+  (`fusionarResultados` en `geocodificacion.ts`, pura): repetidos fuera (misma calle + número + localidad, o < 30 m del
+  mismo tipo); orden: localidad detectada > cercanía a Salou por anillos de 10/30/60 km > palabras buscadas presentes >
+  dirección exacta > calle > lugar > población. Si el portal tecleado no existe en el mapa, la calle sale como
+  «Avinguda del Doctor Eduard Punset, 7 · Salou (número aproximado)» con las coordenadas de la calle (campo
+  `aproximado`), así el conductor ve el número. *UI* (`CampoDireccion`): si tras ≥ 6 letras no hay ninguna
+  sugerencia, el desplegable ofrece «Usar “…” tal cual (sin punto en el mapa)»; el orden 🏢/⭐ de la central no cambia.
+  Tests: `consultaDireccion.test.ts` (los casos reales y ~60 variantes) y `geocodificacion.test.ts` (paralelo, cajas,
+  respaldo, cola y caché con fetch y reloj simulados).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -569,6 +594,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   empresa» y salen los primeros. Como son datos privados de clientes, no pasan por la ruta pública de búsqueda: se
   cargan con la página de la central (servidor, `clienteAdmin`) y se filtran en el navegador. Google Places queda
   preparado detrás de una variable de entorno, sin clave, para no generar costes.
+- **Direcciones de calle que no salían (13/10/2026)**: Photon y Nominatim buscan por palabras; «Dr.», «3-1»,
+  «Tarragona» (provincia) o «hotel» delante del nombre bastaban para quedarse sin resultados, y sin limitar la zona
+  «Carrer Barcelona 10 Salou» casaba con una calle «de Salou» en Barcelona. Solución: limpiar la consulta con reglas
+  puras y probadas, detectar la localidad (descartando la que forma parte del nombre de la calle) y buscar solo en
+  una caja a su alrededor. Dos detalles salieron en las pruebas: un piso ordinal sin portal («Las Mimosas 3o 1a») se
+  tomaba por el número, y la calle «aproximada» llegaba a tapar la dirección exacta al deduplicar; los dos quedaron
+  cubiertos por tests. Para no saltarse el límite de 1 petición/s de los servicios gratuitos con dos consultas
+  seguidas (la limpia y el respaldo), el límite pasó de «si está ocupado, se salta» a una cola corta (hasta 2 s).
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

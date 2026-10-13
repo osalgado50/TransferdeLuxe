@@ -27,6 +27,8 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [abierto, setAbierto] = useState(false);
   const [foco, setFoco] = useState(false);
+  /** Texto cuya búsqueda ya respondió (para saber que «no hay sugerencias» no es «aún buscando»). */
+  const [buscado, setBuscado] = useState<string | null>(null);
   const elegido = useRef<string | null>(null);
 
   useEffect(() => {
@@ -46,6 +48,8 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   const locales = [...empresa, ...favs];
   const todos = combinarSugerencias({ empresa, favoritos: favs, externos: lugares });
   const pie = atribucion(todos);
+  // Sin sugerencias tras ≥ 6 letras: se ofrece usar el texto tal cual para no bloquear la reserva.
+  const talCual = libre && foco && todos.length === 0 && texto.trim().length >= 6 && buscado === texto.trim();
 
   useEffect(() => {
     if (texto.trim().length < 3 || elegido.current === texto) { setLugares([]); return; }
@@ -53,13 +57,18 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
     const t = setTimeout(async () => {
       try {
         const r = await fetch(`/api/geocodificar?q=${encodeURIComponent(texto.trim())}`, { signal: ctl.signal });
-        if (!r.ok) return;
-        setLugares(await r.json());
+        setLugares(r.ok ? await r.json() : []);
+        setBuscado(texto.trim());
         setAbierto(true);
       } catch { /* abortado o sin red */ }
     }, 500);
     return () => { clearTimeout(t); ctl.abort(); };
   }, [texto]);
+
+  function usarTalCual() {
+    elegido.current = texto;
+    setLat(""); setLng(""); setLugares([]); setAbierto(false);
+  }
 
   function elegir(l: Lugar) {
     elegido.current = l.etiqueta;
@@ -102,6 +111,13 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
             ))}
           </ul>
           {pie && <p className="border-t border-slate-800 px-3 py-1 text-right text-[11px] text-slate-500">{pie}</p>}
+        </div>
+      )}
+      {talCual && (
+        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
+          <button type="button" onClick={usarTalCual} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
+            Usar “{texto.trim()}” tal cual <span className="text-slate-500">(sin punto en el mapa)</span>
+          </button>
         </div>
       )}
       {error && <p className="mt-1 text-sm text-red-400">{error}</p>}
