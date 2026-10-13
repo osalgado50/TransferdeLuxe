@@ -23,5 +23,5 @@ export const esquemaDatosTicket = z.object({
   importe: z.number().nullable(), tipo_combustible: z.string().nullable(), confianza: z.enum(["alta", "media", "baja"]),
 });
 export function fotoPathValida(path: string, conductorId: string): boolean {
-  return path.startsWith(`${conductorId}/`) && new RegExp(`^${conductorId.replace(/[^0-9a-f-]/gi, "")}/[0-9a-f-]{36}\\.(jpeg|png|webp)$`).test(path);
+  return path.startsWith(`${conductorId}/`) && new RegExp(`^${conductorId.replace(/[^0-9a-f-]/gi, "")}/[0-9a-f-]{36}\\.(jpe?g|png|webp)$`).test(path);
 }

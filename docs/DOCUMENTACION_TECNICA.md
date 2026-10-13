@@ -598,6 +598,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   tickets de los últimos 15 días. La app muestra «Precio de hoy: 1,91 €/L de media, entre 1,60 y 2,21» y avisa si el
   conductor escribe un €/L imposible («1287 €/L no parece un precio por litro: ¿1,287?»). Con la foto del móvil sale
   ahora 15,54 L · 1,287 €/L · 20,00 €.
+- **«Foto no válida» al guardar el ticket y kilómetros coherentes (13/10/2026)**. Con la lectura ya bien, el responsable no
+  podía guardar: «foto no válida». Causa: `fotoPathValida` exigía la extensión `.jpeg` y la subida guarda `.jpg`
+  (`extensionDe`), así que ningún ticket con foto JPEG se podía guardar (web ni app); el test solo probaba `.jpeg`.
+  Corregido (`jpe?g`) con test del caso real. Además pide comparar los km con los últimos del coche: `kmMinimo`
+  (`src/lib/servicios/tickets.ts`) — un ticket de estos días no puede tener menos km que `vehiculos.km_actuales` (que
+  actualizan tickets, hoja de cierre y flota); uno atrasado, no menos que el ticket más alto de ese día o anterior. La app
+  muestra «Último registrado de 0001-TDL: 125.600 km», no deja guardar si bajan y pregunta «¿seguro?» si suben más de
+  3.000 km de golpe (`GET /api/conductor/ticket`).
 
 ## 6. Challenges y soluciones
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba

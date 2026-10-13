@@ -5,6 +5,16 @@ import { guardarTicketConductor } from "@/lib/servicios/tickets";
 
 export const dynamic = "force-dynamic";
 
+/** Vehículo del conductor y sus últimos km (para avisar en el formulario antes de guardar). */
+export async function GET(req: Request) {
+  const a = await exigirConductorBearer(req);
+  if (!a.ok) return a.res;
+  const id = a.yo.vehiculo_habitual_id;
+  if (!id) return Response.json({ vehiculo: null });
+  const { data } = await clienteAdmin().from("vehiculos").select("matricula,km_actuales").eq("id", id).maybeSingle();
+  return Response.json({ vehiculo: data ? { matricula: data.matricula, km: Number(data.km_actuales) || 0 } : null });
+}
+
 export async function POST(req: Request) {
   const a = await exigirConductorBearer(req);
   if (!a.ok) return a.res;

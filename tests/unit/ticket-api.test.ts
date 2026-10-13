@@ -9,6 +9,8 @@ const st = vi.hoisted(() => ({
   inserts: [] as Record<string, unknown>[],
   kms: [] as unknown[],
   subidas: [] as string[],
+  vehiculo: { matricula: "1234 TDL", km_actuales: 1000 } as Record<string, unknown> | null,
+  previos: [] as { km: number; fecha: string }[],
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   clienteAdmin: () => ({
@@ -16,8 +18,13 @@ vi.mock("@/lib/supabase/admin", () => ({
     storage: { from: () => ({ upload: async (p: string) => { st.subidas.push(p); return { error: null }; } }) },
     from: (tabla: string) => {
       if (tabla === "perfiles") return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: st.perfil }) }) }) };
-      if (tabla === "tickets_combustible") return { insert: async (f: Record<string, unknown>) => { st.inserts.push(f); return { error: null }; } };
-      return { update: (f: unknown) => ({ eq: () => ({ lt: async (_c: string, v: unknown) => { st.kms.push([f, v]); return { error: null }; } }) }) };
+      if (tabla === "tickets_combustible") return {
+        insert: async (f: Record<string, unknown>) => { st.inserts.push(f); return { error: null }; },
+        select: () => ({ eq: () => ({ lte: () => ({ order: () => ({ limit: async () => ({ data: st.previos }) }) }) }) }),
+      };
+      return {
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: st.vehiculo }) }) }),
+        update: (f: unknown) => ({ eq: () => ({ lt: async (_c: string, v: unknown) => { st.kms.push([f, v]); return { error: null }; } }) }) };
     },
   }),
 }));
@@ -42,6 +49,7 @@ const reqFoto = async (tipo = "image/jpeg", size = 10, auth = "Bearer bueno", fi
 
 beforeEach(() => {
   vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V }; st.inserts = []; st.kms = []; st.subidas = [];
+  st.vehiculo = { matricula: "1234 TDL", km_actuales: 1000 }; st.previos = [];
 });
 
 test("ticket: 401 sin token, 403 no conductor, 400 datos inválidos", async () => {
@@ -81,4 +89,24 @@ test("foto: 401, formato, tamaño y ok con ruta del conductor", async () => {
   const j = (await r.json()) as { fotoPath: string };
   expect(j.fotoPath).toMatch(new RegExp(`^${U}/[0-9a-f-]{36}\\.png$`));
   expect(st.subidas).toEqual([j.fotoPath]);
+});
+
+const hoy = () => new Date().toISOString().slice(0, 10);
+test("km: un ticket de hoy no puede tener menos km que los últimos del vehículo", async () => {
+  const r = await ticket(req({ ...body, fecha: hoy(), km: 900 }));
+  expect(r.status).toBe(400);
+  expect((await r.json()).error).toMatch(/no pueden ser menos que los últimos registrados de 1234 TDL: 1\.000 km/);
+  expect(st.inserts).toHaveLength(0);
+  expect((await ticket(req({ ...body, fecha: hoy(), km: 1000 }))).status).toBe(200);
+});
+test("km: un ticket atrasado se compara con el ticket más alto de ese día o anterior", async () => {
+  st.vehiculo = { matricula: "1234 TDL", km_actuales: 5000 }; // hoy ya va por 5.000: no cuenta para un ticket del día 10
+  st.previos = [{ km: 1300, fecha: "2026-10-08" }];
+  const r = await ticket(req({ ...body, km: 1200 }));
+  expect(r.status).toBe(400);
+  expect((await r.json()).error).toMatch(/ticket del 08\/10\/2026: 1\.300 km/);
+  expect((await ticket(req({ ...body, km: 1350 }))).status).toBe(200);
+});
+test("foto .jpg (como la guarda la subida) se acepta al guardar", async () => {
+  expect((await ticket(req({ ...body, foto_path: `${U}/${crypto.randomUUID()}.jpg` }))).status).toBe(200);
 });

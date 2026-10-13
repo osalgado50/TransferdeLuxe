@@ -19,6 +19,8 @@ const C = "11111111-2222-3333-4444-555555555555";
 const U = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 test("fotoPathValida", () => {
   expect(fotoPathValida(`${C}/${U}.jpeg`, C)).toBe(true);
+  expect(fotoPathValida(`${C}/${U}.jpg`, C)).toBe(true); // así las guarda la subida (extensionDe): antes se rechazaban
+  expect(fotoPathValida(`${C}/${U}.png`, C)).toBe(true);
   expect(fotoPathValida(`99999999-2222-3333-4444-555555555555/${U}.jpeg`, C)).toBe(false);
   expect(fotoPathValida(`${C}/../x/${U}.jpeg`, C)).toBe(false);
   expect(fotoPathValida("", C)).toBe(false);

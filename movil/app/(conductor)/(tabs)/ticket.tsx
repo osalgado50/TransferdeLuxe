@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -15,6 +15,17 @@ type DatosLeidos = { fecha: string | null; gasolinera: string | null; litros: nu
 type Referencia = { min: number; max: number; medio: number; fuente: string };
 type Lectura = { estado: "leyendo" } | { estado: "ok"; campos: number; avisos: string[] } | { estado: "nada" };
 const coma = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
+const fmtKm = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+const SALTO_RARO_KM = 3000; // más que esto desde el último registro: ¿seguro?
+/** Aviso de km: menos que los últimos del coche (no se puede guardar) o un salto muy grande (¿seguro?). */
+function avisoKm(km: string, fecha: string, ultimo: { matricula: string; km: number } | null): { texto: string; error: boolean } | null {
+  if (!ultimo || !/^\d+$/.test(km.trim())) return null;
+  const n = Number(km.trim());
+  const reciente = fecha.trim() >= new Date(Date.now() - 2 * 86400e3).toISOString().slice(0, 10);
+  if (reciente && n < ultimo.km) return { texto: `Son menos km que los últimos registrados de ${ultimo.matricula} (${fmtKm(ultimo.km)} km): el cuentakilómetros no baja.`, error: true };
+  if (n - ultimo.km > SALTO_RARO_KM) return { texto: `Son ${fmtKm(n - ultimo.km)} km más que el último registro (${fmtKm(ultimo.km)} km): ¿seguro?`, error: false };
+  return null;
+}
 const euros = (n: number) => n.toFixed(3).replace(/0$/, "").replace(".", ",");
 /** Aviso si el €/L escrito no parece un precio por litro (p. ej. 1287 sin coma). */
 function precioRaro(precio: string, ref: Referencia | null): string | null {
@@ -42,6 +53,15 @@ export default function Ticket() {
   const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
   const [lectura, setLectura] = useState<Lectura | null>(null);
   const [referencia, setReferencia] = useState<Referencia | null>(null);
+  const [ultimoKm, setUltimoKm] = useState<{ matricula: string; km: number } | null>(null);
+  // Últimos km del coche del conductor (para avisar antes de guardar). Sin red: sin aviso, el servidor valida igual.
+  useEffect(() => {
+    let vivo = true;
+    void llamarApi("/api/conductor/ticket").then((r) => (r.ok ? r.json() : null)).then((j: { vehiculo?: { matricula: string; km: number } | null } | null) => {
+      if (vivo && j?.vehiculo) setUltimoKm(j.vehiculo);
+    }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, []);
   // Campos que el conductor ya ha tocado: la lectura del ticket no los pisa.
   const tocados = useRef(new Set<Campo>());
   const set = (k: Campo) => (t: string) => { tocados.current.add(k); setV((a) => ({ ...a, [k]: t })); setResultado(null); };
@@ -100,6 +120,8 @@ export default function Ticket() {
     if (!(num(v.importe) > 0) || !v.importe.trim()) e.push("Indica el importe (mayor que 0).");
     if (v.precio.trim() && !(num(v.precio) > 0)) e.push("El precio por litro debe ser mayor que 0.");
     if (!/^\d+$/.test(v.km.trim())) e.push("Indica los kilómetros del cuentakilómetros (número entero).");
+    const ak = avisoKm(v.km, v.fecha, ultimoKm);
+    if (ak?.error) e.push(ak.texto);
     setErrores(e);
     if (e.length) return;
     setGuardando(true); setResultado(null);
@@ -109,7 +131,7 @@ export default function Ticket() {
         importe: num(v.importe), tipo_combustible: v.combustible, km: Number(v.km.trim()), foto_path: foto?.estado === "ok" ? foto.path : null,
       } });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
-      if (r.ok) { setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); }
+      if (r.ok) { if (ultimoKm && Number(v.km.trim()) > ultimoKm.km) setUltimoKm({ ...ultimoKm, km: Number(v.km.trim()) }); setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); }
       else setResultado({ ok: false, texto: j.error ?? "No se pudo guardar el ticket" });
     } catch { setResultado({ ok: false, texto: "Sin conexión: no se pudo guardar. Reinténtalo." }); }
     finally { setGuardando(false); }
@@ -161,6 +183,8 @@ export default function Ticket() {
           ))}
         </View>
         <Campo etiqueta="Kilómetros del cuentakilómetros" valor={v.km} onChange={set("km")} teclado="number-pad" />
+        {ultimoKm && <Text style={e.nota}>Último registrado de {ultimoKm.matricula}: {fmtKm(ultimoKm.km)} km</Text>}
+        {(() => { const a = avisoKm(v.km, v.fecha, ultimoKm); return a ? <Aviso texto={a.texto} tipo={a.error ? "error" : "pendiente"} /> : null; })()}
         {errores.map((m) => <Aviso key={m} texto={m} tipo="error" />)}
         {resultado && <Aviso texto={resultado.texto} tipo={resultado.ok ? "info" : "error"} />}
         <Boton texto={subiendo ? "Subiendo foto…" : lectura?.estado === "leyendo" ? "Leyendo el ticket…" : "Guardar ticket"} onPress={() => void guardar()} cargando={guardando} deshabilitado={subiendo} />
