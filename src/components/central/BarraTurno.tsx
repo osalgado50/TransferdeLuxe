@@ -18,7 +18,7 @@ export default function BarraTurno({ tramos, pintar, ausencia = null, texto = tr
   const etiqueta = sinHorario ? "Sin horario (disponible)" : tramos.length ? `Turno ${textoTramos(tramos)}` : "Libre";
   const aus = ausencia ? { left: ausencia.franja === "tarde" ? TARDE : 0, width: ausencia.franja === "dia" ? 100 : ausencia.franja === "manana" ? TARDE : 100 - TARDE } : null;
   return (
-    <div className="space-y-0.5" data-turno-dia={sinHorario ? "sin-horario" : textoTramos(tramos)} data-ausencia={ausencia?.tipo}>
+    <div className="relative space-y-0.5" data-turno-dia={sinHorario ? "sin-horario" : textoTramos(tramos)} data-ausencia={ausencia?.tipo}>
       <div className={`relative h-2.5 overflow-hidden rounded ${sinHorario ? "bg-green-900/40" : "bg-[repeating-linear-gradient(135deg,#1e293b_0_4px,#0f172a_4px_8px)]"}`} aria-hidden>
         {(barra ? segmentosDia(barra) : []).map((x) => <span key={`${x.tramo.inicio}-${x.tramo.fin}`} className="absolute inset-y-0 bg-green-600/70" style={{ left: `${x.desde}%`, width: `${x.hasta - x.desde}%` }} />)}
         {aus && <span className="absolute inset-y-0 opacity-90" style={{ left: `${aus.left}%`, width: `${aus.width}%`, background: COLOR_TIPO_AUSENCIA[ausencia!.tipo] }} />}

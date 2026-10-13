@@ -95,7 +95,7 @@ function Columna({ id, titulo, items, chips, traslados, onAsignar, punt = {}, tu
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <section ref={setNodeRef} className={`w-64 shrink-0 space-y-2 rounded-xl border p-3 ${isOver ? "border-marca-claro bg-slate-800" : "border-slate-800 bg-slate-950"}`}>
+    <section ref={setNodeRef} className={`relative h-fit w-64 shrink-0 space-y-2 rounded-xl border p-3 ${isOver ? "border-marca-claro bg-slate-800" : "border-slate-800 bg-slate-950"}`}>
       <h2 className="font-medium text-marca-claro">{titulo} <span className="text-xs text-slate-400">({items.length})</span></h2>
       {turno && <BarraTurno tramos={turno} pintar={pintar} />}
       {items.map((s) => {
@@ -223,7 +223,8 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
   return (
     <DndContext id="tablero-ruta" sensors={sensores} onDragEnd={alSoltar}>
       {aviso && <p role="status" className={`rounded-lg px-3 py-2 text-sm ${aviso.error ? "bg-red-500/20 text-red-300" : "bg-green-500/20 text-green-300"}`}>{aviso.t}</p>}
-      <div className="flex max-w-full gap-3 overflow-x-auto pb-3">
+      {/* Alto limitado a la pantalla: la barra de desplazamiento horizontal siempre a la vista (no al final de la columna más larga). */}
+      <div className="relative flex max-h-[calc(100dvh-9rem)] max-w-full gap-3 overflow-auto overscroll-x-contain pb-3">
         <Columna id={SIN} titulo="Sin asignar" items={de(SIN)} chips={chips} onAsignar={asignar} />
         {conductores.map((c) => {
           const d = dia ? tramosDelDia(horarios[c.id], dia) : null;
