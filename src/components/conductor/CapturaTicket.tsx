@@ -5,6 +5,7 @@ import { redimensionar } from "@/lib/imagen";
 import { TesseractLector } from "@/lib/lector/tesseract";
 import { esCoherente } from "@/lib/lector/parsear";
 import type { DatosTicket } from "@/lib/lector/tipos";
+import { recalcular, type CampoImporte, type Derivado } from "@/lib/dominio/ticketCalculo";
 
 type Fase = "inicio" | "leyendo" | "formulario";
 const campo = "w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-zinc-100";
@@ -32,6 +33,13 @@ export default function CapturaTicket({ demo }: { demo: boolean }) {
   const [fotoPath, setFotoPath] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [valores, setValores] = useState({ litros: "", precio_litro: "", importe: "" });
+  // Con el importe, el €/L o los litros (el que no se ha escrito el último) se calcula solo.
+  const [derivado, setDerivado] = useState<Derivado>(null);
+  const cambiar = (k: CampoImporte, t: string) => {
+    const r = recalcular({ litros: valores.litros, precio: valores.precio_litro, importe: valores.importe, [k]: t }, k, derivado);
+    setDerivado(r.derivado);
+    setValores({ litros: r.valores.litros, precio_litro: r.valores.precio, importe: r.valores.importe });
+  };
   const urlRef = useRef<string | null>(null);
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
 
@@ -62,6 +70,7 @@ export default function CapturaTicket({ demo }: { demo: boolean }) {
     const avisos = (leido as (DatosTicket & { avisos?: string[] }) | null)?.avisos;
     if (avisos?.length) setAviso(avisos.join(" "));
     setDatos(leido);
+    setDerivado(null);
     setValores({ litros: leido?.litros != null ? String(leido.litros) : "", precio_litro: leido?.precio_litro != null ? String(leido.precio_litro) : "", importe: leido?.importe != null ? String(leido.importe) : "" });
     setFase("formulario");
   }
@@ -111,9 +120,9 @@ export default function CapturaTicket({ demo }: { demo: boolean }) {
       <label className="block text-sm text-zinc-300">Fecha<input name="fecha" type="date" required defaultValue={datos?.fecha ?? hoy()} className={campo} /></label>
       <label className="block text-sm text-zinc-300">Gasolinera<input name="gasolinera" defaultValue={datos?.gasolinera ?? ""} className={campo} /></label>
       <div className="grid grid-cols-3 gap-2">
-        <label className="block text-sm text-zinc-300">Litros<input name="litros" inputMode="decimal" required value={valores.litros} onChange={(e) => setValores({ ...valores, litros: e.target.value })} className={campo} /></label>
-        <label className="block text-sm text-zinc-300">€/L<input name="precio_litro" inputMode="decimal" value={valores.precio_litro} onChange={(e) => setValores({ ...valores, precio_litro: e.target.value })} className={campo} /></label>
-        <label className="block text-sm text-zinc-300">Importe €<input name="importe" inputMode="decimal" required value={valores.importe} onChange={(e) => setValores({ ...valores, importe: e.target.value })} className={campo} /></label>
+        <label className="block text-sm text-zinc-300">Litros{derivado === "litros" ? " (calc.)" : ""}<input name="litros" inputMode="decimal" required value={valores.litros} onChange={(e) => cambiar("litros", e.target.value)} className={campo} /></label>
+        <label className="block text-sm text-zinc-300">€/L{derivado === "precio" ? " (calc.)" : ""}<input name="precio_litro" inputMode="decimal" value={valores.precio_litro} onChange={(e) => cambiar("precio", e.target.value)} className={campo} /></label>
+        <label className="block text-sm text-zinc-300">Importe €<input name="importe" inputMode="decimal" required value={valores.importe} onChange={(e) => cambiar("importe", e.target.value)} className={campo} /></label>
       </div>
       <label className="block text-sm text-zinc-300">Combustible<input name="tipo_combustible" defaultValue={datos?.tipo_combustible ?? ""} className={campo} /></label>
       <label className="block text-sm text-zinc-300">Kilómetros del cuentakilómetros<input name="km" type="number" inputMode="numeric" min={0} required className={campo} /></label>

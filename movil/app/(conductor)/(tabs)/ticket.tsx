@@ -4,6 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { llamarApi } from "~/lib/api";
 import { color } from "~/lib/tema";
+import { recalcular, type CampoImporte, type Derivado } from "@dominio/ticketCalculo";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 
 const COMBUSTIBLES = ["Diésel", "Gasolina 95", "Gasolina 98", "Eléctrico", "Otro"];
@@ -65,6 +66,15 @@ export default function Ticket() {
   // Campos que el conductor ya ha tocado: la lectura del ticket no los pisa.
   const tocados = useRef(new Set<Campo>());
   const set = (k: Campo) => (t: string) => { tocados.current.add(k); setV((a) => ({ ...a, [k]: t })); setResultado(null); };
+  // Litros / €/L / importe: con el importe, el que no ha escrito el conductor se calcula solo.
+  const [derivado, setDerivado] = useState<Derivado>(null);
+  const setImporte = (k: CampoImporte) => (t: string) => {
+    tocados.current.add(k);
+    setResultado(null);
+    const r = recalcular({ litros: v.litros, precio: v.precio, importe: v.importe, [k]: t }, k, derivado);
+    setDerivado(r.derivado);
+    setV((a) => ({ ...a, ...r.valores }));
+  };
 
   /** OCR libre en el servidor (el mismo motor que la web): rellena lo que no haya escrito ya el conductor. */
   async function leerTicket(path: string) {
@@ -81,6 +91,7 @@ export default function Ticket() {
       };
       const aplicar = (Object.entries(leidos) as [Campo, string][]).filter(([k, x]) => x && !tocados.current.has(k));
       setV((a) => ({ ...a, ...Object.fromEntries(aplicar) }));
+      setDerivado(null);
       setLectura(aplicar.length ? { estado: "ok", campos: aplicar.length, avisos: d.avisos ?? [] } : { estado: "nada" });
     } catch {
       setLectura({ estado: "nada" });
@@ -131,7 +142,7 @@ export default function Ticket() {
         importe: num(v.importe), tipo_combustible: v.combustible, km: Number(v.km.trim()), foto_path: foto?.estado === "ok" ? foto.path : null,
       } });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
-      if (r.ok) { if (ultimoKm && Number(v.km.trim()) > ultimoKm.km) setUltimoKm({ ...ultimoKm, km: Number(v.km.trim()) }); setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); }
+      if (r.ok) { if (ultimoKm && Number(v.km.trim()) > ultimoKm.km) setUltimoKm({ ...ultimoKm, km: Number(v.km.trim()) }); setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); setDerivado(null); }
       else setResultado({ ok: false, texto: j.error ?? "No se pudo guardar el ticket" });
     } catch { setResultado({ ok: false, texto: "Sin conexión: no se pudo guardar. Reinténtalo." }); }
     finally { setGuardando(false); }
@@ -165,12 +176,18 @@ export default function Ticket() {
         <Campo etiqueta="Fecha (AAAA-MM-DD)" valor={v.fecha} onChange={set("fecha")} />
         <Campo etiqueta="Gasolinera" valor={v.gasolinera} onChange={set("gasolinera")} />
         <View style={e.fila}>
-          <Campo etiqueta="Litros" valor={v.litros} onChange={set("litros")} teclado="decimal-pad" />
-          <Campo etiqueta="€/L" valor={v.precio} onChange={set("precio")} teclado="decimal-pad" />
-          <Campo etiqueta="Importe €" valor={v.importe} onChange={set("importe")} teclado="decimal-pad" />
+          <Campo etiqueta={derivado === "litros" ? "Litros (calc.)" : "Litros"} valor={v.litros} onChange={setImporte("litros")} teclado="decimal-pad" />
+          <Campo etiqueta={derivado === "precio" ? "€/L (calc.)" : "€/L"} valor={v.precio} onChange={setImporte("precio")} teclado="decimal-pad" />
+          <Campo etiqueta="Importe €" valor={v.importe} onChange={setImporte("importe")} teclado="decimal-pad" />
         </View>
         {aviso && <Aviso tipo="pendiente" texto="Los litros × precio no cuadran con el importe: revísalo." />}
         {precioRaro(v.precio, referencia) && <Aviso tipo="pendiente" texto={precioRaro(v.precio, referencia)!} />}
+        <Text style={e.nota}>Con el importe puesto, escribe el €/L o los litros y el otro se calcula solo.</Text>
+        {referencia && (
+          <Pressable accessibilityRole="button" onPress={() => setImporte("precio")(euros(referencia.medio))} style={e.chipRef}>
+            <Text style={{ color: color.texto, fontSize: 15 }}>Usar el precio medio de hoy: {euros(referencia.medio)} €/L</Text>
+          </Pressable>
+        )}
         {referencia && <Text style={e.nota}>Precio de hoy ({referencia.fuente}): {euros(referencia.medio)} €/L de media, entre {euros(referencia.min)} y {euros(referencia.max)}.</Text>}
         <Text style={e.etiqueta}>Combustible</Text>
         <View style={e.chips}>
@@ -209,6 +226,7 @@ const e = StyleSheet.create({
   fila: { flexDirection: "row", gap: 8 },
   etiqueta: { color: color.textoSuave, fontSize: 14, marginBottom: 4 },
   nota: { color: color.textoSuave, fontSize: 13 },
+  chipRef: { alignSelf: "flex-start", borderWidth: 1.5, borderColor: color.borde, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, justifyContent: "center" },
   input: { backgroundColor: color.tarjeta, borderColor: color.borde, borderWidth: 1, borderRadius: 10, color: color.texto, fontSize: 18, paddingHorizontal: 12, paddingVertical: 12, minHeight: 52 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { borderWidth: 1.5, borderColor: color.borde, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, justifyContent: "center" },

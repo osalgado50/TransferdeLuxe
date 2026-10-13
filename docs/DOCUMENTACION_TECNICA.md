@@ -606,6 +606,11 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   actualizan tickets, hoja de cierre y flota); uno atrasado, no menos que el ticket más alto de ese día o anterior. La app
   muestra «Último registrado de 0001-TDL: 125.600 km», no deja guardar si bajan y pregunta «¿seguro?» si suben más de
   3.000 km de golpe (`GET /api/conductor/ticket`).
+- **Litros ↔ €/L automáticos (13/10/2026)**. Petición: «si pongo el €/L que pones aquí, rellena los litros, o al revés;
+  como tienes el importe puedes hacer el cálculo». `src/lib/dominio/ticketCalculo.ts` (puro, con tests, compartido por
+  web y app): con el importe, el campo del par litros/€/L que el conductor no ha escrito el último se calcula solo
+  (marcado «(calc.)») y se recalcula si cambia el importe; nunca se pisa lo que se acaba de escribir. En la app, botón
+  «Usar el precio medio de hoy: 1,909 €/L» (Geoportal del Ministerio) que pone ese €/L y calcula los litros.
 
 ## 6. Challenges y soluciones
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba
