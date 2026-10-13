@@ -16,10 +16,12 @@ const LECTURA_MS = 20_000;
 let worker: Promise<Worker> | null = null;
 let cola: Promise<unknown> = Promise.resolve();
 let temporizador: ReturnType<typeof setTimeout> | null = null;
+/** Último paso que ha anunciado tesseract (para saber dónde se queda si no arranca). */
+let ultimoPaso = "sin empezar";
 
 function conTiempo<T>(p: Promise<T>, ms: number, fase: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
-  const limite = new Promise<never>((_, no) => { t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s`)), ms); });
+  const limite = new Promise<never>((_, no) => { t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s (último paso: ${ultimoPaso})`)), ms); });
   return Promise.race([p, limite]).finally(() => clearTimeout(t));
 }
 
@@ -31,12 +33,15 @@ function descartar() {
 
 async function obtenerWorker(): Promise<Worker> {
   if (!worker) {
+    ultimoPaso = "importando tesseract.js";
     const { createWorker } = await import("tesseract.js");
+    ultimoPaso = "creando el worker";
     worker = createWorker("spa", 1, {
       cachePath: path.join(os.tmpdir(), "tdl-tesseract"),
+      logger: (m: { status: string; progress: number }) => { ultimoPaso = `${m.status} ${Math.round(m.progress * 100)}%`; },
       errorHandler: (e: unknown) => console.error("[ocr] worker:", e instanceof Error ? e.message : e),
     });
-    worker.catch(() => { worker = null; });
+    worker.catch((e) => { ultimoPaso = `error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 150); worker = null; });
   }
   return worker;
 }
