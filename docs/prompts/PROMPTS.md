@@ -1208,3 +1208,15 @@ ok, avísame cuando esté publicado todo
 
 ---
 
+## 2026-10-13 14:46 · Claude Code · sesión `b3c0e64f`
+
+Sí, las pruebas de los conductores 1, 2 y 3 los he hecho yo con otro móvil para que podamos ver cómo funciona todo. Oye, escúchame, normalmente un conductor de VTC trabaja una jornada continuada de una hora a otra hora, ¿vale? Y luego ya se va para casa. O el coche queda en depósito y lo coge otro conductor y el coche sigue circulando con otro horario. Pero también puede caer la posibilidad de que el chofer tenga un horario partido de mañana y de tarde y tenga un rato para comer. Todo esto lo tendríamos que contemplar en el panel de configuración del centro de control para poder establecer los perfiles de cada conductor y sus horarios.
+
+---
+
+## 2026-10-13 14:48 · Claude Code · sesión `b3c0e64f`
+
+De momento, para no complicar la fórmula, lo dejaremos en que el coche siempre vuelve a la base, a la central, y allí se hace el cambio de conductor.
+
+---
+
