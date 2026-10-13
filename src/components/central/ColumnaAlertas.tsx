@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { direccionCorta } from "@/lib/dominio/direccion";
 import { leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
-import { textoDevuelto } from "@/lib/dominio/centralMovil";
+import { textoDesasignado, textoDevuelto } from "@/lib/dominio/centralMovil";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
 import { etiquetaEvento, llegandoReciente } from "@/lib/dominio/navegacion";
 import DialogoAsignar from "@/components/central/DialogoAsignar";
@@ -34,6 +34,7 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
     const ev = eventos.filter((e) => e.servicio_id === s.id && e.tipo === "devuelto").sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
     return ["Devuelto", textoDevuelto(s, ev?.actor_id ? nombreConductor(ev.actor_id) : null)] as const;
   }
+  if (inc.startsWith("desasignado")) return ["Reasignar", textoDesasignado(s)] as const;
   if (inc === "expirado") return ["Sin respuesta", "Sin respuesta · aún puede aceptarlo o reasígnalo"] as const;
   if (inc === "nuevo") return ["Reserva nueva", "Reserva nueva"] as const;
   return ["Aviso", inc || "Incidencia"] as const;

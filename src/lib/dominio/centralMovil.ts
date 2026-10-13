@@ -11,6 +11,13 @@ export function textoDevuelto(s: { ultima_incidencia: string | null; fecha_hora_
   return `🔁 ${quien?.trim() || "El conductor"} ha devuelto el servicio${h}${motivo ? `: ${motivo}` : ""}`;
 }
 
+/** «↩ Servicio de las 16:00 quitado al conductor para reasignar: Ausencia: vacaciones» (ultima_incidencia «desasignado: …»). */
+export function textoDesasignado(s: { ultima_incidencia: string | null; fecha_hora_recogida?: string }): string {
+  const motivo = (s.ultima_incidencia ?? "").replace(/^desasignado:\s*/, "").trim();
+  const h = s.fecha_hora_recogida ? ` de las ${fmtHora.format(new Date(s.fecha_hora_recogida))}` : "";
+  return `↩ Servicio${h} quitado al conductor: reasígnalo${motivo ? ` (${motivo})` : ""}`;
+}
+
 /** Título y texto legible de una alerta (mismos textos que la columna de alertas de la central web). */
 export function textoAlertaCentral(s: ServAlerta, nombreConductor: (id: string | null) => string, devueltoPor?: string | null): { titulo: string; texto: string } {
   if (s.subcontratar && s.estado === "pendiente") {
@@ -20,6 +27,7 @@ export function textoAlertaCentral(s: ServAlerta, nombreConductor: (id: string |
   const inc = s.ultima_incidencia ?? "";
   if (inc.startsWith("rechazado")) return { titulo: "Rechazado", texto: `Rechazado por ${nombreConductor(s.conductor_id)}: ${inc.replace(/^rechazado:\s*/, "")}` };
   if (inc.startsWith("devuelto")) return { titulo: "🔁 Devuelto", texto: textoDevuelto(s, devueltoPor) };
+  if (inc.startsWith("desasignado")) return { titulo: "↩ Reasignar", texto: textoDesasignado(s) };
   if (inc === "expirado") return { titulo: "Sin respuesta", texto: "Plazo vencido: sigue asignado, el conductor aún puede aceptarlo o puedes reasignarlo" };
   if (inc === "nuevo") return { titulo: "Reserva nueva", texto: "Reserva nueva" };
   return { titulo: "Aviso", texto: inc || "Incidencia" };

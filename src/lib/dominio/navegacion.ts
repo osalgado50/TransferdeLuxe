@@ -73,7 +73,8 @@ export function restanteEnRuta(coords: [number, number][], pos: Punto): Restante
 export const EVENTO_LLEGANDO: Record<TipoObjetivo, string> = { recogida: "llegando_recogida", destino: "llegando_destino" };
 const ETIQUETAS: Record<string, string> = { llegando_recogida: "Llegando a la recogida", llegando_destino: "Llegando al destino",
   llegada_vuelo: "Llegada real del vuelo", recogida_reajustada: "Recogida reajustada por el vuelo",
-  retraso_recogida: "Llega tarde a la recogida", deshecho: "Paso deshecho", devuelto: "Devuelto por el conductor",
+  retraso_recogida: "Llega tarde a la recogida", deshecho: "Paso deshecho", devuelto: "Devuelto por el conductor", desasignado: "Quitado al conductor para reasignar",
+  anomalia_carga: "CARGA lejos de la recogida", anomalia_descarga: "DESCARGA lejos del destino",
   aviso_cliente: "Aviso al cliente" };
 export const etiquetaEvento = (tipo: string) => ETIQUETAS[tipo] ?? tipo;
 

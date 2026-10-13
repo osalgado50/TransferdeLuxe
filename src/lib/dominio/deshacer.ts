@@ -22,7 +22,7 @@ export const DESHACER: Partial<Record<EstadoServicio, InfoDeshacer>> = {
 
 /** Eventos que registran una acción (de la central, del conductor o del servidor). Los informativos (llegando, vuelos, retraso) no cuentan. */
 const TIPOS_ACCION = new Set(["creado", "asignado", "reasignado", "aceptado", "rechazado", "expirado", "en_camino", "recogido",
-  "completado", "cancelado", "subcontratado", "devuelto", EVENTO_DESHECHO]);
+  "completado", "cancelado", "subcontratado", "devuelto", "desasignado", EVENTO_DESHECHO]);
 
 export interface EventoPaso { id?: number; tipo: string; actor_id: string | null; creado_en: string }
 

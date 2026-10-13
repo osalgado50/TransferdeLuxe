@@ -1,7 +1,7 @@
 import { DESHACER, EVENTO_DESHECHO } from "./deshacer";
 import { puedeConducir, type EstadoServicio, type Rol } from "./tipos";
 
-export type Accion = "asignar" | "reasignar" | "aceptar" | "rechazar" | "salir" | "cargar" | "descargar" | "cancelar" | "subcontratar" | "deshacer" | "devolver";
+export type Accion = "asignar" | "reasignar" | "aceptar" | "rechazar" | "salir" | "cargar" | "descargar" | "cancelar" | "subcontratar" | "deshacer" | "devolver" | "desasignar";
 /** `conduce`: operador que también conduce (puede hacer las acciones de conductor sobre lo suyo). */
 /** `central`: la acción llega desde la central (ficha web o modo central de la app), no desde la pantalla del conductor. */
 export interface Actor { rol: Rol; esAsignado: boolean; conduce?: boolean; central?: boolean }
@@ -22,6 +22,8 @@ const REGLAS: Record<Exclude<Accion, "deshacer">, Regla> = {
   descargar:    { desde: ["recogido"], hacia: "completado", quien: "conductor", evento: "completado" },
   // «No puedo hacer este servicio»: el conductor asignado lo devuelve a la central (antes de recoger al cliente).
   devolver:     { desde: ["aceptado", "en_camino"], hacia: "pendiente", quien: "conductor", evento: "devuelto" },
+  // La central se lo quita al conductor (p. ej. vacaciones) y vuelve a «Sin asignar» con aviso para reasignarlo.
+  desasignar:   { desde: ["asignado", "aceptado"], hacia: "pendiente", quien: "operador", evento: "desasignado" },
 };
 
 export function transicion(estado: EstadoServicio, accion: Accion, actor: Actor): ResultadoTransicion {
@@ -53,3 +55,5 @@ export const MOTIVOS_RECHAZO = ["Avería", "No llego a tiempo", "Fuera de servic
 export const MOTIVOS_DEVOLUCION = ["Avería", "Retraso grave", "Emergencia personal", "Otro"] as const;
 /** Prefijo de `ultima_incidencia` de un servicio devuelto: «devuelto: Avería». */
 export const PREFIJO_DEVUELTO = "devuelto";
+/** Prefijo de `ultima_incidencia` de un servicio que la central ha quitado al conductor: «desasignado: Ausencia: vacaciones». */
+export const PREFIJO_DESASIGNADO = "desasignado";

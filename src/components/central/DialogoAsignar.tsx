@@ -2,6 +2,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { accionCentral, obtenerSugerencias } from "@/app/central/actions";
+import { preguntaAsignarAusente } from "@/lib/dominio/ausencias";
 
 type Sug = Awaited<ReturnType<typeof obtenerSugerencias>>[number];
 
@@ -72,7 +73,7 @@ export default function DialogoAsignar({ servicioId, reasignar = false, onHecho 
                       <button type="button" disabled={pend} onClick={() => asignar(s)} className="rounded-lg bg-marca px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">Asignar a {s.nombre}</button>
                     ) : confirmando === s.conductorId ? (
                       <div className="flex items-center gap-2 text-sm">
-                        <span className="text-red-300">No es apto. ¿Asignar igualmente?</span>
+                        <span className="text-red-300">{s.ausencia ? preguntaAsignarAusente(s.ausencia) : "No es apto. ¿Asignar igualmente?"}</span>
                         <button type="button" disabled={pend} onClick={() => asignar(s)} className="rounded-lg bg-red-600 px-3 py-1.5 text-white disabled:opacity-50">Asignar igualmente: confirmar</button>
                         <button type="button" onClick={() => setConfirmando(null)} className="text-neutral-400">No</button>
                       </div>

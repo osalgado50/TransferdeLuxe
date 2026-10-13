@@ -1,4 +1,4 @@
-import { PREFIJO_DEVUELTO, transicion, type Accion } from "@/lib/dominio/estados";
+import { PREFIJO_DESASIGNADO, PREFIJO_DEVUELTO, transicion, type Accion } from "@/lib/dominio/estados";
 import { comprobarDeshacer, type EventoPaso } from "@/lib/dominio/deshacer";
 import type { EstadoServicio, Rol, Servicio } from "@/lib/dominio/tipos";
 
@@ -62,6 +62,11 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
     // Vuelve a «Sin asignar» con alerta para la central (que lo reasigna); el motivo queda en el evento «devuelto».
     motivo = p.motivo!.trim().slice(0, 300);
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `${PREFIJO_DEVUELTO}: ${motivo}`, incidencia_vista: false });
+  }
+  if (p.accion === "desasignar") {
+    // La central se lo quita al conductor (vacaciones, baja…): «Sin asignar» con alerta para reasignarlo.
+    motivo = (p.motivo?.trim() || "Para reasignar").slice(0, 300);
+    Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `${PREFIJO_DESASIGNADO}: ${motivo}`, incidencia_vista: false });
   }
   try {
     const evento = { tipo: t.evento, actor_id: p.actor.id, motivo };

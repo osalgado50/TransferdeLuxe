@@ -95,6 +95,19 @@ export async function notificarConductor(servicioId: string, titulo: string, cue
   }
 }
 
+/** Aviso a un conductor concreto (p. ej. la central le ha quitado un servicio). Nunca lanza. */
+export async function notificarAConductor(conductorId: string, titulo: string, cuerpo: string, data: { tipo: string; servicioId?: string }): Promise<void> {
+  try {
+    const sb = clienteAdmin();
+    const { data: disp } = await sb.from("dispositivos_push").select("token").eq("conductor_id", conductorId);
+    const tokens = (disp ?? []).map((d: { token: string }) => d.token);
+    if (!tokens.length) return;
+    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data, priority: "high", ...camposSonidoPush(data) })));
+  } catch (e) {
+    console.error("[push] notificarAConductor falló:", e instanceof Error ? e.message : e);
+  }
+}
+
 /** Aviso a todos los dispositivos de los usuarios de la central (operadores). Nunca lanza. */
 export async function notificarCentral(titulo: string, cuerpo: string, data: Record<string, unknown>): Promise<void> {
   try {

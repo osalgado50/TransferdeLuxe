@@ -155,6 +155,7 @@ export default function DialogoAutoasignar({ dia }: { dia?: string }) {
                               <b>{c.nombre}</b> · {c.vehiculo ? `${c.vehiculo.matricula} · ${c.vehiculo.plazas} plazas` : "sin vehículo"}
                               {c.vehiculo?.estado === "taller" && <span className="ml-1 rounded bg-red-900/60 px-1.5 text-xs text-red-300">en taller</span>}
                               {c.compromisos > 0 && <span className="text-slate-400"> · {c.compromisos} ya asignados</span>}
+                              {c.noDisponible && <span data-no-disponible className="ml-1 rounded bg-amber-900/60 px-1.5 text-xs text-amber-200">{c.noDisponible}</span>}
                               <span className={`mt-0.5 block w-fit rounded-full px-2 text-xs ${CONEXION[c.conexion.estado]}`}>{c.conexion.texto}</span>
                             </span>
                           </label></li>

@@ -1,6 +1,7 @@
 import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
 import { tiempoTraslado } from "./planificacion";
+import { bloqueoConductor, type Ausencia } from "./ausencias";
 
 /**
  * Asignación automática (lógica pura y determinista; la usan la central web, la API y los tests).
@@ -32,6 +33,10 @@ export interface ConductorAuto {
   compromisos: ServicioAuto[];
   /** Posición actual (GPS reciente): punto de partida si no tiene servicio anterior. */
   posicion?: Punto | null;
+  /** Ausencias (vacaciones, fiesta…): no se le propone nada en esos días/franjas. */
+  ausencias?: Ausencia[];
+  /** Día (Madrid) en que ya ha cerrado la jornada: nada más ese día. */
+  jornadaCerradaDia?: string | null;
 }
 export interface EntradaAuto {
   servicios: ServicioAuto[]; conductores: ConductorAuto[]; estrategia: Estrategia; margenMinimoMin: number; ahora: number;
@@ -92,6 +97,8 @@ export interface Chequeo {
 export function comprobar(c: ConductorAuto, otros: ServicioAuto[], s: ServicioAuto, margenMin: number, ahora: number): Chequeo {
   const base: Chequeo = { ok: false, grave: true, motivo: null, llegada: null, margenAntes: null, margenDespues: null, kmVacio: null, kmDelta: 0 };
   if (s.inicio < ahora) return { ...base, motivo: `La recogida (${hh(s.inicio)}) ya pasó` };
+  const bloqueo = bloqueoConductor(c, s.inicio);
+  if (bloqueo) return { ...base, motivo: bloqueo.motivo };
   const cap = problemaCapacidad(c, s);
   if (cap) return { ...base, motivo: cap };
   const lista = otros.filter((o) => o.id !== s.id).sort(porHora);

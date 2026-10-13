@@ -16,6 +16,9 @@ import {
   evaluarAsignacion, proponerAsignacion, ESTRATEGIAS, type ConductorAuto, type EntradaAuto, type Estrategia, type Propuesta, type ServicioAuto,
 } from "@/lib/dominio/autoasignacion";
 import type { Punto } from "@/lib/dominio/tipos";
+import { cargarDisponibilidad, disponibilidadDe, type Disponibilidad } from "@/lib/central/disponibilidad";
+import { NOMBRE_FRANJA, NOMBRE_TIPO_AUSENCIA } from "@/lib/dominio/ausencias";
+import { MOTIVO_JORNADA_CERRADA } from "@/lib/dominio/finJornada";
 
 /** Lógica de servidor de la asignación automática: la usan las Server Actions (web) y /api/central/autoasignar/*. */
 
@@ -68,6 +71,16 @@ export interface ServicioInfo {
 export interface ConductorInfo {
   id: string; nombre: string; conexion: Conexion; compromisos: number; marcado: boolean;
   vehiculo: { id: string; matricula: string; plazas: number; maletas: number; estado: "activo" | "taller" } | null;
+  /** «No disponible · vacaciones», «Jornada cerrada hoy»… en ese día (no sale marcado si es todo el día). */
+  noDisponible?: string | null;
+}
+
+/** Aviso del diálogo para un conductor en un día: ausencia (todo el día o media) o jornada ya cerrada hoy. */
+function noDisponibleDia(d: Disponibilidad, conductorId: string, dia: string): { texto: string; todoElDia: boolean } | null {
+  const a = d.ausencias.find((x) => x.conductor_id === conductorId && dia >= x.desde && dia <= x.hasta);
+  if (a) return { texto: `No disponible · ${NOMBRE_TIPO_AUSENCIA[a.tipo]}${a.franja === "dia" ? "" : ` (${NOMBRE_FRANJA[a.franja]})`}`, todoElDia: a.franja === "dia" };
+  if (d.cerradasHoy.has(conductorId) && dia === d.hoy) return { texto: MOTIVO_JORNADA_CERRADA, todoElDia: true };
+  return null;
 }
 function info(f: Fila): ServicioInfo {
   const origen = punto(f.origen_lat, f.origen_lng), destino = punto(f.destino_lat, f.destino_lng);
@@ -119,19 +132,21 @@ export async function datosAutoasignar(diaPedido?: string, ahora = new Date()) {
   const { umbral, margen } = await ajustes();
   const r = rangoDia(dia);
   const sb = clienteAdmin();
-  const [{ data, error }, cs] = await Promise.all([
+  const [{ data, error }, cs, disp] = await Promise.all([
     sb.from("servicios").select(CAMPOS).eq("es_prueba", false).eq("estado", "pendiente")
       .gte("fecha_hora_recogida", r.desde).lt("fecha_hora_recogida", r.hasta).order("fecha_hora_recogida").limit(300),
     cargarConductores(ahora, umbral),
+    cargarDisponibilidad(sb, dia, dia, ahora),
   ]);
   if (error) throw new Error(error.message);
   const filas = (data ?? []) as Fila[];
   const compromisos = await cargarCompromisos(cs.perfiles.map((c) => c.id), Date.parse(r.desde), Date.parse(r.hasta));
   const conductores: ConductorInfo[] = cs.perfiles.map((c) => {
     const v = cs.vehiculoDe(c);
+    const nd = noDisponibleDia(disp, c.id, dia);
     return {
-      id: c.id, nombre: c.nombre, conexion: cs.conexionDe(c.id), vehiculo: v, marcado: !!v && v.estado === "activo",
-      compromisos: compromisos.filter((x) => x.conductor_id === c.id).length,
+      id: c.id, nombre: c.nombre, conexion: cs.conexionDe(c.id), vehiculo: v, marcado: !!v && v.estado === "activo" && !nd?.todoElDia,
+      compromisos: compromisos.filter((x) => x.conductor_id === c.id).length, noDisponible: nd?.texto ?? null,
     };
   });
   return {
@@ -153,6 +168,8 @@ export async function construirEntrada(p: { dia?: string; servicioIds?: string[]
   const [{ data, error }, cs] = await Promise.all([q, cargarConductores(ahora, umbral)]);
   if (error) throw new Error(error.message);
   const filas = (data ?? []) as Fila[];
+  const diasFilas = filas.map((f) => diaMadrid(f.fecha_hora_recogida)).sort();
+  const disp = await cargarDisponibilidad(sb, diasFilas[0] ?? dia, diasFilas.at(-1) ?? dia, ahora);
   const elegidos = cs.perfiles.filter((c) => (p.conductorIds?.length ? p.conductorIds.includes(c.id) : (cs.vehiculoDe(c)?.estado === "activo")));
   // Compromisos: de 12 h antes del primer servicio a 12 h después del último (sirven para encajar).
   const tiempos = filas.map((f) => Date.parse(f.fecha_hora_recogida));
@@ -167,6 +184,8 @@ export async function construirEntrada(p: { dia?: string; servicioIds?: string[]
       vehiculo: v ? { id: v.id, plazas: v.plazas, maletas: v.maletas, estado: v.estado } : null,
       compromisos: fijos.filter((x) => x.conductor_id === c.id).map((x) => aServicio(x, diasServicios.has(diaMadrid(x.fecha_hora_recogida)))),
       posicion: gpsReciente(cs.posiciones.find((x) => x.conductor_id === c.id), ahora.getTime(), umbral),
+      // Vacaciones / fiesta / baja y jornada cerrada hoy: no se le propone nada en esos huecos.
+      ...disponibilidadDe(disp, c.id),
     };
   });
   const entrada: EntradaAuto = {
@@ -175,7 +194,7 @@ export async function construirEntrada(p: { dia?: string; servicioIds?: string[]
   const infoServicios = Object.fromEntries(filas.map((f) => [f.id, info(f)]));
   const infoConductores: Record<string, ConductorInfo> = Object.fromEntries(elegidos.map((c) => [c.id, {
     id: c.id, nombre: c.nombre, conexion: cs.conexionDe(c.id), vehiculo: cs.vehiculoDe(c), marcado: true,
-    compromisos: fijos.filter((x) => x.conductor_id === c.id).length,
+    compromisos: fijos.filter((x) => x.conductor_id === c.id).length, noDisponible: noDisponibleDia(disp, c.id, dia)?.texto ?? null,
   }]));
   return { entrada, infoServicios, infoConductores };
 }

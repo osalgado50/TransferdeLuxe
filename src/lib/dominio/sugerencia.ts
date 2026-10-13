@@ -1,6 +1,7 @@
 import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
 import { encaja, deTramo, type EstadoTransicion } from "./planificacion";
+import { bloqueoConductor, type Ausencia } from "./ausencias";
 
 export interface ServicioParaSugerir { id: string; inicio: Date; duracionMin: number; pasajeros: number; maletas: number; origen: Punto | null;
   destino?: Punto | null; origenTexto?: string; destinoTexto?: string }
@@ -11,10 +12,16 @@ export interface Candidato {
   vehiculo: { id: string; plazas: number; maletas: number; estado: "activo" | "taller" } | null;
   posicion: { punto: Punto; registradoEn: Date } | null;
   agenda: TramoAgenda[];
+  /** Ausencias (vacaciones, fiesta…) del conductor: si cubren el día/franja del servicio, no es apto. */
+  ausencias?: Ausencia[];
+  /** Día (Madrid) en que ya ha cerrado su jornada: no apto para servicios de ese día. */
+  jornadaCerradaDia?: string | null;
 }
 export interface Sugerencia { conductorId: string; nombre: string; apto: boolean; motivos: string[]; distanciaKm: number | null;
   /** Peor margen (min) de llegada entre el servicio anterior y el siguiente; null si no hay datos. */
-  margenMin?: number | null; viabilidad?: EstadoTransicion }
+  margenMin?: number | null; viabilidad?: EstadoTransicion;
+  /** Ausencia que cubre el servicio (asignar a mano pide confirmación). */
+  ausencia?: Pick<Ausencia, "tipo" | "franja"> | null }
 
 const MIN = 60_000;
 const VENTANA_GPS_MIN = 60;
@@ -34,6 +41,8 @@ export function sugerirConductores(s: ServicioParaSugerir, candidatos: Candidato
       if (c.vehiculo.plazas < s.pasajeros) { apto = false; motivos.push(`Vehículo de ${c.vehiculo.plazas} plazas (necesita ${s.pasajeros})`); }
       if (c.vehiculo.maletas < s.maletas) { apto = false; motivos.push(`Vehículo con ${c.vehiculo.maletas} maletas (necesita ${s.maletas})`); }
     }
+    const bloqueo = bloqueoConductor({ id: c.conductorId, ausencias: c.ausencias, jornadaCerradaDia: c.jornadaCerradaDia }, s.inicio);
+    if (bloqueo) { apto = false; motivos.push(bloqueo.motivo); }
     const otros = c.agenda.filter((t) => t.servicioId !== s.id);
     let margenMin: number | null = null;
     let viabilidad: EstadoTransicion = "desconocido";
@@ -66,7 +75,8 @@ export function sugerirConductores(s: ServicioParaSugerir, candidatos: Candidato
       }
     }
     if (apto) motivos.push("Libre a esa hora");
-    return { conductorId: c.conductorId, nombre: c.nombre, apto, motivos, distanciaKm: distancia, margenMin, viabilidad };
+    return { conductorId: c.conductorId, nombre: c.nombre, apto, motivos, distanciaKm: distancia, margenMin, viabilidad,
+      ausencia: bloqueo?.ausencia ? { tipo: bloqueo.ausencia.tipo, franja: bloqueo.ausencia.franja } : null };
   });
 
   const RANGO: Partial<Record<EstadoTransicion, number>> = { desconocido: 1, justo: 2 };
