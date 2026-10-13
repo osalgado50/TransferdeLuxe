@@ -544,7 +544,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   con servicios que no le dejan volver a la base. App nativa: solo JS (huella sin cambios). Prueba en producción
   `scripts/prueba-horarios.mjs` (conductor de demo sin actividad, horario de prueba solo para mañana): RLS, sugerencia
   dentro/fuera/pausa/no vuelve/día libre, propuesta automática, asignación manual registrada con el vehículo del turno,
-  una sola alerta «fuera de horario» (sin duplicar en la pasada siguiente, en `/api/central/resumen`) y limpieza de todo lo creado: 26 comprobaciones OK.
+  una sola alerta «fuera de horario» (sin duplicar en la pasada siguiente, en `/api/central/resumen`) y limpieza de todo lo creado: 25 comprobaciones OK.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
