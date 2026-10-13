@@ -20,6 +20,30 @@ declare const __non_webpack_require__: NodeJS.Require;
 /** El `require` de Node de verdad (webpack no lo toca): tesseract.js se carga de node_modules tal cual. */
 const requerir = (m: string): unknown => __non_webpack_require__(m);
 let enProcesoListo = false;
+/**
+ * Variante del motor wasm: primero la SIMD (más rápida); si aborta al arrancar, la siguiente vez la normal. Cada fallo de
+ * emscripten (abort / printErr) queda en `ultimoPaso` para el diagnóstico.
+ */
+const VARIANTES = ["tesseract-core-simd-lstm", "tesseract-core-lstm"] as const;
+let variante = 0;
+type FabricaCore = (opts: Record<string, unknown>) => Promise<unknown>;
+function getCoreConDiagnostico(): (oem: unknown, corePath: unknown, res: { progress: (p: { status: string; progress: number }) => void }) => Promise<FabricaCore> {
+  return async (_oem, _corePath, res) => {
+    const nombre = VARIANTES[Math.min(variante, VARIANTES.length - 1)];
+    res.progress({ status: `loading tesseract core (${nombre})`, progress: 0 });
+    const Core = requerir(`tesseract.js-core/${nombre}`) as FabricaCore;
+    res.progress({ status: `loading tesseract core (${nombre})`, progress: 1 });
+    return (opts) => {
+      const p = Core({
+        ...opts,
+        printErr: (t: string) => { ultimoPaso = `${nombre} printErr: ${t}`.slice(0, 200); },
+        onAbort: (w: unknown) => { ultimoPaso = `${nombre} abort: ${String(w)}`.slice(0, 200); variante++; },
+      });
+      p.catch((e: unknown) => { ultimoPaso = `${nombre} error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200); variante++; });
+      return p;
+    };
+  };
+}
 /** Sustituye el adaptador de hilos de tesseract.js por uno en el mismo proceso (antes de cargar createWorker). */
 function prepararEnProceso() {
   if (enProcesoListo) return;
@@ -27,7 +51,7 @@ function prepararEnProceso() {
   const nodo = req("tesseract.js/src/worker/node") as Record<string, unknown>;
   const script = req("tesseract.js/src/worker-script") as { dispatchHandlers: (p: unknown, send: (o: unknown) => void) => void; setAdapter: (a: unknown) => void };
   script.setAdapter({
-    getCore: req("tesseract.js/src/worker-script/node/getCore"), gunzip: req("tesseract.js/src/worker-script/node/gunzip"),
+    getCore: getCoreConDiagnostico(), gunzip: req("tesseract.js/src/worker-script/node/gunzip"),
     fetch: req("node-fetch"), ...(req("tesseract.js/src/worker-script/node/cache") as object),
   });
   class HiloFalso extends EventEmitter {
