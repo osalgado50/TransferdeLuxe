@@ -4,6 +4,8 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 import EstadoBadge from "@/components/comun/EstadoBadge";
 import MapaTrayecto from "@/components/mapa/MapaTrayectoCarga";
 import AccionesFicha, { MarcarVista } from "@/components/central/AccionesFicha";
+import AvisoCliente from "@/components/comun/AvisoCliente";
+import { avisosCentral } from "@/lib/dominio/avisoCliente";
 import { etiquetaEvento } from "@/lib/dominio/navegacion";
 import type { Servicio } from "@/lib/dominio/tipos";
 import { leerModulos } from "@/lib/dominio/modulos";
@@ -37,6 +39,8 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
       </div>
       {s.ultima_incidencia && <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">Incidencia: {s.ultima_incidencia}</p>}
       <AccionesFicha servicioId={s.id} estado={s.estado} />
+      <div className="max-w-md"><AvisoCliente servicioId={s.id} estado={s.estado} recogida={s.fecha_hora_recogida} telefono={s.cliente_telefono} cliente={s.cliente_nombre}
+        tipos={avisosCentral(s.estado, s.ultima_incidencia)} modo="central" /></div>
       <section className="grid gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm sm:grid-cols-2">
         <div><h2 className="mb-1 font-semibold text-marca-claro">Cliente</h2>
           <p>{s.cliente_nombre} {s.cliente_apellidos}</p><p>{s.cliente_email}</p><p>{s.cliente_telefono}</p></div>

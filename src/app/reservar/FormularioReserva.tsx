@@ -201,6 +201,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
             <span>Al reservar aceptas la <a href="/privacidad" target="_blank" className="text-marca-claro underline">política de privacidad</a>. He leído y la acepto.</span>
           </label>
           <ErrorCampo e={estado.errores} k="acepta_privacidad" />
+          <p className="text-xs text-slate-400">Te avisaremos del estado de tu traslado por WhatsApp o SMS (conductor en camino, retrasos y llegada), con un enlace para seguir el coche en directo.</p>
           <input type="text" name="web" className="hidden" tabIndex={-1} autoComplete="off" />
         </div>
       )}

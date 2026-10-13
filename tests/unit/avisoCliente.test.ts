@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  avisosDisponibles, enlaceSms, enlaceWhatsApp, leerMotivoAviso, mensajeAviso, motivoAviso, nombreDePila, normalizarTelefono,
+  avisosCentral, avisosDisponibles, enlaceSms, estimacionAviso, enlaceWhatsApp, leerMotivoAviso, mensajeAviso, motivoAviso, nombreDePila, normalizarTelefono,
 } from "@/lib/dominio/avisoCliente";
 
 describe("normalizarTelefono (E.164 sin +, España por defecto)", () => {
@@ -75,5 +75,34 @@ describe("enlaces y motivo", () => {
     expect(avisosDisponibles("en_camino")).toEqual(["en_camino", "retraso", "llegado"]);
     expect(avisosDisponibles("recogido")).toEqual([]);
     expect(avisosDisponibles("pendiente")).toEqual([]);
+  });
+});
+
+describe("estimacionAviso (ETA del mapa + contador de puntualidad)", () => {
+  const recogida = "2026-10-13T13:00:00Z";
+  const ahora = Date.parse("2026-10-13T12:50:00Z");
+  test("a tiempo: hora de llegada, sin retraso", () => {
+    expect(estimacionAviso({ estado: "en_camino", recogida, ahora, etaS: 300 })).toEqual({ hora: "14:55", minutos: null });
+  });
+  test("tarde por la ETA: minutos de retraso", () => {
+    expect(estimacionAviso({ estado: "en_camino", recogida, ahora, etaS: 18 * 60 })).toEqual({ hora: "15:08", minutos: 8 });
+  });
+  test("sin ETA: sin hora", () => {
+    expect(estimacionAviso({ estado: "en_camino", recogida, ahora })).toEqual({ hora: null, minutos: null });
+  });
+});
+
+describe("avisos de la central", () => {
+  test("en tercera persona", () => {
+    const d = { cliente: "Lucía", conductor: "Marc García", hora: "15:42", emisor: "central" as const };
+    expect(mensajeAviso("en_camino", d)).toBe("Hola Lucía, te escribimos de TVL VIP Transfers. Tu conductor Marc va de camino a recogerte; llegada estimada 15:42.");
+    expect(mensajeAviso("reasignacion", d)).toBe("Hola Lucía, te escribimos de TVL VIP Transfers. Tu conductor ha tenido un imprevisto y no podrá hacer tu traslado. Te asignaremos otro conductor en breve; te avisaremos.");
+    expect(mensajeAviso("llegado", { ...d, idioma: "en", matricula: "1234 ABC" })).toBe("Hello Lucía, this is TVL VIP Transfers. Your driver Marc is already at the pick-up point. Vehicle 1234 ABC.");
+  });
+  test("qué avisos según estado", () => {
+    expect(avisosCentral("en_camino", null)).toEqual(["en_camino", "retraso", "llegado"]);
+    expect(avisosCentral("pendiente", "devuelto: Avería")).toEqual(["reasignacion"]);
+    expect(avisosCentral("pendiente", "rechazado: Avería")).toEqual([]);
+    expect(avisosCentral("recogido", null)).toEqual([]);
   });
 });

@@ -5,7 +5,7 @@ import PieLegal from "./PieLegal";
 
 export const AVISO_WEB = "https://transfersvipluxe.com/aviso-legal/";
 export const PRIVACIDAD_WEB = "https://transfersvipluxe.com/politica-de-privacidad/";
-export const ACTUALIZADO = "11 de octubre de 2026";
+export const ACTUALIZADO = "13 de octubre de 2026";
 
 export function Ext({ href, children }: { href: string; children: ReactNode }) {
   return <a href={href} target="_blank" rel="noopener noreferrer" className="text-marca-claro underline hover:text-white">{children}</a>;

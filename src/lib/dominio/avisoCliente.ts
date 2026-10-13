@@ -2,6 +2,8 @@
  * Aviso al cliente por WhatsApp «un toque» (sin API, gratis) o SMS: lógica pura compartida por la app nativa, la PWA
  * y la central. Se abre el chat del cliente con el texto ya escrito y el humano pulsa «enviar».
  */
+import { calcularPuntualidad } from "./puntualidad";
+
 export type TipoAviso = "en_camino" | "retraso" | "llegado" | "reasignacion";
 export type CanalAviso = "whatsapp" | "sms";
 export type IdiomaAviso = "es" | "en";
@@ -54,12 +56,15 @@ export interface DatosAviso {
   modelo?: string | null;
   matricula?: string | null;
   idioma?: IdiomaAviso;
+  /** Quién escribe: el conductor (1.ª persona, por defecto) o la central (3.ª persona). */
+  emisor?: "conductor" | "central";
 }
 
 const EMPRESA = "TVL VIP Transfers";
 
 /** Texto del mensaje (es/en). Las piezas que faltan (ETA, enlace, vehículo) se omiten sin dejar huecos raros. */
 export function mensajeAviso(tipo: TipoAviso, d: DatosAviso): string {
+  if (d.emisor === "central") return mensajeCentral(tipo, d);
   const en = d.idioma === "en";
   const cliente = nombreDePila(d.cliente);
   const conductor = nombreDePila(d.conductor);
@@ -73,14 +78,10 @@ export function mensajeAviso(tipo: TipoAviso, d: DatosAviso): string {
       return en
         ? `${hola}${soy}I'm on my way to pick you up${d.hora ? `; estimated arrival ${d.hora}` : ""}.${enlace ? ` Follow me live: ${enlace}` : ""}`
         : `${hola}${soy}Voy de camino a recogerte${d.hora ? `; llegada estimada ${d.hora}` : ""}.${enlace ? ` Sígueme en directo: ${enlace}` : ""}`;
-    case "retraso": {
-      const cuanto = en
-        ? `I'll be ${min ? `about ${min} min ` : ""}late${d.hora ? ` (approx. ${d.hora})` : ""}`
-        : `llegaré con ${min ? `unos ${min} min de ` : ""}retraso${d.hora ? ` (aprox. ${d.hora})` : ""}`;
+    case "retraso":
       return en
-        ? `${hola}${soy}${cuanto[0].toUpperCase()}${cuanto.slice(1)}. Sorry for the inconvenience.${enlace ? ` ${enlace}` : ""}`
-        : `${hola}${soy}${cuanto[0].toUpperCase()}${cuanto.slice(1)}. Disculpa las molestias.${enlace ? ` ${enlace}` : ""}`;
-    }
+        ? `${hola}${soy}I'll be ${min ? `about ${min} min ` : ""}late${d.hora ? ` (approx. ${d.hora})` : ""}. Sorry for the inconvenience.${enlace ? ` ${enlace}` : ""}`
+        : `${hola}${soy}Llegaré con ${min ? `unos ${min} min de ` : ""}retraso${d.hora ? ` (aprox. ${d.hora})` : ""}. Disculpa las molestias.${enlace ? ` ${enlace}` : ""}`;
     case "llegado":
       return en
         ? `${hola}${soy}I'm already at the pick-up point.${vehiculo ? ` Vehicle ${vehiculo}.` : ""}`
@@ -89,6 +90,36 @@ export function mensajeAviso(tipo: TipoAviso, d: DatosAviso): string {
       return en
         ? `${hola}${soy}Something unexpected has come up and I won't be able to do your transfer. Our dispatch team will assign you another driver shortly; we'll keep you posted.`
         : `${hola}${soy}He tenido un imprevisto y no podré hacer tu traslado. La central te asignará otro conductor en breve; te avisaremos.`;
+  }
+}
+
+/** Mismos avisos enviados por la central (en tercera persona: «Tu conductor Marc va de camino…»). */
+function mensajeCentral(tipo: TipoAviso, d: DatosAviso): string {
+  const en = d.idioma === "en";
+  const cliente = nombreDePila(d.cliente);
+  const conductor = nombreDePila(d.conductor);
+  const hola = en ? `Hello${cliente ? ` ${cliente}` : ""}, this is ${EMPRESA}. ` : `Hola${cliente ? ` ${cliente}` : ""}, te escribimos de ${EMPRESA}. `;
+  const tu = en ? `Your driver${conductor ? ` ${conductor}` : ""}` : `Tu conductor${conductor ? ` ${conductor}` : ""}`;
+  const enlace = d.enlace?.trim() || null;
+  const vehiculo = [d.modelo?.trim(), d.matricula?.trim()].filter(Boolean).join(" · ");
+  const min = d.minutos != null && Number.isFinite(d.minutos) && d.minutos > 0 ? Math.round(d.minutos) : null;
+  switch (tipo) {
+    case "en_camino":
+      return en
+        ? `${hola}${tu} is on the way to pick you up${d.hora ? `; estimated arrival ${d.hora}` : ""}.${enlace ? ` Follow the car live: ${enlace}` : ""}`
+        : `${hola}${tu} va de camino a recogerte${d.hora ? `; llegada estimada ${d.hora}` : ""}.${enlace ? ` Síguelo en directo: ${enlace}` : ""}`;
+    case "retraso":
+      return en
+        ? `${hola}${tu} will be ${min ? `about ${min} min ` : ""}late${d.hora ? ` (approx. ${d.hora})` : ""}. Sorry for the inconvenience.${enlace ? ` ${enlace}` : ""}`
+        : `${hola}${tu} llegará con ${min ? `unos ${min} min de ` : ""}retraso${d.hora ? ` (aprox. ${d.hora})` : ""}. Disculpa las molestias.${enlace ? ` ${enlace}` : ""}`;
+    case "llegado":
+      return en
+        ? `${hola}${tu} is already at the pick-up point.${vehiculo ? ` Vehicle ${vehiculo}.` : ""}`
+        : `${hola}${tu} ya está en el punto de recogida.${vehiculo ? ` Vehículo ${vehiculo}.` : ""}`;
+    case "reasignacion":
+      return en
+        ? `${hola}Your driver has had an unexpected problem and won't be able to do your transfer. We'll assign you another driver shortly and keep you posted.`
+        : `${hola}Tu conductor ha tenido un imprevisto y no podrá hacer tu traslado. Te asignaremos otro conductor en breve; te avisaremos.`;
   }
 }
 
@@ -112,8 +143,25 @@ export function leerMotivoAviso(m: string | null | undefined): { tipo: TipoAviso
   return { tipo: t as TipoAviso, canal: c === "sms" ? "sms" : "whatsapp" };
 }
 
-/** Qué avisos tienen sentido en cada estado (conductor y central). La reasignación solo tras devolver el servicio. */
+/** Qué avisos tiene el conductor en cada estado (la reasignación, solo tras devolver el servicio). */
 export function avisosDisponibles(estado: string): TipoAviso[] {
   if (estado === "aceptado" || estado === "en_camino") return ["en_camino", "retraso", "llegado"];
   return [];
+}
+
+/** Avisos de la central: los del conductor y, si un conductor lo devolvió y aún no hay otro, el cambio de conductor. */
+export function avisosCentral(estado: string, ultimaIncidencia: string | null | undefined): TipoAviso[] {
+  const base = avisosDisponibles(estado);
+  if ((estado === "pendiente" || estado === "asignado") && (ultimaIncidencia ?? "").startsWith("devuelto")) return ["reasignacion"];
+  return base;
+}
+
+/**
+ * Hora estimada de llegada y minutos de retraso para el mensaje, con la ETA del mapa (s) y el contador de
+ * puntualidad: sin ETA, la hora es null; el retraso sale del contador (≥ 1 min) o, si no va tarde, null.
+ */
+export function estimacionAviso(e: { estado: string; recogida: string; ahora: number; etaS?: number | null }): { hora: string | null; minutos: number | null } {
+  const p = calcularPuntualidad({ estado: e.estado, recogida: e.recogida, ahora: e.ahora, etaS: e.etaS ?? null });
+  const hora = p.llegadaEstimada != null ? horaAviso(p.llegadaEstimada) : null;
+  return { hora, minutos: p.estado === "tarde" && p.minutosRetraso > 0 ? p.minutosRetraso : null };
 }

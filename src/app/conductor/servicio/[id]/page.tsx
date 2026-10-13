@@ -1,4 +1,8 @@
 import { notFound } from "next/navigation";
+import { clienteAdmin } from "@/lib/supabase/admin";
+import AvisoCliente from "@/components/comun/AvisoCliente";
+import DevolverServicio, { ServicioDevueltoPanel } from "@/components/conductor/DevolverServicio";
+import { avisosDisponibles } from "@/lib/dominio/avisoCliente";
 import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
@@ -22,7 +26,17 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
   const yo = await exigirConductor();
   const sb = await clienteServidor();
   const { data: s } = await sb.from("servicios").select("*").eq("id", id).eq("conductor_id", yo.id).maybeSingle();
-  if (!s) notFound();
+  if (!s) {
+    // ¿Lo acaba de devolver él («No puedo hacer este servicio»)? Ya no es suyo, pero puede avisar al cliente del cambio.
+    const admin = clienteAdmin();
+    const { data: dev } = /^[0-9a-f-]{36}$/i.test(id)
+      ? await admin.from("eventos_servicio").select("actor_id,creado_en").eq("servicio_id", id).eq("tipo", "devuelto").order("creado_en", { ascending: false }).limit(1).maybeSingle()
+      : { data: null };
+    if (!dev || dev.actor_id !== yo.id || Date.now() - Date.parse(dev.creado_en) > 6 * 3600_000) notFound();
+    const { data: d } = await admin.from("servicios").select("estado,fecha_hora_recogida,cliente_nombre,cliente_telefono").eq("id", id).maybeSingle();
+    if (!d) notFound();
+    return <ServicioDevueltoPanel servicioId={id} estado={d.estado} telefono={d.cliente_telefono} cliente={d.cliente_nombre} recogida={d.fecha_hora_recogida} conductorNombre={yo.nombre} />;
+  }
 
   const dia = diaMadrid(new Date());
   const desde = madridAUtc(dia, "00:00");
@@ -59,7 +73,11 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
       {s.cliente_telefono && s.estado !== "completado" && (
         <a className="flex min-h-16 items-center justify-center rounded-xl border-2 border-slate-500 text-lg font-semibold" href={`tel:${s.cliente_telefono}`}>📞 Llamar al cliente</a>
       )}
+      <AvisoCliente servicioId={s.id} estado={s.estado} recogida={s.fecha_hora_recogida} telefono={s.cliente_telefono} cliente={s.cliente_nombre}
+        tipos={avisosDisponibles(s.estado)} modo="conductor" conductorNombre={yo.nombre} />
       {incidencias && s.estado !== "completado" && <BotonIncidencia servicioId={s.id} />}
+      <DevolverServicio servicioId={s.id} conductorId={yo.id} estado={s.estado} telefono={s.cliente_telefono} cliente={s.cliente_nombre}
+        recogida={s.fecha_hora_recogida} conductorNombre={yo.nombre} />
       <div className="space-y-1 rounded-xl border border-slate-700 bg-slate-900 p-4">
         <p><span className="text-slate-400">Recogida:</span> {s.origen_texto}</p>
         <p><span className="text-slate-400">Destino:</span> {s.destino_texto}</p>
