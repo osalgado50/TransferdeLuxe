@@ -5,11 +5,15 @@ import { etiquetaZona, cierreObligatorio, normalizarZonas, type GravedadCierre }
 import { acumuladoDelDia, esIncidenciaGrave, nombreTipoIncidencia } from "@dominio/incidencias";
 import { formatoDuracion, rangosJornada, resumenConductor, type AccionJornada, type Jornada } from "@dominio/jornada";
 import { leerModulos } from "@dominio/modulos";
+import { itemsActivos, type ItemChecklist } from "@dominio/checklist";
+import { diaMadrid } from "@dominio/geo";
 import type { EstadoInterruptor } from "@dominio/gpsNativo";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, AppState, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, AppState, Linking, Modal, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { HojaCierre, type VehiculoCierre } from "~/components/HojaCierre";
 import { BotonIncidencia } from "~/components/Incidencias";
+import { ChecklistTarjeta } from "~/components/ModulosConductor";
 import { AvisoSinFondo, useExplicacionUbicacion } from "~/components/InterruptorGps";
 import { Aviso, Boton } from "~/components/ui";
 import { llamarApi } from "~/lib/api";
@@ -44,17 +48,26 @@ export default function PantallaJornada() {
   const yo = sesion!.user.id;
   const { datos, error, cargando, recargar } = useConsulta(async () => {
     const r = rangosJornada(new Date());
-    const [aj, jor, veh, per, inc] = await Promise.all([
+    const [aj, jor, veh, per, inc, it, rev] = await Promise.all([
       supabase.from("ajustes").select("modulos").eq("id", 1).maybeSingle(),
       supabase.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)").eq("conductor_id", yo).or(`fin.is.null,fin.gte.${r.semana.desde}`).order("inicio"),
       supabase.from("vehiculos").select("id,matricula,modelo,km_actuales").eq("estado", "activo").order("matricula"),
       supabase.from("perfiles").select("vehiculo_habitual_id").eq("id", yo).maybeSingle(),
       supabase.from("incidencias").select("id,tipo,zonas,descripcion,creado_en,resuelta").eq("conductor_id", yo).gte("creado_en", r.hoy.desde).order("creado_en", { ascending: false }),
+      supabase.from("checklist_items").select("id,texto,orden,activo"),
+      supabase.from("checklist_revisiones").select("vehiculo_id").eq("conductor_id", yo).eq("fecha", diaMadrid(new Date())),
     ]);
     if (jor.error) throw new Error(jor.error.message);
     const m = leerModulos(aj.data?.modulos);
     const vehiculos = (veh.data ?? []) as VehiculoCierre[];
+    const habitual = (per.data?.vehiculo_habitual_id as string | null) ?? null;
+    const items = itemsActivos((it.data ?? []) as ItemChecklist[]);
+    const hechos = new Set(((rev.data ?? []) as { vehiculo_id: string }[]).map((x) => x.vehiculo_id));
+    // Checklist del vehículo ANTES de iniciar la jornada (una vez al día por vehículo).
+    const checklist = m.checklist && items.length > 0 && vehiculos.length > 0 && !(habitual ? hechos.has(habitual) : hechos.size > 0)
+      ? { items, vehiculos, habitual } : null;
     return {
+      checklist,
       m, jornadas: (jor.data ?? []) as Jornada[], incidencias: (inc.data ?? []) as IncidenciaHoy[],
       // Hoja de cierre al finalizar (módulos jornada + checklist + cierre); sin vehículos activos, como antes.
       cierre: cierreObligatorio(m) && vehiculos.length > 0 ? { vehiculos, habitual: (per.data?.vehiculo_habitual_id as string | null) ?? null } : null,
@@ -88,6 +101,12 @@ export default function PantallaJornada() {
   };
 
   // Iniciar: primero el GPS (mismo flujo de permisos que el interruptor). Sin permiso de ubicación no se inicia.
+  const [pidiendoChecklist, setPidiendoChecklist] = useState(false);
+  // Iniciar: 1) checklist del vehículo si falta hoy; 2) GPS; 3) jornada.
+  const pulsarIniciar = () => {
+    if (datos?.checklist) { setPidiendoChecklist(true); return; }
+    void iniciar();
+  };
   const iniciar = conOcupado(async () => {
     setSinGps(null);
     if ((await estadoGps(yo)) === "fuera") {
@@ -160,7 +179,7 @@ export default function PantallaJornada() {
 
           {r.estado === "fuera" && <>
             <Boton texto="▶ Iniciar jornada" alto={72} tamano={22} cargando={ocupado} estilo={{ backgroundColor: VERDE }}
-              etiqueta="Iniciar jornada (activa el GPS)" onPress={() => void iniciar()} />
+              etiqueta="Iniciar jornada (activa el GPS)" onPress={pulsarIniciar} />
             <Text style={e.ayuda}>Al iniciar se activa el GPS: la central verá dónde estás mientras trabajas.</Text>
           </>}
           {r.estado === "trabajando" && <Boton texto="⏸ Pausa" alto={64} tamano={20} deshabilitado={ocupado} estilo={{ backgroundColor: AMBAR }}
@@ -204,12 +223,32 @@ export default function PantallaJornada() {
         <HojaCierre vehiculos={datos.cierre.vehiculos} vehiculoInicial={datos.cierre.habitual} zonasIniciales={acumulado.zonas}
           incidenciasHoy={acumulado.resumen} alCancelar={() => setHoja(false)} alEnviado={cerrada} />
       )}
+      {pidiendoChecklist && datos.checklist && (
+        // Checklist antes de empezar: al guardarlo se inicia la jornada (y el GPS) automáticamente.
+        <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setPidiendoChecklist(false)}>
+          <SafeAreaProvider>
+            <SafeAreaView style={{ flex: 1, backgroundColor: color.fondo }} edges={["top", "bottom"]}>
+              <View style={e.cabModal}>
+                <Text style={e.subtitulo}>Antes de empezar</Text>
+                <Boton texto="Cancelar" variante="secundario" alto={44} tamano={16} onPress={() => setPidiendoChecklist(false)} />
+              </View>
+              <ScrollView contentContainerStyle={e.contenido} keyboardShouldPersistTaps="handled">
+                <Text style={e.ayudaModal}>Revisa el vehículo. Al guardar el checklist se inicia la jornada y se activa el GPS.</Text>
+                <ChecklistTarjeta items={datos.checklist.items} vehiculos={datos.checklist.vehiculos} inicial={datos.checklist.habitual}
+                  alGuardar={async () => { setPidiendoChecklist(false); await recargar(); avisarCambioJornada(); void iniciar(); }} />
+              </ScrollView>
+            </SafeAreaView>
+          </SafeAreaProvider>
+        </Modal>
+      )}
       {modal}
     </ScrollView>
   );
 }
 
 const e = StyleSheet.create({
+  cabModal: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: color.borde },
+  ayudaModal: { color: color.textoSuave, fontSize: 16 },
   contenido: { padding: 16, gap: 12, paddingBottom: 40 },
   titulo: { color: color.marcaClaro, fontSize: 24, fontWeight: "700" },
   subtitulo: { color: color.marcaClaro, fontSize: 22, fontWeight: "700" },

@@ -66,7 +66,7 @@ function Opcion({ texto, activa, onPress, tono = color.marcaClaro }: { texto: st
   );
 }
 
-function ChecklistTarjeta({ items, vehiculos, inicial, alGuardar }: { items: ItemChecklist[]; vehiculos: Vehiculo[]; inicial: string | null; alGuardar: () => Promise<void> }) {
+export function ChecklistTarjeta({ items, vehiculos, inicial, alGuardar }: { items: ItemChecklist[]; vehiculos: Vehiculo[]; inicial: string | null; alGuardar: () => Promise<void> }) {
   const [vehiculo, setVehiculo] = useState(inicial ?? "");
   const [resp, setResp] = useState<Record<string, RespuestaItem>>({});
   const [obs, setObs] = useState("");
