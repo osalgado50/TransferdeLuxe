@@ -136,11 +136,15 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
             <input name="plazo_respuesta_min" type="number" min={5} max={60} defaultValue={ajustes?.plazo_respuesta_min ?? 15} className={`${campo} w-24`} /></label>
           <label className="text-sm">Umbral sin señal (1–30 min)<br />
             <input name="umbral_sin_senal_min" type="number" min={1} max={30} defaultValue={ajustes?.umbral_sin_senal_min ?? 5} className={`${campo} w-24`} /></label>
+          <label className="text-sm">Margen mínimo entre servicios (0–120 min)<br />
+            <input name="margen_minimo_min" type="number" min={0} max={120} defaultValue={ajustes?.margen_minimo_min ?? 15} className={`${campo} w-24`} /></label>
           {leerModulos(ajustes?.modulos).vuelos && <label className="text-sm">Margen equipaje tras aterrizar (0–180 min)<br />
             <input name="margen_equipaje_min" type="number" min={0} max={180} defaultValue={ajustes?.margen_equipaje_min ?? 20} className={`${campo} w-24`} /></label>}
           <button className={boton}>Guardar ajustes</button>
         </form>
-        <p className="text-xs text-slate-500">El plazo de respuesta se aplica solo a los servicios nuevos; los ya creados conservan el suyo.</p>
+        <p className="text-xs text-slate-500">El plazo de respuesta se aplica solo a los servicios nuevos; los ya creados conservan el suyo.
+          El margen mínimo es el tiempo que debe sobrar entre la llegada a una recogida y su hora, desde el fin del servicio anterior
+          (lo usan «Asignar automáticamente» y el semáforo de la hoja de ruta).</p>
       </section>
 
       <section className="space-y-2">

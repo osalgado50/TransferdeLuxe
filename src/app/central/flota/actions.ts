@@ -26,7 +26,8 @@ const esquemaConductor = z.object({
   email: z.string().trim().email("Email no válido").optional().or(z.literal("").transform(() => undefined)),
   password: z.string().optional(),
 });
-const esquemaAjustes = z.object({ plazo_respuesta_min: num(5, 60), umbral_sin_senal_min: num(1, 30), margen_equipaje_min: num(0, 180).optional() });
+const esquemaAjustes = z.object({ plazo_respuesta_min: num(5, 60), umbral_sin_senal_min: num(1, 30), margen_equipaje_min: num(0, 180).optional(),
+  margen_minimo_min: num(0, 120).optional() });
 
 /** Traduce errores de Supabase/Postgres a mensajes en español sin exponer detalles internos. */
 function amigable(e: { code?: string; message?: string }): string {
@@ -109,7 +110,7 @@ export async function guardarOperador(fd: FormData) {
 export async function guardarAjustes(fd: FormData) {
   await exigirRol("operador");
   const r = esquemaAjustes.safeParse(Object.fromEntries(fd));
-  if (!r.success) volver("Plazo de respuesta 5–60 min, umbral sin señal 1–30 min y margen de equipaje 0–180 min");
+  if (!r.success) volver("Plazo de respuesta 5–60 min, umbral sin señal 1–30 min, margen mínimo 0–120 min y margen de equipaje 0–180 min");
   const { error } = await clienteAdmin().from("ajustes").update(r.data).eq("id", 1);
   if (error) volver(amigable(error));
   revalidatePath("/central", "layout");

@@ -6,6 +6,7 @@ import { VISTAS, atajos, diaValido, rangoPeriodo, type Vista } from "@/lib/domin
 import CalendarioServicios from "@/components/central/CalendarioServicios";
 import { leerModulos } from "@/lib/dominio/modulos";
 import TablaServicios, { type FilaServicio } from "@/components/central/TablaServicios";
+import DialogoAutoasignar from "@/components/central/DialogoAutoasignar";
 import { FILTROS_GRUPO, contarPorGrupo, esFiltroGrupo, estadosDeGrupo, type FiltroGrupo } from "@/lib/dominio/centralMovil";
 
 const ESTADOS = ["pendiente", "asignado", "aceptado", "en_camino", "recogido", "completado", "cancelado", "subcontratado"];
@@ -83,7 +84,10 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-marca-claro">Agenda de servicios</h1>
-        <Link href="/central/servicios/nuevo" className="inline-flex min-h-11 items-center rounded-lg bg-marca px-4 py-2 font-medium text-white hover:bg-marca-oscuro">Nuevo servicio</Link>
+        <div className="flex flex-wrap gap-2">
+          <DialogoAutoasignar dia={vista === "dia" ? desde : undefined} />
+          <Link href="/central/servicios/nuevo" className="inline-flex min-h-11 items-center rounded-lg bg-marca px-4 py-2 font-medium text-white hover:bg-marca-oscuro">Nuevo servicio</Link>
+        </div>
       </div>
 
       <nav aria-label="Atajos" className="flex flex-wrap gap-2">

@@ -6,6 +6,7 @@ import { madridAUtc } from "@/lib/reserva/esquema";
 import type { TarjetaRuta } from "@/components/central/TableroRuta";
 import { leerModulos } from "@/lib/dominio/modulos";
 import TableroRuta from "@/components/central/TableroRutaCliente";
+import DialogoAutoasignar from "@/components/central/DialogoAutoasignar";
 
 function desplazar(dia: string, n: number): string {
   return new Date(Date.parse(`${dia}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
@@ -42,6 +43,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
         <span className="font-medium">{dia}</span>
         <Link href={`/central/ruta?dia=${desplazar(dia, 1)}`} className={enlace} aria-label="Día siguiente">▶</Link>
         <Link href="/central/ruta" className="inline-flex min-h-11 items-center px-2 text-sm text-marca-claro hover:underline">Hoy</Link>
+        <div className="sm:ml-auto"><DialogoAutoasignar dia={dia} /></div>
       </div>
       {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
         : <TableroRuta servicios={delDia} contexto={contexto} conductores={conductores ?? []} vehiculos={vehiculos ?? []} />}
