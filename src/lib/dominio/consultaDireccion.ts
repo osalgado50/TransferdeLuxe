@@ -156,6 +156,11 @@ export function analizarConsulta(texto: string): ConsultaAnalizada {
     // «de Salou» / «en Salou» → «Salou».
     for (let j = loc.ini - 1; j > Math.max(iNum, 0) && /^(de|en|a)$/i.test(t[j]); j--) quitar.add(j);
   }
+  // Palabras genéricas («hotel»…) fuera si queda algo más que la localidad: Photon tarda > 5 s con «hotel piramide
+  // Salou» (medido: 7,2 s) y responde al momento con «piramide Salou».
+  const enLoc = (i: number) => !!loc && i >= loc.ini && i < loc.fin;
+  const generica = (i: number) => (iNum < 0 || i < iNum) && GENERICAS.has(k[i]);
+  if (t.some((_, i) => !quitar.has(i) && !enLoc(i) && !generica(i))) t.forEach((_, i) => { if (generica(i)) quitar.add(i); });
   // Consulta limpia: la localidad se queda en su sitio con su nombre oficial («montroig» → «Mont-roig del Camp»).
   const partes: string[] = [];
   t.forEach((x, i) => {
@@ -165,7 +170,7 @@ export function analizarConsulta(texto: string): ConsultaAnalizada {
   const numero = iNum >= 0 ? t[iNum] : null;
 
   // Núcleo (respaldo): la calle o el nombre sin número, localidad ni palabras genéricas («hotel piramide» → «piramide»).
-  const nucleoT = t.filter((x, i) => (iNum < 0 || i < iNum) && !quitar.has(i) && !(loc && i >= loc.ini && i < loc.fin) && !GENERICAS.has(plano(x)));
+  const nucleoT = t.filter((x, i) => (iNum < 0 || i < iNum) && !quitar.has(i) && !enLoc(i) && !GENERICAS.has(k[i]));
   while (nucleoT.length && ARTICULOS.has(plano(nucleoT[0]))) nucleoT.shift();
 
   return { limpia: partes.join(" ") || texto.trim(), numero, localidad: loc?.l ?? null, nucleo: nucleoT.join(" ") };

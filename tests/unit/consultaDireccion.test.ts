@@ -16,8 +16,11 @@ describe("analizarConsulta: casos reales que fallaban en producción", () => {
     expect(ver("Eduard Punset 7 Salou")).toEqual({ limpia: "Eduard Punset 7 Salou", numero: "7", localidad: "Salou", nucleo: "Eduard Punset" }));
   it("«Carrer Barcelona 10 Salou»: Barcelona es la calle, Salou la localidad", () =>
     expect(ver("Carrer Barcelona 10 Salou")).toEqual({ limpia: "Carrer Barcelona 10 Salou", numero: "10", localidad: "Salou", nucleo: "Carrer Barcelona" }));
-  it("«hotel piramide salou»: el respaldo quita «hotel»", () =>
-    expect(ver("hotel piramide salou")).toEqual({ limpia: "hotel piramide Salou", numero: null, localidad: "Salou", nucleo: "piramide" }));
+  it("«hotel piramide salou»: sin «hotel» (Photon tarda > 5 s con él y no lo encuentra)", () => {
+    expect(ver("hotel piramide salou")).toEqual({ limpia: "piramide Salou", numero: null, localidad: "Salou", nucleo: "piramide" });
+    expect(ver("Hotel Salou Park")).toMatchObject({ limpia: "Salou Park", localidad: "Salou" });
+    expect(ver("hotel salou")).toMatchObject({ limpia: "hotel Salou", localidad: "Salou" }); // solo queda la localidad: se conserva
+  });
   it("«Avinguda Carles Buïgas 28 Salou», «Passeig Jaume I 5 Salou», «Carrer de Sant Joan 10 Reus»", () => {
     expect(ver("Avinguda Carles Buïgas 28 Salou")).toMatchObject({ numero: "28", localidad: "Salou", nucleo: "Avinguda Carles Buïgas" });
     expect(ver("Passeig Jaume I 5 Salou")).toMatchObject({ numero: "5", localidad: "Salou", nucleo: "Passeig Jaume I" });
@@ -101,7 +104,7 @@ describe("detectar la localidad", () => {
 });
 
 it("variantesConsulta: limpia y núcleo sin repetir", () => {
-  expect(variantesConsulta(analizarConsulta("hotel piramide salou"))).toEqual(["hotel piramide Salou", "piramide"]);
+  expect(variantesConsulta(analizarConsulta("hotel piramide salou"))).toEqual(["piramide Salou", "piramide"]);
   expect(variantesConsulta(analizarConsulta("Sol Piramides"))).toEqual(["Sol Piramides"]);
   expect(variantesConsulta(analizarConsulta("Reus"))).toEqual(["Reus"]);
 });

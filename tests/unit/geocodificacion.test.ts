@@ -142,7 +142,7 @@ describe("crearBuscador", () => {
     const res = await b.buscar("hotel piramide salou");
     expect(res.map((l) => l.etiqueta)).toEqual(["Sol Piramides Demo · Carrer de Prova · Salou"]);
     const ph = f.mock.calls.map((c) => String(c[0])).filter((u) => u.includes("photon"));
-    expect(ph.map((u) => decodeURIComponent(u.split("q=")[1].split("&")[0]))).toEqual(["hotel piramide Salou", "piramide"]);
+    expect(ph.map((u) => decodeURIComponent(u.split("q=")[1].split("&")[0]))).toEqual(["piramide Salou", "piramide"]);
     expect(r.t).toBeGreaterThanOrEqual(1000); // esperó su turno
   });
   it("si un proveedor falla se usa el otro; los fallos no se guardan en caché", async () => {

@@ -401,7 +401,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   «Salou». Detectan la localidad conocida (las de `zonas.ts` sin aeropuertos ni estaciones, con alias sin acentos:
   La Pineda/Vila-seca, Mont-roig/Miami Platja, L'Hospitalet de l'Infant…), sin confundirla con el nombre de la calle
   («Carrer Barcelona 10 Salou» → Salou; «Avinguda de Tarragona 5 Reus» → Reus). Dan también un *núcleo* de respaldo:
-  la calle o el nombre sin número ni palabras genéricas («hotel piramide» → «piramide»). *Búsqueda*
+  la calle o el nombre sin número ni localidad («hotel piramide salou» → consulta «piramide Salou», núcleo «piramide»). *Búsqueda*
   (`buscador.ts`): Photon y Nominatim en paralelo, cada uno con su cola de 1 petición/s (espera hasta 2 s; si no,
   se salta) y caché de 24 h por URL; con localidad, Photon con `bbox` de ~8 km (15 km en capitales de provincia) y
   Nominatim con `viewbox` + `bounded=1`. Si la consulta limpia no da nada, se prueba el núcleo. *Fusión*
@@ -602,6 +602,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   tomaba por el número, y la calle «aproximada» llegaba a tapar la dirección exacta al deduplicar; los dos quedaron
   cubiertos por tests. Para no saltarse el límite de 1 petición/s de los servicios gratuitos con dos consultas
   seguidas (la limpia y el respaldo), el límite pasó de «si está ocupado, se salta» a una cola corta (hasta 2 s).
+  Ya desplegado, «hotel piramide salou» seguía vacío aunque Photon sí devuelve hoteles: medido con una sola petición,
+  Photon tarda 7,2 s con «hotel» en la consulta (más que el timeout de 5 s), y responde al momento sin él. Por eso las
+  palabras genéricas («hotel», «hostal», «apartamentos», «camping»…) se quitan ya de la consulta principal cuando queda
+  algo más que la localidad («hotel piramide salou» → «piramide Salou»).
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
