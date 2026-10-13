@@ -1,16 +1,25 @@
 import { leerMotivoSubcontratar } from "./capacidad";
 import type { EstadoServicio, Servicio } from "./tipos";
 
-type ServAlerta = Pick<Servicio, "estado" | "conductor_id" | "ultima_incidencia" | "subcontratar" | "pasajeros" | "maletas">;
+type ServAlerta = Pick<Servicio, "estado" | "conductor_id" | "ultima_incidencia" | "subcontratar" | "pasajeros" | "maletas"> & { fecha_hora_recogida?: string };
+
+const fmtHora = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+/** «🔁 Marc ha devuelto el servicio de las 15:00: Avería» (ultima_incidencia «devuelto: Avería»). */
+export function textoDevuelto(s: { ultima_incidencia: string | null; fecha_hora_recogida?: string }, quien?: string | null): string {
+  const motivo = (s.ultima_incidencia ?? "").replace(/^devuelto:\s*/, "").trim();
+  const h = s.fecha_hora_recogida ? ` de las ${fmtHora.format(new Date(s.fecha_hora_recogida))}` : "";
+  return `🔁 ${quien?.trim() || "El conductor"} ha devuelto el servicio${h}${motivo ? `: ${motivo}` : ""}`;
+}
 
 /** Título y texto legible de una alerta (mismos textos que la columna de alertas de la central web). */
-export function textoAlertaCentral(s: ServAlerta, nombreConductor: (id: string | null) => string): { titulo: string; texto: string } {
+export function textoAlertaCentral(s: ServAlerta, nombreConductor: (id: string | null) => string, devueltoPor?: string | null): { titulo: string; texto: string } {
   if (s.subcontratar && s.estado === "pendiente") {
     const razon = leerMotivoSubcontratar(s.ultima_incidencia);
     return { titulo: "Subcontratar", texto: `Subcontratar (${s.pasajeros} pax, ${s.maletas} maletas)${razon ? `: ${razon}` : ""}` };
   }
   const inc = s.ultima_incidencia ?? "";
   if (inc.startsWith("rechazado")) return { titulo: "Rechazado", texto: `Rechazado por ${nombreConductor(s.conductor_id)}: ${inc.replace(/^rechazado:\s*/, "")}` };
+  if (inc.startsWith("devuelto")) return { titulo: "🔁 Devuelto", texto: textoDevuelto(s, devueltoPor) };
   if (inc === "expirado") return { titulo: "Sin respuesta", texto: "Plazo vencido: sigue asignado, el conductor aún puede aceptarlo o puedes reasignarlo" };
   if (inc === "nuevo") return { titulo: "Reserva nueva", texto: "Reserva nueva" };
   return { titulo: "Aviso", texto: inc || "Incidencia" };

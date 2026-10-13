@@ -23,7 +23,7 @@ export function colaDe(conductorId: string): Promise<Compartida> {
     };
     const rechazos = new Map<string, string[]>();
     const oyentes = new Set<Oyente>();
-    const cola = new ColaAcciones(almacen, (a) => enviarAccion({ idAccion: a.idAccion, servicioId: a.servicioId, accion: a.accion }),
+    const cola = new ColaAcciones(almacen, (a) => enviarAccion({ idAccion: a.idAccion, servicioId: a.servicioId, accion: a.accion, ...(a.motivo ? { motivo: a.motivo } : {}) }),
       (a, e) => {
         const l = rechazos.get(a.servicioId) ?? [];
         if (!l.includes(e)) rechazos.set(a.servicioId, [...l, e]);

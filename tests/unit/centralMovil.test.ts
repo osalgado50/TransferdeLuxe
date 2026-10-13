@@ -71,3 +71,11 @@ test("marcadoresFlota", () => {
   expect(m[0]).toMatchObject({ nombre: "Ana Demo", estado: "con_pasajeros", texto: "Con pasajeros", minutos: 1 });
   expect(m[1]).toMatchObject({ nombre: "Conductor", estado: "sin_senal", minutos: 9 });
 });
+
+describe("alerta de servicio devuelto", () => {
+  test("con quién lo devolvió y la hora", () => {
+    const s = { ...base, estado: "pendiente" as const, conductor_id: null, ultima_incidencia: "devuelto: Avería", fecha_hora_recogida: "2026-10-11T13:00:00Z" };
+    expect(textoAlertaCentral(s, nombre, "Marc")).toEqual({ titulo: "🔁 Devuelto", texto: "🔁 Marc ha devuelto el servicio de las 15:00: Avería" });
+    expect(textoAlertaCentral(s, nombre).texto).toBe("🔁 El conductor ha devuelto el servicio de las 15:00: Avería");
+  });
+});

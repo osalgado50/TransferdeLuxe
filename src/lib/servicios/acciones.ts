@@ -1,4 +1,4 @@
-import { transicion, type Accion } from "@/lib/dominio/estados";
+import { PREFIJO_DEVUELTO, transicion, type Accion } from "@/lib/dominio/estados";
 import { comprobarDeshacer, type EventoPaso } from "@/lib/dominio/deshacer";
 import type { EstadoServicio, Rol, Servicio } from "@/lib/dominio/tipos";
 
@@ -32,6 +32,8 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   if ((p.accion === "asignar" || p.accion === "reasignar") && !p.conductorId) return { ok: false, error: "Elige un conductor" };
   if (p.accion === "rechazar" && (!p.motivo || p.motivo.trim() === "" || p.motivo === "Otro"))
     return { ok: false, error: "Indica el motivo del rechazo" };
+  if (p.accion === "devolver" && (!p.motivo || p.motivo.trim() === "" || p.motivo.trim() === "Otro"))
+    return { ok: false, error: "Indica por qué no puedes hacer el servicio" };
 
   const t = transicion(s.estado, p.accion, { rol: p.actor.rol, conduce: p.actor.conduce, central: p.actor.central, esAsignado: s.conductor_id === p.actor.id });
   if (!t.ok) return t;
@@ -51,6 +53,11 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   }
   if (p.accion === "rechazar") {
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
+  }
+  if (p.accion === "devolver") {
+    // Vuelve a «Sin asignar» con alerta para la central (que lo reasigna); el motivo queda en el evento «devuelto».
+    motivo = p.motivo!.trim().slice(0, 300);
+    Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `${PREFIJO_DEVUELTO}: ${motivo}`, incidencia_vista: false });
   }
   try {
     const evento = { tipo: t.evento, actor_id: p.actor.id, motivo };

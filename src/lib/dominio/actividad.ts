@@ -1,4 +1,5 @@
 import { leerDeshecho } from "./deshacer";
+import { leerMotivoAviso, NOMBRE_AVISO } from "./avisoCliente";
 import { direccionCorta } from "./direccion";
 import { esIncidenciaGrave, nombreTipoIncidencia } from "./incidencias";
 import { etiquetaEvento } from "./navegacion";
@@ -109,10 +110,10 @@ function cuando(s: ServicioAct, en: string) {
 const ICONO: Record<string, string> = {
   creado: "🆕", asignado: "📤", reasignado: "🔁", aceptado: "✅", rechazado: "❌", expirado: "⏰", en_camino: "🚗",
   llegando_recogida: "📍", llegando_destino: "📍", recogido: "🧳", completado: "🏁", cancelado: "🚫", subcontratado: "🤝",
-  llegada_vuelo: "✈️", recogida_reajustada: "🕒", retraso_recogida: "🔴", deshecho: "↩️",
+  llegada_vuelo: "✈️", recogida_reajustada: "🕒", retraso_recogida: "🔴", deshecho: "↩️", devuelto: "🔁", aviso_cliente: "💬",
 };
 /** Eventos que hace el propio conductor (el actor es él). En el resto se nombra al conductor asignado. */
-const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido", "completado", "llegando_recogida", "llegando_destino"]);
+const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido", "completado", "llegando_recogida", "llegando_destino", "devuelto"]);
 
 export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDAD): { movimientos: Movimiento[]; graves: Movimiento[] } {
   const servicios = new Map<string, ServicioAct>();
@@ -148,7 +149,10 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     if (ocultos.has(ev.servicio_id)) continue;
     const s = servicios.get(ev.servicio_id);
     const deshecho = ev.tipo === "deshecho" ? leerDeshecho(ev.motivo) : null;
+    // Aviso al cliente: lo manda el conductor o la central (actor que no es conductor → «La central»).
+    const avisoCentral = ev.tipo === "aviso_cliente" && !!ev.actor_id && !gente.has(ev.actor_id);
     const cid = DEL_CONDUCTOR.has(ev.tipo) || (deshecho && !deshecho.central) ? (ev.actor_id ?? s?.conductor_id ?? null)
+      : ev.tipo === "aviso_cliente" ? (avisoCentral ? (s?.conductor_id ?? null) : (ev.actor_id ?? s?.conductor_id ?? null))
       : ev.tipo === "asignado" || ev.tipo === "reasignado" ? destinatario(ev) : (s?.conductor_id ?? null);
     const m = base(`ev-${ev.id}`, ev.creado_en, cid, s);
     const N = nombre(cid);
@@ -191,9 +195,23 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
         m.gravedad = "aviso";
         break;
       }
+      case "devuelto": {
+        // «No puedo hacer este servicio»: vuelve a «Sin asignar» y la central tiene que reasignarlo.
+        const motivo = ev.motivo?.trim() ? `: ${recortar(ev.motivo.trim(), 120)}` : "";
+        texto = `🔁 ${N} ha devuelto ${serv}${motivo}`;
+        m.gravedad = "aviso";
+        break;
+      }
+      case "aviso_cliente": {
+        const a = leerMotivoAviso(ev.motivo);
+        const que = a ? NOMBRE_AVISO[a.tipo] : "aviso";
+        const canal = a?.canal === "sms" ? " (SMS)" : "";
+        texto = `💬 ${avisoCentral ? "La central" : N} ha avisado al cliente${C ? ` (${C})` : ""}: ${que}${canal}`;
+        break;
+      }
       default: texto = `${etiquetaEvento(ev.tipo)} · ${serv}`;
     }
-    out.push({ ...m, tipo: ev.tipo, icono: ICONO[ev.tipo] ?? "•", texto, descripcion: ev.tipo === "rechazado" ? ev.motivo : null });
+    out.push({ ...m, tipo: ev.tipo, icono: ICONO[ev.tipo] ?? "•", texto, descripcion: ev.tipo === "rechazado" || ev.tipo === "devuelto" ? ev.motivo : null });
   }
 
   for (const i of e.incidencias ?? []) {

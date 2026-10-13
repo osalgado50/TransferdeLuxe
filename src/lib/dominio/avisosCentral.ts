@@ -43,6 +43,11 @@ export function construirAvisos(e: Entrada): AvisoCentral[] {
     else if (ev.tipo === "rechazado") out.push({ titulo: `Rechazado por ${nombre(ev.actor_id)}${ev.motivo ? `: ${recortar(ev.motivo, 60)}` : ""}`, cuerpo: trayecto(s), data });
     else if (ev.tipo === "expirado") out.push({ titulo: "Sin respuesta del conductor", cuerpo: trayecto(s), data });
     else if (ev.tipo === "aceptado") out.push({ titulo: `${nombre(ev.actor_id)} ha aceptado`, cuerpo: trayecto(s), data });
+    else if (ev.tipo === "devuelto") {
+      // «No puedo hacer este servicio»: vuelve a «Sin asignar»; la central tiene que reasignarlo.
+      out.push({ titulo: `🔁 ${nombre(ev.actor_id)} ha devuelto el servicio de las ${horaMadrid(s.fecha_hora_recogida)}${ev.motivo ? `: ${recortar(ev.motivo, 60)}` : ""}`,
+        cuerpo: `${trayecto(s)} · Reasígnalo`, data });
+    }
     else if (ev.tipo === "deshecho") {
       // Solo lo que deshace el conductor (lo de la central lo ha hecho ella misma).
       const d = leerDeshecho(ev.motivo);

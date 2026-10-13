@@ -150,3 +150,13 @@ test("tiempo restante, banner y avisos", () => {
   expect(textoAvisoProximidad("llegado", "destino", 20)).toBe("Has llegado al destino");
   expect(claveAvisoNav("s1", "destino", "cerca")).toBe("tdl-nav:s1:destino:cerca");
 });
+
+test("llegandoReciente: un aviso al cliente posterior no tapa el «Llegando»", () => {
+  const ahora = new Date("2026-10-13T13:00:00Z");
+  const evs = [
+    { servicio_id: "s1", tipo: "llegando_recogida", creado_en: "2026-10-13T12:55:00Z" },
+    { servicio_id: "s1", tipo: "aviso_cliente", creado_en: "2026-10-13T12:56:00Z" },
+  ];
+  expect(llegandoReciente(evs, { id: "s1", estado: "en_camino" }, ahora)?.tipo).toBe("llegando_recogida");
+  expect(etiquetaEvento("devuelto")).toBe("Devuelto por el conductor");
+});

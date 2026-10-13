@@ -92,3 +92,22 @@ test("con actualizarConEvento: cambio y evento en una sola llamada (sin insertar
   expect(r.ok).toBe(true);
   expect(llamadas).toEqual(["atomica:aceptado->en_camino:en_camino"]);
 });
+
+test("devolver: exige motivo, deja el servicio sin conductor y alerta a la central", async () => {
+  db.s1 = { ...db.s1, estado: "en_camino", conductor_id: "c1", vehiculo_id: "v1" } as Servicio;
+  expect((await ejecutarAccion(repo, { idAccion: "d0", servicioId: "s1", accion: "devolver", actor: c1 })).ok).toBe(false);
+  expect((await ejecutarAccion(repo, { idAccion: "d1", servicioId: "s1", accion: "devolver", actor: c1, motivo: " Otro " })).ok).toBe(false);
+  const p = { idAccion: "d2", servicioId: "s1", accion: "devolver" as const, actor: c1, motivo: "Avería" };
+  expect(await ejecutarAccion(repo, p)).toEqual({ ok: true, estado: "pendiente" });
+  expect(db.s1).toMatchObject({ estado: "pendiente", conductor_id: null, vehiculo_id: null, ultima_incidencia: "devuelto: Avería", incidencia_vista: false });
+  expect(eventos.at(-1)).toMatchObject({ tipo: "devuelto", motivo: "Avería" });
+  // Reenvío desde la cola offline: idempotente.
+  expect(await ejecutarAccion(repo, p)).toEqual({ ok: true, estado: "pendiente", duplicada: true });
+  expect(eventos.filter((e) => e.tipo === "devuelto")).toHaveLength(1);
+});
+
+test("devolver: no con pasajeros a bordo", async () => {
+  db.s1 = { ...db.s1, estado: "recogido", conductor_id: "c1" };
+  expect((await ejecutarAccion(repo, { idAccion: "d3", servicioId: "s1", accion: "devolver", actor: c1, motivo: "Avería" })).ok).toBe(false);
+  expect(db.s1.estado).toBe("recogido");
+});

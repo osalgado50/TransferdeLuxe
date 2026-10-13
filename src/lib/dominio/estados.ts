@@ -1,7 +1,7 @@
 import { DESHACER, EVENTO_DESHECHO } from "./deshacer";
 import { puedeConducir, type EstadoServicio, type Rol } from "./tipos";
 
-export type Accion = "asignar" | "reasignar" | "aceptar" | "rechazar" | "salir" | "cargar" | "descargar" | "cancelar" | "subcontratar" | "deshacer";
+export type Accion = "asignar" | "reasignar" | "aceptar" | "rechazar" | "salir" | "cargar" | "descargar" | "cancelar" | "subcontratar" | "deshacer" | "devolver";
 /** `conduce`: operador que también conduce (puede hacer las acciones de conductor sobre lo suyo). */
 /** `central`: la acción llega desde la central (ficha web o modo central de la app), no desde la pantalla del conductor. */
 export interface Actor { rol: Rol; esAsignado: boolean; conduce?: boolean; central?: boolean }
@@ -19,6 +19,8 @@ const REGLAS: Record<Exclude<Accion, "deshacer">, Regla> = {
   salir:        { desde: ["aceptado"], hacia: "en_camino", quien: "conductor", evento: "en_camino" },
   cargar:       { desde: ["en_camino"], hacia: "recogido", quien: "conductor", evento: "recogido" },
   descargar:    { desde: ["recogido"], hacia: "completado", quien: "conductor", evento: "completado" },
+  // «No puedo hacer este servicio»: el conductor asignado lo devuelve a la central (antes de recoger al cliente).
+  devolver:     { desde: ["aceptado", "en_camino"], hacia: "pendiente", quien: "conductor", evento: "devuelto" },
 };
 
 export function transicion(estado: EstadoServicio, accion: Accion, actor: Actor): ResultadoTransicion {
@@ -46,3 +48,7 @@ export const ACCION_SIGUIENTE_CONDUCTOR: Partial<Record<EstadoServicio, { accion
 };
 
 export const MOTIVOS_RECHAZO = ["Avería", "No llego a tiempo", "Fuera de servicio", "Otro"] as const;
+/** Motivos de «No puedo hacer este servicio» (devolver). «Otro» exige escribir el motivo. */
+export const MOTIVOS_DEVOLUCION = ["Avería", "Retraso grave", "Emergencia personal", "Otro"] as const;
+/** Prefijo de `ultima_incidencia` de un servicio devuelto: «devuelto: Avería». */
+export const PREFIJO_DEVUELTO = "devuelto";

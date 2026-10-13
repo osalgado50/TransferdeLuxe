@@ -73,7 +73,8 @@ export function restanteEnRuta(coords: [number, number][], pos: Punto): Restante
 export const EVENTO_LLEGANDO: Record<TipoObjetivo, string> = { recogida: "llegando_recogida", destino: "llegando_destino" };
 const ETIQUETAS: Record<string, string> = { llegando_recogida: "Llegando a la recogida", llegando_destino: "Llegando al destino",
   llegada_vuelo: "Llegada real del vuelo", recogida_reajustada: "Recogida reajustada por el vuelo",
-  retraso_recogida: "Llega tarde a la recogida", deshecho: "Paso deshecho" };
+  retraso_recogida: "Llega tarde a la recogida", deshecho: "Paso deshecho", devuelto: "Devuelto por el conductor",
+  aviso_cliente: "Aviso al cliente" };
 export const etiquetaEvento = (tipo: string) => ETIQUETAS[tipo] ?? tipo;
 
 /**
@@ -83,7 +84,8 @@ export const etiquetaEvento = (tipo: string) => ETIQUETAS[tipo] ?? tipo;
 export function llegandoReciente<E extends { servicio_id: string; tipo: string; creado_en: string }>(
   eventos: E[], s: { id: string; estado: EstadoServicio }, ahora: Date, ventanaMin = 20,
 ): E | null {
-  const ult = eventos.filter((e) => e.servicio_id === s.id).sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
+  // Los avisos al cliente (WhatsApp/SMS) no cambian la fase: no tapan el «Llegando».
+  const ult = eventos.filter((e) => e.servicio_id === s.id && e.tipo !== "aviso_cliente").sort((a, b) => b.creado_en.localeCompare(a.creado_en))[0];
   if (!ult || ahora.getTime() - new Date(ult.creado_en).getTime() > ventanaMin * 60_000) return null;
   if (ult.tipo === "llegando_recogida" && (s.estado === "aceptado" || s.estado === "en_camino")) return ult;
   if (ult.tipo === "llegando_destino" && s.estado === "recogido") return ult;

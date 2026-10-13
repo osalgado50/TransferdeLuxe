@@ -184,3 +184,17 @@ describe("hoja de cierre en la actividad", () => {
     expect(r.graves).toEqual([]);
   });
 });
+
+describe("devuelto y aviso al cliente", () => {
+  it("«🔁 Marc ha devuelto el servicio de las 15:00: Avería» como aviso, aunque ya no tenga conductor", () => {
+    const r = construirActividad(entrada({ servicios: [{ ...S, conductor_id: null }], eventos: [ev(5, "devuelto", { motivo: "Avería" })] }));
+    expect(r.movimientos[0]).toMatchObject({ tipo: "devuelto", gravedad: "aviso", conductor: "Marc", icono: "🔁", descripcion: "Avería" });
+    expect(r.movimientos[0].texto).toBe("🔁 Marc ha devuelto el servicio de las 15:00: Avería");
+  });
+  it("«💬 Marc ha avisado al cliente: en camino»; de la central, «La central…»", () => {
+    const r = construirActividad(entrada({ eventos: [ev(6, "aviso_cliente", { motivo: "en_camino" }), ev(7, "aviso_cliente", { motivo: "retraso|sms", actor_id: "op1" })] }));
+    const [central, conductor] = r.movimientos;
+    expect(conductor).toMatchObject({ tipo: "aviso_cliente", gravedad: "info", conductor: "Marc", texto: "💬 Marc ha avisado al cliente (Lucía): en camino" });
+    expect(central.texto).toBe("💬 La central ha avisado al cliente (Lucía): llega con retraso (SMS)");
+  });
+});

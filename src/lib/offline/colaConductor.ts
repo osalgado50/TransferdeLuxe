@@ -18,7 +18,7 @@ export function colaDe(conductorId: string): Compartida {
   const rechazos = new Map<string, string[]>();
   const oyentes = new Set<Oyente>();
   const cola = new ColaAcciones(almacen, async (a) => {
-    const r = await accionConductor({ idAccion: a.idAccion, servicioId: a.servicioId, accion: a.accion });
+    const r = await accionConductor({ idAccion: a.idAccion, servicioId: a.servicioId, accion: a.accion, ...(a.motivo ? { motivo: a.motivo } : {}) });
     return r.ok ? { ok: true } : { ok: false, error: r.error };
   }, (a, e) => {
     const l = rechazos.get(a.servicioId) ?? [];

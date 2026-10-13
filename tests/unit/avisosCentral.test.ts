@@ -80,3 +80,13 @@ describe("hoja de cierre → push a la central", () => {
     expect(r.map((a) => sonidoDeAviso(a.data))).toEqual(["alarma", "aceptado", null, "aviso"]);
   });
 });
+
+describe("servicio devuelto → push a la central", () => {
+  test("título con conductor, hora y motivo", () => {
+    const r = construirAvisos(base({ nombres: new Map([["c1", "Marc"]]), eventos: [{ id: 9, servicio_id: "s1", tipo: "devuelto", actor_id: "c1", motivo: "Avería" }] }));
+    expect(r).toEqual([{ titulo: "🔁 Marc ha devuelto el servicio de las 15:00: Avería", cuerpo: "Reus → Salou 15:00 · Reasígnalo", data: { tipo: "devuelto", servicioId: "s1" } }]);
+  });
+  test("el aviso al cliente no genera push", () => {
+    expect(construirAvisos(base({ eventos: [{ id: 10, servicio_id: "s1", tipo: "aviso_cliente", actor_id: "c1", motivo: "en_camino" }] }))).toEqual([]);
+  });
+});

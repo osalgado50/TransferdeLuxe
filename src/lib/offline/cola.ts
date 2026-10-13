@@ -1,7 +1,9 @@
 import { esperaBackoff } from "@/lib/dominio/reintento";
 
 export interface AccionPendiente {
-  idAccion: string; servicioId: string; accion: "salir" | "cargar" | "descargar" | "deshacer"; creadaEn: number; intentos?: number;
+  idAccion: string; servicioId: string; accion: "salir" | "cargar" | "descargar" | "deshacer" | "devolver"; creadaEn: number; intentos?: number;
+  /** Solo «devolver» («No puedo hacer este servicio»): motivo elegido por el conductor. */
+  motivo?: string;
   /** Tras un fallo de red/servidor no se reintenta antes de este instante (backoff exponencial con tope). */
   proximoIntento?: number;
 }

@@ -65,3 +65,20 @@ describe("operador que también conduce", () => {
     expect(transicion("pendiente", "asignar", jefe).ok).toBe(true);
   });
 });
+
+describe("devolver («No puedo hacer este servicio»)", () => {
+  test("desde aceptado o en camino → pendiente, evento «devuelto»", () => {
+    expect(transicion("aceptado", "devolver", conductor)).toEqual({ ok: true, nuevo: "pendiente", evento: "devuelto" });
+    expect(transicion("en_camino", "devolver", conductor)).toEqual({ ok: true, nuevo: "pendiente", evento: "devuelto" });
+  });
+  test("no con el cliente a bordo ni antes de aceptar", () => {
+    expect(transicion("recogido", "devolver", conductor).ok).toBe(false);
+    expect(transicion("asignado", "devolver", conductor).ok).toBe(false);
+    expect(transicion("completado", "devolver", conductor).ok).toBe(false);
+  });
+  test("solo el conductor asignado (no otro conductor ni la central)", () => {
+    expect(transicion("aceptado", "devolver", otroConductor)).toEqual({ ok: false, error: "Este servicio ya no está asignado a ti" });
+    expect(transicion("aceptado", "devolver", operador).ok).toBe(false);
+    expect(transicion("en_camino", "devolver", { rol: "operador", esAsignado: true, conduce: true })).toMatchObject({ ok: true, nuevo: "pendiente" });
+  });
+});
