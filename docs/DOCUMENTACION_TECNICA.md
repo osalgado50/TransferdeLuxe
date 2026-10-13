@@ -569,6 +569,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   tipo (todas las semanas)»; en el mes, la plantilla × días con 📅/✎, editar un día con un clic, copiar a los meses
   siguientes, repetir semanas y quitar lo planificado del mes. Todos los lectores (vigilante, asignación, app del
   conductor) leen ya el vehículo del día planificado y la víspera (madrugada de los turnos de noche). 10 pruebas nuevas.
+- **Búsqueda de direcciones más rápida (13/10/2026)**. El usuario notaba lenta la búsqueda de direcciones y no veía que
+  el sistema estuviera trabajando. Medida en producción: todas las consultas a `/api/geocodificar` tardaban 5,1 s, incluso
+  repetidas. Causa: el servidor público de Photon tarda 6–7 s, el timeout era de 5 s y se esperaba siempre a los dos
+  proveedores, así que cada búsqueda agotaba el timeout y Photon nunca aportaba nada (ni se guardaba en caché). Ahora, en
+  cuanto un proveedor responde con resultados, al otro se le dan 600 ms de cortesía; si no llega, se contesta con lo que
+  hay y su petición sigue en segundo plano (timeout 8 s) y queda en caché 24 h; no se repite una petición igual en curso
+  y se mantiene el límite de 1 petición/s de Nominatim. En el navegador, pausa entre teclas de 250 ms, caché de búsquedas
+  recientes e indicador «Buscando…» (icono giratorio accesible). Resultado: de ~5,6 s a 0,6–1,2 s en las consultas
+  habituales, solo con servicios gratuitos.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
