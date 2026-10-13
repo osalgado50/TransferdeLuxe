@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   atribucion, combinarSugerencias, etiquetaPhoton, normalizarBusqueda, parsearNominatim, parsearPhoton, puntuarCoincidencia, textoConNombre,
 } from "@/lib/dominio/geocodificacion";
-import { crearBuscador } from "@/lib/geocodificacion/buscador";
+import { crearBuscador, reunirConGracia } from "@/lib/geocodificacion/buscador";
 
 const feature = (props: Record<string, unknown>, coords = [1.1588, 41.063]) => ({ type: "Feature", geometry: { type: "Point", coordinates: coords }, properties: props });
 const hotel = { name: "Hotel Demo Playa", street: "Carrer de Prova", housenumber: "12-14", locality: "els Bergs", city: "Salou", county: "Tarragonès", state: "Catalunya", countrycode: "ES", type: "house" };
@@ -166,9 +166,62 @@ describe("crearBuscador", () => {
     expect(n("photon")).toBe(3); // turnos en 0, 1 y 2 s; el cuarto tendría que esperar 3 s → se salta
     expect(n("nominatim")).toBe(3);
   });
+  it("no espera al proveedor lento: responde con el rápido y el lento queda en caché al llegar", async () => {
+    let soltarPhoton!: () => void;
+    const photonListo = new Promise<void>((r) => { soltarPhoton = r; });
+    const f = vi.fn(async (url: string) => {
+      if (!url.includes("photon")) return json(nomi);
+      await photonListo;
+      return json({ features: [feature({ name: "Lugar Demo Lento", city: "Salou", countrycode: "ES", type: "house" })] });
+    });
+    const b = crearBuscador({ fetch: f as unknown as typeof fetch, ...reloj(), graciaMs: 5 });
+    const res = await b.buscar("Eduard Punset Salou");
+    expect(res.map((l) => l.fuente)).toEqual(["nominatim"]);
+    soltarPhoton();
+    await vi.waitFor(async () => expect((await b.buscar("Eduard Punset Salou")).map((l) => l.fuente)).toContain("photon"));
+    expect(f).toHaveBeenCalledTimes(2); // la segunda vez, todo de la caché
+  });
+  it("una misma URL en curso no se pide dos veces", async () => {
+    const f = vi.fn(async (url: string) => (url.includes("photon") ? json({ features: [] }) : json([])));
+    const b = crearBuscador({ fetch: f as unknown as typeof fetch, ...reloj() });
+    await Promise.all([b.buscar("Plaza Demo"), b.buscar("Plaza Demo")]);
+    expect(f).toHaveBeenCalledTimes(2); // una por proveedor
+  });
   it("sin Google no hay detalle", async () => {
     const b = crearBuscador({ fetch: vi.fn() as unknown as typeof fetch });
     expect(b.hayGoogle()).toBe(false);
     expect(await b.detalle("ChIJ1234567890")).toBeNull();
+  });
+});
+
+describe("reunirConGracia", () => {
+  const tras = <T,>(ms: number, v: T) => new Promise<T>((r) => setTimeout(() => r(v), ms));
+  it("si todas acaban antes, devuelve todo", async () => {
+    vi.useFakeTimers();
+    const p = reunirConGracia([tras(100, [1]), tras(300, [2])], { graciaMs: 500, plazoMs: 5000 });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(await p).toEqual([[1], [2]]);
+    vi.useRealTimers();
+  });
+  it("con resultados de una, a la otra le da solo la gracia (null = no llegó)", async () => {
+    vi.useFakeTimers();
+    const p = reunirConGracia([tras(7000, [1]), tras(600, [2])], { graciaMs: 500, plazoMs: 9000 });
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(await p).toEqual([null, [2]]);
+    vi.useRealTimers();
+  });
+  it("si la rápida no trae nada, espera a la lenta; un fallo cuenta como vacío", async () => {
+    vi.useFakeTimers();
+    const p = reunirConGracia([tras(4000, [1]), Promise.reject(new Error("red")), tras(200, [] as number[])], { graciaMs: 500, plazoMs: 9000 });
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(await p).toEqual([[1], [], []]);
+    vi.useRealTimers();
+  });
+  it("plazo máximo aunque ninguna haya respondido", async () => {
+    vi.useFakeTimers();
+    const p = reunirConGracia([new Promise<number[]>(() => {})], { graciaMs: 500, plazoMs: 3000 });
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(await p).toEqual([null]);
+    vi.useRealTimers();
   });
 });
