@@ -19,9 +19,16 @@ let temporizador: ReturnType<typeof setTimeout> | null = null;
 /** Último paso que ha anunciado tesseract (para saber dónde se queda si no arranca). */
 let ultimoPaso = "sin empezar";
 
+/** ¿Puede este proceso crear memoria WebAssembly? (en hostings con límite de memoria virtual, no). */
+function pruebaWasm(): string {
+  try { new WebAssembly.Memory({ initial: 256, maximum: 32768 }); return "wasm ok"; } catch (e) { return `wasm: ${e instanceof Error ? e.message : e}`.slice(0, 120); }
+}
+
 function conTiempo<T>(p: Promise<T>, ms: number, fase: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
-  const limite = new Promise<never>((_, no) => { t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s (último paso: ${ultimoPaso})`)), ms); });
+  const limite = new Promise<never>((_, no) => {
+    t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s (último paso: ${ultimoPaso}; node ${process.version}; ${pruebaWasm()})`)), ms);
+  });
   return Promise.race([p, limite]).finally(() => clearTimeout(t));
 }
 
