@@ -586,9 +586,18 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   que el conductor no haya tocado y avisa «Leyendo el ticket…» / «Datos leídos: revisa y añade los kilómetros». Además,
   el extractor tolera el ruido del OCR entre etiqueta y número («Litros +: 15,52», «[20,00»), en prepago toma el
   «Total suministrado» y no el reservado, reconoce marcas de gasolinera y nombres comerciales (SP95, Efitec 98, Gasóleo A).
-  Medido en local: primera lectura 2,6 s (arranque), siguientes ~0,6 s; el ticket de ejemplo sale completo.
+  Medido en producción: primera lectura 1,3 s (arranque), siguientes ~0,7 s; el ticket de ejemplo sale completo.
 
 ## 6. Challenges y soluciones
+- **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba
+  siempre el tiempo, sin ningún error. Se añadió un diagnóstico que devuelve los pasos del arranque y se fue acotando
+  despliegue a despliegue: no era la memoria (WebAssembly sí reservaba memoria) ni los hilos; el último paso visible era
+  «initializing tesseract». Al correr el worker en el propio proceso y capturar los `printErr` de emscripten apareció la
+  causa real: `ENOENT … tesseract-core-simd-lstm.wasm`. El despliegue de Hostinger solo sube los ficheros que el código
+  requiere de forma estática (el *file tracing* de Next), y el `.wasm` se lee en tiempo de ejecución; en el hilo aparte el
+  error se perdía y la promesa no terminaba nunca. Solución: `outputFileTracingIncludes` con el motor para esa ruta, el
+  worker en el proceso (los errores llegan) y corte inmediato si el motor falla. Lección: en un hosting con *tracing*,
+  todo lo que se carga dinámicamente (wasm, datos) hay que declararlo, y los errores de un hilo hay que traerlos al principal.
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
   plano), Mindee, Tabscanner, Azure y Google Document AI. Se elige Claude Haiku 5.5 porque devuelve los datos ya
   estructurados y aguanta formatos de ticket distintos, a ~0,0003 $ por ticket. El lector queda detrás de una
