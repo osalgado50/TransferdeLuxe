@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { duracionEstimadaMin } from "@/lib/dominio/geo";
+import { duracionServicio, DURACION_POR_DEFECTO_MIN } from "@/lib/dominio/duracion";
 import { avisoCapacidad, vehiculosAptos, motivoSubcontratar, type VehiculoCapacidad } from "@/lib/dominio/capacidad";
 import type { Servicio } from "@/lib/dominio/tipos";
 import { leerModulos } from "@/lib/dominio/modulos";
@@ -55,8 +55,12 @@ import { madridAUtc } from "@/lib/dominio/dias";
 function tramo(r: Reserva, origen: "web" | "manual", t: {
   o: string; olat: number | null; olng: number | null; d: string; dlat: number | null; dlng: number | null; fecha: string; hora: string; vuelo: string | null;
 }): NuevoServicio {
-  const dur = t.olat != null && t.olng != null && t.dlat != null && t.dlng != null
-    ? duracionEstimadaMin({ lat: t.olat, lng: t.olng }, { lat: t.dlat, lng: t.dlng }) : 45;
+  // Trayecto + carga/descarga según el tipo de punto (aeropuerto/estación 15 min, resto 5).
+  const dur = duracionServicio({
+    origen: t.olat != null && t.olng != null ? { lat: t.olat, lng: t.olng } : null,
+    destino: t.dlat != null && t.dlng != null ? { lat: t.dlat, lng: t.dlng } : null,
+    origenTexto: t.o, destinoTexto: t.d, guardadaMin: DURACION_POR_DEFECTO_MIN,
+  }).totalMin;
   return {
     cliente_nombre: r.cliente_nombre, cliente_apellidos: r.cliente_apellidos, cliente_email: r.cliente_email, cliente_telefono: r.cliente_telefono,
     origen_texto: t.o, origen_lat: t.olat, origen_lng: t.olng, destino_texto: t.d, destino_lat: t.dlat, destino_lng: t.dlng,

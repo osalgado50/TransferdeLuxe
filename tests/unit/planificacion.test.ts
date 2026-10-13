@@ -140,7 +140,8 @@ describe("ronda 1: estados, medianoche, horario de invierno, orden", () => {
   });
 
   test("23:00 que acaba pasada la medianoche y recogida a las 00:45", () => {
-    const noche = fila("n", "2026-10-15T23:00:00+02:00", 90, bcn, salou);
+    // Origen en Tarragona: la duración guardada (90) manda; desde el aeropuerto de BCN la calculada sería mayor.
+    const noche = fila("n", "2026-10-15T23:00:00+02:00", 90, tarragona, salou);
     const cands = construirCandidatos(conductores, vehiculos, [noche]);
     const cerca = sugerirConductores({ id: "s", inicio: new Date("2026-10-16T00:45:00+02:00"), duracionMin: 30, pasajeros: 1, maletas: 1, origen: salou }, cands, T("08:00"));
     expect(cerca[0].apto).toBe(true);

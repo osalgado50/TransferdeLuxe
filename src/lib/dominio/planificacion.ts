@@ -1,6 +1,7 @@
 import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
 import type { Candidato, TramoAgenda } from "./sugerencia";
+import { duracionEfectiva } from "./duracion";
 
 /** Estados que ocupan la agenda de un conductor (los terminales no cuentan para encajar ni para traslados). */
 export const ESTADOS_AGENDA = ["asignado", "aceptado", "en_camino", "recogido"] as const;
@@ -33,9 +34,16 @@ export interface Transicion {
   desdeTexto?: string; hastaTexto?: string;
 }
 
+/** Duración con la que se planifica una fila: la guardada o la calculada (trayecto + carga/descarga), la mayor. */
+export function duracionFila(f: FilaPlan): number {
+  const origen = f.origen_lat != null && f.origen_lng != null ? { lat: f.origen_lat, lng: f.origen_lng } : null;
+  const destino = f.destino_lat != null && f.destino_lng != null ? { lat: f.destino_lat, lng: f.destino_lng } : null;
+  return duracionEfectiva({ origen, destino, origenTexto: f.origen_texto, destinoTexto: f.destino_texto, guardadaMin: f.duracion_estimada_min });
+}
+
 export function aPlan(f: FilaPlan): ServicioPlan {
   return {
-    id: f.id, inicio: new Date(f.fecha_hora_recogida), duracionMin: f.duracion_estimada_min,
+    id: f.id, inicio: new Date(f.fecha_hora_recogida), duracionMin: duracionFila(f),
     origen: f.origen_lat != null && f.origen_lng != null ? { lat: f.origen_lat, lng: f.origen_lng } : null,
     destino: f.destino_lat != null && f.destino_lng != null ? { lat: f.destino_lat, lng: f.destino_lng } : null,
     origenTexto: f.origen_texto ?? undefined, destinoTexto: f.destino_texto ?? undefined,
@@ -75,31 +83,32 @@ export function tiempoTraslado(desde: Punto | null, hasta: Punto | null): number
 
 export const finDe = (s: { inicio: Date; duracionMin: number }) => new Date(s.inicio.getTime() + s.duracionMin * MIN);
 
-export function estadoMargen(margen: number | null): EstadoTransicion {
+/** `justo`: por debajo o igual a este margen (min) es «justo» (por defecto 15; la central usa ajustes.margen_minimo_min). */
+export function estadoMargen(margen: number | null, justo = MARGEN_JUSTO_MIN): EstadoTransicion {
   if (margen == null) return "desconocido";
   if (margen < 0) return "no_llega";
-  return margen <= MARGEN_JUSTO_MIN ? "justo" : "ok";
+  return margen <= justo ? "justo" : "ok";
 }
 
-export function transicion(a: ServicioPlan, b: ServicioPlan): Transicion {
+export function transicion(a: ServicioPlan, b: ServicioPlan, justo = MARGEN_JUSTO_MIN): Transicion {
   const finAnterior = finDe(a);
   const trasladoMin = tiempoTraslado(a.destino, b.origen);
   const llegadaEstimada = trasladoMin == null ? null : new Date(finAnterior.getTime() + trasladoMin * MIN);
   const margenMin = llegadaEstimada ? Math.floor((b.inicio.getTime() - llegadaEstimada.getTime()) / MIN) : null;
   return {
     anteriorId: a.id, siguienteId: b.id, inicioSiguiente: b.inicio, finAnterior, trasladoMin, llegadaEstimada, margenMin,
-    estado: estadoMargen(margenMin), desdeTexto: a.destinoTexto, hastaTexto: b.origenTexto,
+    estado: estadoMargen(margenMin, justo), desdeTexto: a.destinoTexto, hastaTexto: b.origenTexto,
   };
 }
 
 const ordenar = <T extends { inicio: Date }>(xs: T[]) => [...xs].sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
 
 /** Plan del día de un conductor: fin de cada servicio y transiciones entre consecutivos. */
-export function planDia(servicios: ServicioPlan[]): { fines: Record<string, Date>; transiciones: Transicion[] } {
+export function planDia(servicios: ServicioPlan[], justo = MARGEN_JUSTO_MIN): { fines: Record<string, Date>; transiciones: Transicion[] } {
   const orden = ordenar(servicios);
   const fines: Record<string, Date> = {};
   for (const s of orden) fines[s.id] = finDe(s);
-  const transiciones = orden.slice(1).map((b, i) => transicion(orden[i], b));
+  const transiciones = orden.slice(1).map((b, i) => transicion(orden[i], b, justo));
   return { fines, transiciones };
 }
 
@@ -128,15 +137,15 @@ export interface ResultadoEncaje {
 }
 
 /** ¿Cabe el servicio en la agenda del conductor sin romper la transición anterior ni la siguiente? */
-export function encaja(s: ServicioPlan, agenda: ServicioPlan[]): ResultadoEncaje {
+export function encaja(s: ServicioPlan, agenda: ServicioPlan[], justo = MARGEN_JUSTO_MIN): ResultadoEncaje {
   const otros = ordenar(agenda.filter((a) => a.id !== s.id));
   const fin = finDe(s);
   const solapes = otros.filter((a) => a.inicio < fin && s.inicio < finDe(a));
   const libres = otros.filter((a) => !solapes.includes(a));
   const previo = libres.filter((a) => a.inicio <= s.inicio).pop() ?? null;
   const proximo = libres.find((a) => a.inicio > s.inicio) ?? null;
-  const anterior = previo ? transicion(previo, s) : null;
-  const siguiente = proximo ? transicion(s, proximo) : null;
+  const anterior = previo ? transicion(previo, s, justo) : null;
+  const siguiente = proximo ? transicion(s, proximo, justo) : null;
   const ts = [anterior, siguiente].filter((t): t is Transicion => !!t);
   const peor = ts.reduce<Transicion | null>((p, t) => (!p || GRAVEDAD[t.estado] > GRAVEDAD[p.estado] ? t : p), null);
   if (solapes.length) {
