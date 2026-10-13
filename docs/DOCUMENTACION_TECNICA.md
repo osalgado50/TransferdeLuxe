@@ -414,6 +414,26 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   sugerencia, el desplegable ofrece «Usar “…” tal cual (sin punto en el mapa)»; el orden 🏢/⭐ de la central no cambia.
   Tests: `consultaDireccion.test.ts` (los casos reales y ~60 variantes) y `geocodificacion.test.ts` (paralelo, cajas,
   respaldo, cola y caché con fetch y reloj simulados).
+- **Aviso al cliente y «No puedo hacer este servicio» (13/10/2026)**: diseño aprobado
+  (`docs/superpowers/specs/2026-10-11-aviso-pasajero-design.md`) más la petición del responsable de que el conductor
+  pueda decir al cliente «estoy en camino», «me retraso» o «se ha cancelado y la central te asignará otro conductor».
+  *WhatsApp «un toque»* (sin API ni coste): `src/lib/dominio/avisoCliente.ts` (pura, con tests) normaliza el teléfono a
+  E.164 (+34 por defecto), redacta las plantillas es/en (en camino con ETA y enlace, retraso con minutos y hora,
+  «ya estoy aquí» con modelo y matrícula, cambio de conductor; la central escribe en 3.ª persona) y monta `wa.me` o
+  `sms:`. Botón verde «💬 Avisar al cliente» en la app nativa (ETA del mapa y minutos del contador de puntualidad,
+  recordatorio «Envíalo parado»), en la PWA y en la ficha de la central (web y app). Tras abrir el chat se anota el
+  evento `aviso_cliente` (POST `/api/conductor|central/aviso-cliente`, idempotente por idAccion) → «💬 Marc ha avisado
+  al cliente: en camino» en la Actividad. *Seguimiento en directo*: tabla `seguimientos` (migración 0027, sin
+  políticas RLS: solo el servidor), token aleatorio de 32 bytes creado al aceptar o con el primer aviso; página
+  pública `/s/<token>` (noindex, sin login, es/en por `Accept-Language`) con mapa Leaflet que refresca cada 15 s desde
+  `GET /api/s/<token>`, que devuelve SOLO estado («confirmado», «de camino», «llegando», «a bordo», «finalizado»),
+  posición del coche, ETA (modelo de traslado, sin OSRM por petición), nombre de pila, modelo y matrícula; caduca 30 min
+  después de completar/cancelar. *Devolver*: nueva acción `devolver` en `estados.ts` (aceptado/en camino → pendiente,
+  solo el conductor asignado, motivo obligatorio: Avería, Retraso grave, Emergencia personal u Otro), por la RPC
+  atómica de 0019 y la cola offline (que ahora guarda el motivo); `ultima_incidencia «devuelto: …»` → alerta
+  «🔁 Marc ha devuelto el servicio de las 15:00: Avería» en la central (sonido de aviso, push del vigilante, columna de
+  alertas con «Asignar», app central) y el servicio aparece en «Sin asignar». Tras devolver, la app ofrece «Avisar al
+  cliente del cambio». Prueba en producción: `scripts/prueba-aviso.mjs` (23 comprobaciones, todo OK).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -607,6 +627,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   Photon tarda 7,2 s con «hotel» en la consulta (más que el timeout de 5 s), y responde al momento sin él. Por eso las
   palabras genéricas («hotel», «hostal», «apartamentos», «camping»…) se quitan ya de la consulta principal cuando queda
   algo más que la localidad («hotel piramide salou» → «piramide Salou»).
+- **Avisar al cliente sin pagar una API (13/10/2026)**: la API oficial de WhatsApp Business cobra por mensaje y exige
+  plantillas aprobadas por Meta; para la demo se usa el enlace `wa.me` con el texto ya escrito (el conductor solo pulsa
+  «enviar») y SMS como alternativa. Como el enlace de seguimiento es público, el token es aleatorio de 32 bytes, la
+  tabla no tiene políticas RLS (solo la lee el servidor), la ruta pública construye la respuesta campo a campo (estado,
+  posición, ETA, nombre de pila y vehículo; nunca datos del cliente) y caduca a los 30 min del final. Al devolver un
+  servicio el conductor deja de ser el asignado y ya no puede leerlo: la app guarda una copia local para ofrecer el
+  aviso del cambio, y el servidor le permite redactarlo si fue él quien lo devolvió en las últimas 6 h. Un detalle
+  salido de los tests: el aviso al cliente era el «último evento» del servicio y tapaba la tarjeta «Llegando» de la
+  central; ahora `llegandoReciente` lo ignora.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
