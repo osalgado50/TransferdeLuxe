@@ -3,6 +3,7 @@ import { rangosConductor } from "@dominio/dias";
 import { objetivoActual, type Fase } from "@dominio/navegacion";
 import { leerModulos } from "@dominio/modulos";
 import { urlVuelo } from "@dominio/vuelos";
+import { avisosDisponibles } from "@dominio/avisoCliente";
 import type { EstadoServicio, Punto, Servicio } from "@dominio/tipos";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -16,6 +17,8 @@ import { EstadoConexion } from "~/components/EstadoConexion";
 import { BotonIncidencia } from "~/components/Incidencias";
 import { MapaServicio } from "~/components/MapaServicio";
 import { ContadorPuntualidad } from "~/components/Puntualidad";
+import { AvisoCliente } from "~/components/AvisoCliente";
+import { DevolverServicio } from "~/components/DevolverServicio";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 import { fechaHora, fmt, hora } from "~/lib/formato";
 import { exigir } from "~/lib/servicios";
@@ -54,12 +57,29 @@ export default function ServicioEnCurso() {
   const [fase, setFase] = useState<Fase>("lejos");
   const [eta, setEta] = useState<number | null>(null);
   const [distM, setDistM] = useState<number | null>(null);
+  // Tras «No puedo hacer este servicio»: copia local para avisar al cliente del cambio (el servicio ya no es suyo).
+  const [devuelto, setDevuelto] = useState<{ telefono: string | null; cliente: string | null; recogida: string; estado: string } | null>(null);
   const volver = (
     <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} accessibilityRole="button" accessibilityLabel="Volver"
       style={estilos.volver} hitSlop={8}>
       <Ionicons name="chevron-back" size={26} color={color.marcaClaro} /><Text style={estilos.volverTexto}>Hoy</Text>
     </Pressable>
   );
+  if (devuelto) {
+    return (
+      <SafeAreaView style={estilos.pantalla}>
+        {volver}
+        <ScrollView contentContainerStyle={estilos.contenido}>
+          <EstadoConexion />
+          <Text style={estilos.devuelto}>🔁 Servicio devuelto a la central</Text>
+          <Text style={estilos.texto}>La central asignará otro conductor. Avisa al cliente del cambio:</Text>
+          <AvisoCliente servicioId={id} estado={devuelto.estado} recogida={devuelto.recogida} telefono={devuelto.telefono} cliente={devuelto.cliente}
+            tipos={["reasignacion"]} abiertoInicial etiqueta="💬  Avisar al cliente del cambio" />
+          <Boton texto="Volver a Hoy" variante="secundario" onPress={() => router.dismissTo("/")} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
   if (!s) {
     return (
       <SafeAreaView style={estilos.pantalla}>
@@ -99,7 +119,11 @@ export default function ServicioEnCurso() {
             <Boton texto="📞  Llamar al cliente" alto={64} tamano={19} variante="secundario"
               onPress={() => void abrir(`tel:${s.cliente_telefono.replace(/[^\d+]/g, "")}`)} />
           )}
+          <AvisoCliente servicioId={s.id} estado={estado} recogida={s.fecha_hora_recogida} telefono={s.cliente_telefono} cliente={s.cliente_nombre}
+            tipos={avisosDisponibles(estado)} etaS={objetivo?.tipo === "recogida" ? eta : null} />
           {datos?.incidencias && s.estado !== "completado" && <BotonIncidencia servicioId={s.id} />}
+          <DevolverServicio servicioId={s.id} conductorId={yo} estado={estado}
+            alDevolver={() => setDevuelto({ telefono: s.cliente_telefono, cliente: s.cliente_nombre, recogida: s.fecha_hora_recogida, estado })} />
         </View>
         <Tarjeta>
           <BloqueDireccion tipo="recogida" texto={s.origen_texto} lat={s.origen_lat} lng={s.origen_lng} />
@@ -136,4 +160,5 @@ const estilos = StyleSheet.create({
   texto: { color: color.texto, fontSize: 17 },
   tenue: { color: color.textoTenue, fontSize: 15 },
   dos: { flexDirection: "row", gap: 12 },
+  devuelto: { color: "#fcd34d", fontSize: 22, fontWeight: "800" },
 });

@@ -11,6 +11,7 @@ import { avisoInsistente, avisoLocal } from "~/lib/push";
 function tipoAlerta(s: ServicioCentral): { tipo: string; grave: boolean } {
   const inc = s.ultima_incidencia ?? "";
   if (inc.startsWith("rechazado")) return { tipo: "rechazado", grave: true };
+  if (inc.startsWith("devuelto")) return { tipo: "devuelto", grave: true };
   if (inc === "expirado") return { tipo: "expirado", grave: true };
   if (s.subcontratar && s.estado === "pendiente") return { tipo: "subcontratar", grave: true };
   if (inc === "nuevo") return { tipo: "reserva_nueva", grave: false };
@@ -41,7 +42,7 @@ export function AlertasSonoras() {
     Vibration.vibrate(grave ? [0, 250, 120, 250, 120, 250] : [0, 400]);
     void Haptics.notificationAsync(grave ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Warning).catch(() => {});
     for (const s of nuevas.slice(0, 3)) {
-      const a = textoAlertaCentral(s, nombre);
+      const a = textoAlertaCentral(s, nombre, datos.actividad?.find((m) => m.tipo === "devuelto" && m.servicioId === s.id)?.conductor ?? null);
       void avisoLocal(`alerta-${s.id}`, a.titulo, a.texto, { tipo: tipoAlerta(s).tipo, servicioId: s.id });
     }
   }, [datos]);

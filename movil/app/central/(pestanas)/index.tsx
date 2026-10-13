@@ -12,16 +12,16 @@ import { marcarAlertaVista, marcarCierreVisto, resolverIncidencia, useCentral, t
 import { fechaHora, fmt } from "~/lib/formato";
 import { color } from "~/lib/tema";
 
-function TarjetaAlerta({ s, nombre, alVisto }: { s: ServicioCentral; nombre: (id: string | null) => string; alVisto: () => Promise<void> }) {
+function TarjetaAlerta({ s, nombre, alVisto, devueltoPor }: { s: ServicioCentral; nombre: (id: string | null) => string; alVisto: () => Promise<void>; devueltoPor?: string | null }) {
   const [enviando, setEnviando] = useState(false);
-  const a = textoAlertaCentral(s, nombre);
+  const a = textoAlertaCentral(s, nombre, devueltoPor);
   return (
     <Tarjeta destacada>
       <Text style={estilos.alertaTitulo}>{a.titulo}</Text>
       <Text style={estilos.alertaTexto}>{a.texto}</Text>
       <Text style={estilos.meta}>{fmt(fechaHora, s.fecha_hora_recogida)} · {s.origen_texto} → {s.destino_texto}</Text>
       <View style={estilos.fila}>
-        <Boton texto="Abrir" variante="secundario" estilo={{ flex: 1 }} onPress={() => router.push(`/central/ficha/${s.id}`)} />
+        <Boton texto={(s.ultima_incidencia ?? "").startsWith("devuelto") ? "Reasignar" : "Abrir"} variante="secundario" estilo={{ flex: 1 }} onPress={() => router.push(`/central/ficha/${s.id}`)} />
         <Boton texto="Visto" estilo={{ flex: 1 }} cargando={enviando} etiqueta={`Marcar como vista la alerta: ${a.titulo}`}
           onPress={async () => { setEnviando(true); await alVisto(); setEnviando(false); }} />
       </View>
@@ -141,7 +141,8 @@ export default function Central() {
       {cargando ? <Aviso texto="Cargando…" />
         : alertas.length === 0 ? null
         : alertas.map((s) => (
-          <TarjetaAlerta key={s.id} s={s} nombre={nombre} alVisto={async () => {
+          <TarjetaAlerta key={s.id} s={s} nombre={nombre}
+            devueltoPor={datos?.actividad?.find((m) => m.tipo === "devuelto" && m.servicioId === s.id)?.conductor ?? null} alVisto={async () => {
             const e = await marcarAlertaVista(s.id);
             setErrorVisto(e);
             await recargar();

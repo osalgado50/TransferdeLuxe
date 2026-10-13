@@ -2,6 +2,8 @@ import { accionAsignacion } from "@dominio/centralMovil";
 import { preguntaDeshacer } from "@dominio/deshacer";
 import { COLOR_CONEXION } from "@dominio/conexionConductor";
 import { urlVuelo } from "@dominio/vuelos";
+import { avisosCentral } from "@dominio/avisoCliente";
+import { AvisoCliente } from "~/components/AvisoCliente";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -126,6 +128,8 @@ export default function Ficha() {
         {hecho && <Aviso texto={hecho} />}
         {error && <Aviso tipo="error" texto={error} />}
         {!!s.cliente_telefono && <Boton texto="Llamar al cliente" alto={60} onPress={() => llamar(s.cliente_telefono)} />}
+        <AvisoCliente servicioId={s.id} estado={s.estado} recogida={s.fecha_hora_recogida} telefono={s.cliente_telefono} cliente={s.cliente_nombre}
+          tipos={avisosCentral(s.estado, s.ultima_incidencia)} modo="central" />
         {!!conductor?.telefono && <Boton texto={`Llamar a ${conductor.nombre}`} variante="secundario" alto={60} onPress={() => llamar(conductor.telefono!)} />}
         {vuelo && <Boton texto="Ver vuelo" variante="secundario" onPress={() => abrir(urlVuelo(vuelo))} />}
         {pregunta && <Boton texto="↩ Deshacer último paso" variante="secundario" cargando={deshaciendo} onPress={deshacer} />}
