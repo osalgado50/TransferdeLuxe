@@ -31,6 +31,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // tesseract.js en el servidor (lectura de tickets de la app nativa) arranca su worker desde node_modules: sin empaquetar.
   serverExternalPackages: ["tesseract.js"],
+  // El despliegue solo sube los ficheros que el código requiere de forma estática: el motor wasm de tesseract (y los
+  // módulos que se cargan en tiempo de ejecución) hay que declararlos para la ruta que lee los tickets.
+  outputFileTracingIncludes: {
+    "/api/conductor/ticket/leer": ["./node_modules/tesseract.js-core/**/*", "./node_modules/tesseract.js/src/**/*", "./node_modules/node-fetch/**/*"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: cabeceras }];
   },
