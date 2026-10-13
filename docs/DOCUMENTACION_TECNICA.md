@@ -587,6 +587,17 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   el extractor tolera el ruido del OCR entre etiqueta y número («Litros +: 15,52», «[20,00»), en prepago toma el
   «Total suministrado» y no el reservado, reconoce marcas de gasolinera y nombres comerciales (SP95, Efitec 98, Gasóleo A).
   Medido en producción: primera lectura 1,3 s (arranque), siguientes ~0,7 s; el ticket de ejemplo sale completo.
+- **Números del ticket con sentido común y precio del día (13/10/2026)**. Probado con el iPhone (foto a una pantalla), el
+  OCR leyó «Litros 16,50 · Precio 1287 · Importe 20,00» (real: 15,52 · 1,289 · 20,00). El responsable pide afinar comas y
+  puntos y comprobar el precio en internet: «no puede ser que un litro cueste 1.289 euros». `src/lib/lector/plausibles.ts`
+  (puro, con tests): el €/L se coloca dividiendo por 10/100/1000 hasta caer en el rango del combustible; se prueba la
+  combinación de litros/€/L/importe que mejor cuadra (litros × €/L ≈ importe, 3 %) y, si ninguna cuadra, se fían el
+  importe y el €/L y se recalculan los litros; cada corrección sale como aviso («Litros recalculados…», «1287 → 1,287»).
+  El rango del día lo da el *Geoportal de Gasolineras* del Ministerio (servicio público gratuito, sin clave;
+  `preciosCarburante.ts`, provincia de Tarragona, caché 6 h, rango orientativo si no responde); solo se compara con
+  tickets de los últimos 15 días. La app muestra «Precio de hoy: 1,91 €/L de media, entre 1,60 y 2,21» y avisa si el
+  conductor escribe un €/L imposible («1287 €/L no parece un precio por litro: ¿1,287?»). Con la foto del móvil sale
+  ahora 15,54 L · 1,287 €/L · 20,00 €.
 
 ## 6. Challenges y soluciones
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba

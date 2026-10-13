@@ -58,6 +58,9 @@ export default function CapturaTicket({ demo }: { demo: boolean }) {
       const lector = new TesseractLector((p) => setProgreso(p));
       leido = await conTimeout(lector.leer({ base64: await aBase64(blob), mediaType: "image/jpeg" }), 60_000);
     } catch { setAviso("No se pudo leer el ticket; rellénalo a mano"); }
+    // Correcciones del lector (coma del €/L, litros recalculados…): que el conductor sepa qué revisar.
+    const avisos = (leido as (DatosTicket & { avisos?: string[] }) | null)?.avisos;
+    if (avisos?.length) setAviso(avisos.join(" "));
     setDatos(leido);
     setValores({ litros: leido?.litros != null ? String(leido.litros) : "", precio_litro: leido?.precio_litro != null ? String(leido.precio_litro) : "", importe: leido?.importe != null ? String(leido.importe) : "" });
     setFase("formulario");

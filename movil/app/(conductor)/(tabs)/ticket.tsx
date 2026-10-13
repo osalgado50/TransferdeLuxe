@@ -11,9 +11,20 @@ const hoyMadrid = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Mad
 const num = (s: string) => Number(s.trim().replace(",", "."));
 type Foto = { uri: string; estado: "subiendo" | "ok" | "error"; path?: string; error?: string };
 type Campo = "fecha" | "gasolinera" | "litros" | "precio" | "importe" | "combustible" | "km";
-type DatosLeidos = { fecha: string | null; gasolinera: string | null; litros: number | null; precio_litro: number | null; importe: number | null; tipo_combustible: string | null };
-type Lectura = { estado: "leyendo" } | { estado: "ok"; campos: number } | { estado: "nada" };
+type DatosLeidos = { fecha: string | null; gasolinera: string | null; litros: number | null; precio_litro: number | null; importe: number | null; tipo_combustible: string | null; avisos?: string[] };
+type Referencia = { min: number; max: number; medio: number; fuente: string };
+type Lectura = { estado: "leyendo" } | { estado: "ok"; campos: number; avisos: string[] } | { estado: "nada" };
 const coma = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
+const euros = (n: number) => n.toFixed(3).replace(/0$/, "").replace(".", ",");
+/** Aviso si el €/L escrito no parece un precio por litro (p. ej. 1287 sin coma). */
+function precioRaro(precio: string, ref: Referencia | null): string | null {
+  const p = num(precio);
+  if (!precio.trim() || !Number.isFinite(p) || p <= 0) return null;
+  const min = (ref?.min ?? 0.9) * 0.75, max = (ref?.max ?? 2.6) * 1.25;
+  if (p >= min && p <= max) return null;
+  const arreglo = [10, 100, 1000, 10000].map((d) => p / d).find((x) => x >= min && x <= max);
+  return `${coma(p)} €/L no parece un precio por litro${arreglo ? `: ¿${euros(arreglo)}?` : "."}`;
+}
 const VACIO = { fecha: "", gasolinera: "", litros: "", precio: "", importe: "", combustible: "", km: "" };
 
 /** Misma tolerancia que esCoherente de la web (litros × €/L ≈ importe). */
@@ -30,6 +41,7 @@ export default function Ticket() {
   const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
   const [lectura, setLectura] = useState<Lectura | null>(null);
+  const [referencia, setReferencia] = useState<Referencia | null>(null);
   // Campos que el conductor ya ha tocado: la lectura del ticket no los pisa.
   const tocados = useRef(new Set<Campo>());
   const set = (k: Campo) => (t: string) => { tocados.current.add(k); setV((a) => ({ ...a, [k]: t })); setResultado(null); };
@@ -39,8 +51,9 @@ export default function Ticket() {
     setLectura({ estado: "leyendo" });
     try {
       const r = await llamarApi("/api/conductor/ticket/leer", { method: "POST", body: { fotoPath: path }, tiempoMs: 65_000 });
-      const j = (await r.json().catch(() => ({}))) as { datos?: DatosLeidos };
+      const j = (await r.json().catch(() => ({}))) as { datos?: DatosLeidos; referencia?: Referencia };
       const d = r.ok ? j.datos : undefined;
+      if (r.ok && j.referencia) setReferencia(j.referencia);
       if (!d) { setLectura({ estado: "nada" }); return; }
       const leidos: Partial<Record<Campo, string>> = {
         fecha: d.fecha ?? "", gasolinera: d.gasolinera ?? "", litros: coma(d.litros), precio: coma(d.precio_litro), importe: coma(d.importe),
@@ -48,7 +61,7 @@ export default function Ticket() {
       };
       const aplicar = (Object.entries(leidos) as [Campo, string][]).filter(([k, x]) => x && !tocados.current.has(k));
       setV((a) => ({ ...a, ...Object.fromEntries(aplicar) }));
-      setLectura(aplicar.length ? { estado: "ok", campos: aplicar.length } : { estado: "nada" });
+      setLectura(aplicar.length ? { estado: "ok", campos: aplicar.length, avisos: d.avisos ?? [] } : { estado: "nada" });
     } catch {
       setLectura({ estado: "nada" });
     }
@@ -96,7 +109,7 @@ export default function Ticket() {
         importe: num(v.importe), tipo_combustible: v.combustible, km: Number(v.km.trim()), foto_path: foto?.estado === "ok" ? foto.path : null,
       } });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
-      if (r.ok) { setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); tocados.current.clear(); }
+      if (r.ok) { setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); }
       else setResultado({ ok: false, texto: j.error ?? "No se pudo guardar el ticket" });
     } catch { setResultado({ ok: false, texto: "Sin conexión: no se pudo guardar. Reinténtalo." }); }
     finally { setGuardando(false); }
@@ -117,6 +130,7 @@ export default function Ticket() {
             {foto.estado === "subiendo" && <Aviso texto="Subiendo foto…" tipo="pendiente" />}
             {foto.estado === "ok" && lectura?.estado === "leyendo" && <Aviso texto="Leyendo el ticket…" tipo="pendiente" />}
             {foto.estado === "ok" && lectura?.estado === "ok" && <Aviso texto={`Datos leídos del ticket (${lectura.campos}): revisa que estén bien y añade los kilómetros.`} />}
+            {foto.estado === "ok" && lectura?.estado === "ok" && lectura.avisos.map((a) => <Aviso key={a} texto={a} tipo="pendiente" />)}
             {foto.estado === "ok" && lectura?.estado === "nada" && <Aviso texto="Foto subida. No se han podido leer los datos: rellénalos a mano." tipo="pendiente" />}
             {foto.estado === "ok" && !lectura && <Aviso texto="Foto subida" />}
             {foto.estado === "error" && <>
@@ -134,6 +148,8 @@ export default function Ticket() {
           <Campo etiqueta="Importe €" valor={v.importe} onChange={set("importe")} teclado="decimal-pad" />
         </View>
         {aviso && <Aviso tipo="pendiente" texto="Los litros × precio no cuadran con el importe: revísalo." />}
+        {precioRaro(v.precio, referencia) && <Aviso tipo="pendiente" texto={precioRaro(v.precio, referencia)!} />}
+        {referencia && <Text style={e.nota}>Precio de hoy ({referencia.fuente}): {euros(referencia.medio)} €/L de media, entre {euros(referencia.min)} y {euros(referencia.max)}.</Text>}
         <Text style={e.etiqueta}>Combustible</Text>
         <View style={e.chips}>
           {COMBUSTIBLES.map((c) => (
@@ -168,6 +184,7 @@ const e = StyleSheet.create({
   miniatura: { height: 160, width: "100%", borderRadius: 10, backgroundColor: color.fondo },
   fila: { flexDirection: "row", gap: 8 },
   etiqueta: { color: color.textoSuave, fontSize: 14, marginBottom: 4 },
+  nota: { color: color.textoSuave, fontSize: 13 },
   input: { backgroundColor: color.tarjeta, borderColor: color.borde, borderWidth: 1, borderRadius: 10, color: color.texto, fontSize: 18, paddingHorizontal: 12, paddingVertical: 12, minHeight: 52 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { borderWidth: 1.5, borderColor: color.borde, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, justifyContent: "center" },

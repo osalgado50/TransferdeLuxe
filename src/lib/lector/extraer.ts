@@ -1,5 +1,5 @@
 import type { DatosTicket } from "./tipos";
-import { esCoherente } from "./parsear";
+import { ajustarNumeros, rangoPorDefecto, type DatosAjustados, type RangoPrecio } from "./plausibles";
 
 const NUM = String.raw`(\d{1,4}(?:[.,]\d{1,3})?)`;
 /** Lo que el OCR pone entre la etiqueta y el número: «:», «+:», «=», «[», puntos, rayas… («Litros +: 15,52»). */
@@ -47,7 +47,11 @@ function gasolinera(texto: string): string | null {
   return linea ?? null;
 }
 
-export function extraerDatosTicket(texto: string): DatosTicket {
+/**
+ * Datos del ticket a partir del texto del OCR. `rango`: precios del día del combustible (servidor, Ministerio); sin él,
+ * un rango orientativo. Los números se corrigen con `ajustarNumeros` (coma en su sitio, litros × €/L ≈ importe).
+ */
+export function extraerDatosTicket(texto: string, rango?: RangoPrecio): DatosAjustados {
   const t = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ \t]+/g, " ");
   let litros = buscar(t, [
     new RegExp(String.raw`(?:LITROS|VOLUMEN|CANTIDAD|\bLTS?)` + SEP + NUM, "i"),
@@ -71,6 +75,5 @@ export function extraerDatosTicket(texto: string): DatosTicket {
     fecha: fecha(t), gasolinera: gasolinera(texto), litros, precio_litro: precio,
     importe: importe != null ? r2(importe) : null, tipo_combustible: tipo(t), confianza: "baja",
   };
-  if (datos.litros && datos.importe && esCoherente(datos)) datos.confianza = datos.fecha ? "alta" : "media";
-  return datos;
+  return ajustarNumeros(datos, rango ?? rangoPorDefecto(datos.tipo_combustible));
 }

@@ -3,7 +3,8 @@ import { EventEmitter } from "node:events";
 import os from "node:os";
 import path from "node:path";
 import type { Worker } from "tesseract.js";
-import type { DatosTicket } from "./tipos";
+import type { DatosAjustados, RangoPrecio } from "./plausibles";
+import { rangoDelDia } from "./preciosCarburante";
 import { extraerDatosTicket } from "./extraer";
 
 /**
@@ -157,6 +158,9 @@ export function leerTextoTicket(imagen: Buffer): Promise<string> {
   return tarea.finally(programarCierre);
 }
 
-export async function leerTicketServidor(imagen: Buffer): Promise<DatosTicket> {
-  return extraerDatosTicket(await leerTextoTicket(imagen));
+/** Lee el ticket y corrige los números con los precios del día del Ministerio (si responde). */
+export async function leerTicketServidor(imagen: Buffer): Promise<{ datos: DatosAjustados; referencia: RangoPrecio }> {
+  const texto = await leerTextoTicket(imagen);
+  const referencia = await rangoDelDia(extraerDatosTicket(texto).tipo_combustible);
+  return { datos: extraerDatosTicket(texto, referencia), referencia };
 }

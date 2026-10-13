@@ -21,8 +21,8 @@ export async function POST(req: Request) {
   const { data, error } = await clienteAdmin().storage.from("tickets").download(fotoPath);
   if (error || !data) return Response.json({ error: "No se encuentra la foto del ticket." }, { status: 404 });
   try {
-    const datos = await leerTicketServidor(Buffer.from(await data.arrayBuffer()));
-    return Response.json({ datos });
+    const { datos, referencia } = await leerTicketServidor(Buffer.from(await data.arrayBuffer()));
+    return Response.json({ datos, referencia });
   } catch (e) {
     const detalle = (e instanceof Error ? e.message : String(e)).slice(-700);
     console.error("[ticket/leer]", detalle);
