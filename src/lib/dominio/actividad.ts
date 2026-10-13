@@ -6,7 +6,7 @@ import { etiquetaEvento } from "./navegacion";
 import { zonaCercana } from "./zonas";
 import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
 import { agruparFinJornada, textoDevueltosFinJornada, textoJornadaConPendientes } from "./finJornada";
-import { esAnomalia, leerMotivoAnomalia, textoAnomalia } from "./anomalias";
+import { leerMotivoAnomalia, textoAnomalia } from "./anomalias";
 import { PREFIJO_ASIGNADO_AUSENTE } from "./ausencias";
 
 /**
