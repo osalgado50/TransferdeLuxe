@@ -1,6 +1,5 @@
 import "server-only";
 import { EventEmitter } from "node:events";
-import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Worker } from "tesseract.js";
@@ -12,8 +11,8 @@ import { extraerDatosTicket } from "./extraer";
  * que la web, sin API ni clave. Un solo worker reutilizado (un ticket cada vez) que se cierra tras 5 min sin uso. Si
  * arrancar o leer se pasa de tiempo, se descarta el worker y la cola sigue (nunca se queda bloqueada).
  *
- * En el hosting (Hostinger) el hilo aparte (worker_threads) que usa tesseract.js en Node se queda colgado al arrancar el
- * motor wasm; en el hilo principal sí funciona. Por eso el «worker» de tesseract corre aquí mismo, en el proceso: se
+ * En el hosting (Hostinger) el hilo aparte (worker_threads) de tesseract.js se quedaba colgado: le faltaba el `.wasm`
+ * (ver más abajo) y su error no llega al proceso principal. Por eso el «worker» de tesseract corre aquí mismo: se
  * sustituye su adaptador de Node (crear hilo / enviar / recibir) por uno en memoria que llama directamente al script del
  * worker. Un ticket bloquea el servidor ~1 s mientras se lee: aceptable para el volumen de tickets de una flota.
  */
@@ -21,48 +20,36 @@ declare const __non_webpack_require__: NodeJS.Require;
 /** El `require` de Node de verdad (webpack no lo toca): tesseract.js se carga de node_modules tal cual. */
 const requerir = (m: string): unknown => __non_webpack_require__(m);
 /** Versión del OCR del servidor (sale en el diagnóstico: así se sabe qué código responde tras un despliegue). */
-const VERSION_OCR = "ocr-7-en-proceso";
+const VERSION_OCR = "ocr-8-wasm-embebido";
 let enProcesoListo = false;
 /**
- * Variante del motor wasm: primero la SIMD (más rápida); si aborta al arrancar, la siguiente vez la normal. Cada fallo de
- * emscripten (abort / printErr) queda en `ultimoPaso` para el diagnóstico.
+ * Motor wasm a usar. En Hostinger el despliegue NO incluye los `.wasm` de node_modules (sí los `.js`): la variante
+ * `*.wasm.js` lleva el wasm dentro (base64) y es la que se usa; si no estuviera, la normal con su `.wasm` al lado.
+ * Primero SIMD (más rápida) y, si no, sin SIMD. Los fallos de emscripten van al diagnóstico y cortan la espera.
  */
-const VARIANTES = ["tesseract-core-simd-lstm", "tesseract-core-lstm"] as const;
-let variante = 0;
-type FabricaCore = (opts: Record<string, unknown>) => Promise<unknown>;
-const modulos = new Map<string, WebAssembly.Module>();
-/**
- * En Hostinger la compilación asíncrona del wasm (WebAssembly.instantiate) no termina nunca; la síncrona sí. Se compila
- * aquí (una vez, ~1–3 s) y se le da ya instanciado a emscripten con su gancho `instantiateWasm`.
- */
-function instanciarSincrono(nombre: string) {
-  return (imports: WebAssembly.Imports, recibir: (i: WebAssembly.Instance, m: WebAssembly.Module) => void) => {
-    let m = modulos.get(nombre);
-    if (!m) {
-      const t = Date.now();
-      m = new WebAssembly.Module(fs.readFileSync(__non_webpack_require__.resolve(`tesseract.js-core/${nombre}.wasm`)));
-      modulos.set(nombre, m);
-      paso(`wasm ${nombre} compilado en ${Date.now() - t} ms`);
-    }
-    const i = new WebAssembly.Instance(m, imports);
-    recibir(i, m);
-    return i.exports;
-  };
+const CANDIDATOS = ["tesseract-core-simd-lstm.wasm.js", "tesseract-core-lstm.wasm.js", "tesseract-core-simd-lstm", "tesseract-core-lstm"];
+const existe = (m: string) => { try { __non_webpack_require__.resolve(`tesseract.js-core/${m}`); return true; } catch { return false; } };
+function elegirCore(): string {
+  const c = CANDIDATOS.find((m) => existe(m) && (m.endsWith(".wasm.js") || existe(`${m}.wasm`)));
+  if (!c) throw new Error("no hay ningún motor de tesseract.js-core instalado");
+  return c;
 }
+type FabricaCore = (opts: Record<string, unknown>) => Promise<unknown>;
+/** Si el motor falla al arrancar, se avisa aquí para no esperar al límite de tiempo. */
+let alFallarArranque: ((e: Error) => void) | null = null;
 function getCoreConDiagnostico(): (oem: unknown, corePath: unknown, res: { progress: (p: { status: string; progress: number }) => void }) => Promise<FabricaCore> {
   return async (_oem, _corePath, res) => {
-    const nombre = VARIANTES[Math.min(variante, VARIANTES.length - 1)];
+    const nombre = elegirCore();
     res.progress({ status: `loading tesseract core (${nombre})`, progress: 0 });
     const Core = requerir(`tesseract.js-core/${nombre}`) as FabricaCore;
     res.progress({ status: `loading tesseract core (${nombre})`, progress: 1 });
     return (opts) => {
-      const p = Core({
-        ...opts,
-        instantiateWasm: instanciarSincrono(nombre),
-        printErr: (t: string) => { paso(`${nombre} printErr: ${t}`); },
-        onAbort: (w: unknown) => { paso(`${nombre} abort: ${String(w)}`); variante++; },
+      const p = Core({ ...opts, printErr: (t: string) => { paso(`${nombre}: ${t}`); } });
+      p.catch((e: unknown) => {
+        const m = `${nombre}: ${e instanceof Error ? e.message : String(e)}`;
+        paso(m);
+        alFallarArranque?.(new Error(`el motor no arranca (${m.slice(0, 300)})`));
       });
-      p.catch((e: unknown) => { paso(`${nombre} error: ${e instanceof Error ? e.message : String(e)}`); variante++; });
       return p;
     };
   };
@@ -150,7 +137,10 @@ export function leerTextoTicket(imagen: Buffer): Promise<string> {
   const tarea = cola.then(async () => {
     const t0 = Date.now();
     let w: Worker;
-    try { w = await conTiempo(obtenerWorker(), ARRANQUE_MS, "arranque del OCR"); } catch (e) { descartar(); throw e; }
+    const fallo = new Promise<never>((_, no) => { alFallarArranque = no; });
+    fallo.catch(() => undefined);
+    try { w = await conTiempo(Promise.race([obtenerWorker(), fallo]), ARRANQUE_MS, "arranque del OCR"); } catch (e) { descartar(); throw e; }
+    finally { alFallarArranque = null; }
     const t1 = Date.now();
     const pasosArranque = pasos.join(" → ");
     try {
