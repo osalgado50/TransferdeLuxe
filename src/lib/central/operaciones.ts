@@ -7,6 +7,7 @@ import { sugerirConductores, type Candidato } from "@/lib/dominio/sugerencia";
 import { conexionConductor } from "@/lib/dominio/conexionConductor";
 import { ESTADOS_AGENDA, construirCandidatos } from "@/lib/dominio/planificacion";
 import { rangosConductor } from "@/lib/dominio/dias";
+import { indicadoresHoy } from "@/lib/central/puntualidad";
 import { construirActividad, HORAS_ACTIVIDAD, TIPOS_GRAVES, type CierreAct, type ServicioAct } from "@/lib/dominio/actividad";
 
 /** Lógica de la central compartida por las Server Actions (web) y las rutas /api/central/* (app nativa). */
@@ -86,7 +87,7 @@ export async function resumenCentral(ahora = new Date()) {
   const fallo = [alertas, pendientes, deHoy, pos, gente].find((x) => x.error);
   if (fallo?.error) throw new Error(fallo.error.message);
   const nombres = new Map((gente.data ?? []).map((p) => [p.id, p.nombre]));
-  const act = await actividadCentral(sb, ahora, gente.data ?? [], pos.data ?? []);
+  const [act, puntualidad] = await Promise.all([actividadCentral(sb, ahora, gente.data ?? [], pos.data ?? []), indicadoresHoy(sb, ahora)]);
   return {
     ...act,
     generadoEn: ahora.toISOString(),
@@ -95,6 +96,8 @@ export async function resumenCentral(ahora = new Date()) {
     hoy: deHoy.data ?? [],
     posiciones: (pos.data ?? []).map((p) => ({ ...p, nombre: nombres.get(p.conductor_id) ?? null })),
     conductores: gente.data ?? [],
+    /** Semáforo de llegada a la recogida por id de servicio (asignado/aceptado/en camino de hoy), calculado aquí. */
+    puntualidad,
   };
 }
 

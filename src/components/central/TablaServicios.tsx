@@ -3,12 +3,14 @@ import EstadoBadge from "@/components/comun/EstadoBadge";
 import type { Servicio } from "@/lib/dominio/tipos";
 import EnlaceVuelo from "@/components/vuelos/EnlaceVuelo";
 import { agruparPorDia } from "@/lib/dominio/periodo";
+import type { IndicadorPuntualidad } from "@/lib/dominio/puntualidadCentral";
+import ChipPuntualidad from "./ChipPuntualidad";
 
 export type FilaServicio = Servicio & { conductor: { nombre: string } | null };
 
 const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
-export default function TablaServicios({ filas }: { filas: FilaServicio[] }) {
+export default function TablaServicios({ filas, puntualidad = {} }: { filas: FilaServicio[]; puntualidad?: Record<string, IndicadorPuntualidad> }) {
   if (!filas.length) return <p className="text-slate-400">No hay servicios con estos filtros.</p>;
   return (
     <div className="space-y-5">
@@ -31,7 +33,8 @@ export default function TablaServicios({ filas }: { filas: FilaServicio[] }) {
                       <td className="px-3 py-2">{s.cliente_nombre} {s.cliente_apellidos}</td>
                       <td className="px-3 py-2">{s.conductor?.nombre ?? "—"}</td>
                       <td className="px-3 py-2"><EstadoBadge estado={s.estado} />
-                        {inc && <span title={s.ultima_incidencia ?? ""} aria-label="Incidencia" className="ml-2 text-red-500">●</span>}</td>
+                        {inc && <span title={s.ultima_incidencia ?? ""} aria-label="Incidencia" className="ml-2 text-red-500">●</span>}
+                        <ChipPuntualidad ind={puntualidad[s.id]} className="mt-1 flex" /></td>
                       <td className="px-3 py-2"><Link href={`/central/servicios/${s.id}`} className="inline-flex min-h-11 items-center px-2 text-marca-claro hover:underline">Ver</Link></td>
                     </tr>
                   );

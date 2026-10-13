@@ -7,6 +7,7 @@ import CalendarioServicios from "@/components/central/CalendarioServicios";
 import { leerModulos } from "@/lib/dominio/modulos";
 import TablaServicios, { type FilaServicio } from "@/components/central/TablaServicios";
 import DialogoAutoasignar from "@/components/central/DialogoAutoasignar";
+import { indicadoresHoy } from "@/lib/central/puntualidad";
 import { FILTROS_GRUPO, contarPorGrupo, esFiltroGrupo, estadosDeGrupo, type FiltroGrupo } from "@/lib/dominio/centralMovil";
 
 const ESTADOS = ["pendiente", "asignado", "aceptado", "en_camino", "recogido", "completado", "cancelado", "subcontratado"];
@@ -65,7 +66,11 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
     return x;
   };
   // Un count por estado (alimenta tarjetas y chips de grupo) + el de subcontratar.
-  const [{ data, error, count }, csub, ...ce] = await Promise.all([q, cuenta(undefined, true), ...ESTADOS.map((e) => cuenta([e]))]);
+  // Semáforo de puntualidad (solo si el periodo incluye hoy).
+  const ahora = new Date();
+  const conHoy = Date.parse(r.desdeUtc) <= ahora.getTime() && ahora.getTime() < Date.parse(r.hastaUtc);
+  const [{ data, error, count }, puntualidad, csub, ...ce] = await Promise.all([q, conHoy ? indicadoresHoy(sb, ahora) : Promise.resolve({}),
+    cuenta(undefined, true), ...ESTADOS.map((e) => cuenta([e]))]);
   const errCont = csub.error != null || ce.some((x) => x.error);
   const porEstado = Object.fromEntries(ESTADOS.map((e, i) => [e, ce[i].count ?? 0]));
   const n = (...es: string[]) => es.reduce((t, e) => t + (porEstado[e] ?? 0), 0);
@@ -147,7 +152,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
       {excede && <p className="text-sm text-amber-400">Hay más de {LIMITE_CAL} servicios en el periodo: el calendario muestra solo los primeros {LIMITE_CAL}. Acota el periodo o los filtros.</p>}
       {error ? <p className="text-red-400">Error al cargar: {error.message}</p> : cal
         ? <CalendarioServicios vista={vista} desde={desde} inicio={r.inicio} hoy={hoy} filas={(data ?? []) as FilaServicio[]} />
-        : <TablaServicios filas={((data ?? []) as FilaServicio[]).map((x) => (conVuelos ? x : { ...x, numero_vuelo: null }))} />}
+        : <TablaServicios filas={((data ?? []) as FilaServicio[]).map((x) => (conVuelos ? x : { ...x, numero_vuelo: null }))} puntualidad={puntualidad} />}
       {hayMas && <div className="text-center"><Link href={href(vista, desde, { pagina: pagina + 1 })} className={chip}>Mostrar más ({(count ?? 0) - pagina * POR_PAGINA} restantes)</Link></div>}
     </div>
   );

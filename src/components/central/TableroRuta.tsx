@@ -7,6 +7,9 @@ import { accionCentral } from "@/app/central/actions";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 import { aPlan, construirCandidatos, deTramo, enAgenda, encaja, finDe, fmtDuracion, fmtHora, planDia, razonTransicion, type Transicion } from "@/lib/dominio/planificacion";
 import { sugerirConductores } from "@/lib/dominio/sugerencia";
+import { duracionServicio, textoDuracion } from "@/lib/dominio/duracion";
+import { indicadoresPuntualidad, type IndicadorPuntualidad, type PosicionPuntualidad } from "@/lib/dominio/puntualidadCentral";
+import ChipPuntualidad from "./ChipPuntualidad";
 
 export type TarjetaRuta = {
   id: string; estado: EstadoServicio; conductor_id: string | null; fecha_hora_recogida: string; origen_texto: string; destino_texto: string;
@@ -24,13 +27,20 @@ const COLOR: Record<Transicion["estado"], string> = {
   desconocido: "border-slate-700 bg-slate-900 text-slate-400",
 };
 
-function Traslado({ t }: { t: Transicion }) {
+/** Estado «en vivo» del semáforo traducido al de la franja (para pintar la peor de las dos). */
+const EN_VIVO: Partial<Record<IndicadorPuntualidad["estado"], Transicion["estado"]>> = { tarde: "no_llega", justo: "justo" };
+const GRAVEDAD: Record<Transicion["estado"], number> = { no_llega: 3, justo: 2, desconocido: 1, ok: 0 };
+
+function Traslado({ t, vivo }: { t: Transicion; vivo?: IndicadorPuntualidad }) {
   const ruta = `${t.desdeTexto ?? "?"} → ${t.hastaTexto ?? "?"}`;
+  const v = vivo && vivo.conGps ? EN_VIVO[vivo.estado] : undefined;
+  const estado = v && GRAVEDAD[v] > GRAVEDAD[t.estado] ? v : t.estado;
   return (
-    <div className={`break-words rounded-md border px-2 py-1 text-xs ${COLOR[t.estado]}`} data-traslado={t.estado}>
+    <div className={`break-words rounded-md border px-2 py-1 text-xs ${COLOR[estado]}`} data-traslado={estado}>
       {t.estado === "desconocido" ? <>🚗 {ruta} · traslado sin estimar</>
         : t.estado === "no_llega" ? <>⚠ {razonTransicion(t)}</>
         : <>🚗 {ruta} · {fmtDuracion(t.trasladoMin!)} · llega {fmtHora(t.llegadaEstimada!)} · {t.margenMin} min de margen</>}
+      {estado !== t.estado && vivo && <> · ahora (GPS): {vivo.texto}</>}
     </div>
   );
 }
@@ -39,7 +49,10 @@ const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour:
 const MOVIBLES: EstadoServicio[] = ["pendiente", "asignado", "aceptado"];
 const SIN = "sin-asignar";
 
-function Tarjeta({ s, chip, onAsignar }: { s: TarjetaRuta; chip?: Chip | null; onAsignar?: (c: Conductor) => void }) {
+function Tarjeta({ s, chip, onAsignar, punt }: { s: TarjetaRuta; chip?: Chip | null; onAsignar?: (c: Conductor) => void; punt?: IndicadorPuntualidad }) {
+  const plan = aPlan(s);
+  const desglose = textoDuracion(duracionServicio({ origen: plan.origen, destino: plan.destino, origenTexto: s.origen_texto, destinoTexto: s.destino_texto,
+    guardadaMin: s.duracion_estimada_min }), plan.duracionMin);
   const movible = MOVIBLES.includes(s.estado);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: s.id, disabled: !movible });
   return (
@@ -51,9 +64,10 @@ function Tarjeta({ s, chip, onAsignar }: { s: TarjetaRuta; chip?: Chip | null; o
         <strong>{hora.format(new Date(s.fecha_hora_recogida))}</strong><EstadoBadge estado={s.estado} />
       </div>
       <p className="mt-1 text-slate-300">{s.origen_texto} → {s.destino_texto}</p>
-      <p className="text-xs text-slate-400">
-        {fmtHora(new Date(s.fecha_hora_recogida))} → {fmtHora(finDe(aPlan(s)))} · {fmtDuracion(s.duracion_estimada_min)} · {s.pasajeros} pax
+      <p className="text-xs text-slate-400" title={`Duración estimada ${desglose}`}>
+        {fmtHora(new Date(s.fecha_hora_recogida))} → {fmtHora(finDe(plan))} · {fmtDuracion(plan.duracionMin)} · {s.pasajeros} pax
       </p>
+      <ChipPuntualidad ind={punt} className="mt-1 flex" />
       {s.numero_vuelo && <EnlaceVuelo codigo={s.numero_vuelo} className="text-xs" />}
       {chip && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-marca/10 px-2 py-1 text-xs text-marca-claro">
@@ -66,9 +80,9 @@ function Tarjeta({ s, chip, onAsignar }: { s: TarjetaRuta; chip?: Chip | null; o
   );
 }
 
-function Columna({ id, titulo, items, chips, traslados, onAsignar }: {
+function Columna({ id, titulo, items, chips, traslados, onAsignar, punt = {} }: {
   id: string; titulo: string; items: TarjetaRuta[]; chips?: Record<string, Chip | null>; traslados?: Record<string, Transicion>;
-  onAsignar?: (s: TarjetaRuta, c: Conductor) => void;
+  onAsignar?: (s: TarjetaRuta, c: Conductor) => void; punt?: Record<string, IndicadorPuntualidad>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
@@ -78,8 +92,8 @@ function Columna({ id, titulo, items, chips, traslados, onAsignar }: {
         const t = traslados?.[s.id];
         return (
           <div key={s.id} className="space-y-2">
-            {t && <Traslado t={t} />}
-            <Tarjeta s={s} chip={chips?.[s.id]} onAsignar={onAsignar && MOVIBLES.includes(s.estado) ? (c) => onAsignar(s, c) : undefined} />
+            {t && <Traslado t={t} vivo={punt[s.id]} />}
+            <Tarjeta s={s} chip={chips?.[s.id]} punt={punt[s.id]} onAsignar={onAsignar && MOVIBLES.includes(s.estado) ? (c) => onAsignar(s, c) : undefined} />
           </div>
         );
       })}
@@ -88,10 +102,14 @@ function Columna({ id, titulo, items, chips, traslados, onAsignar }: {
   );
 }
 
-export default function TableroRuta({ servicios, conductores, vehiculos = [], contexto = [] }: {
+export default function TableroRuta({ servicios, conductores, vehiculos = [], contexto = [], margenMinimo = 15, posiciones = null, umbralMin = 5 }: {
   servicios: TarjetaRuta[]; conductores: Conductor[]; vehiculos?: Vehiculo[];
   /** Servicios fuera del día mostrado (víspera 18:00 – día siguiente 06:00): solo cuentan para la viabilidad. */
   contexto?: TarjetaRuta[];
+  /** ajustes.margen_minimo_min: por debajo, la franja de traslado sale «justa» (naranja). */
+  margenMinimo?: number;
+  /** Solo hoy: posiciones para el semáforo de puntualidad en vivo (null otros días). */
+  posiciones?: PosicionPuntualidad[] | null; umbralMin?: number;
 }) {
   const [asignacion, setAsignacion] = useState<Record<string, string | null>>({});
   const [pendiente, setPendiente] = useState<{ s: TarjetaRuta; c: Conductor; razon: string } | null>(null);
@@ -117,7 +135,13 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
   });
   const agendaDe = (conductorId: string) => agenda.filter((x) => x.conductor_id === conductorId).map(aPlan);
   const traslados: Record<string, Transicion> = {};
-  for (const c of conductores) for (const t of planDia(agendaDe(c.id)).transiciones) traslados[t.siguienteId] = t;
+  for (const c of conductores) for (const t of planDia(agendaDe(c.id), margenMinimo).transiciones) traslados[t.siguienteId] = t;
+  // Semáforo en vivo (hoy): se refresca cada 30 s y con cada recarga de datos.
+  const [tic, setTic] = useState(0);
+  useEffect(() => { if (!posiciones) return; const t = setInterval(() => setTic((x) => x + 1), 30_000); return () => clearInterval(t); }, [posiciones]);
+  const punt = useMemo(() => (posiciones ? indicadoresPuntualidad({ servicios: [...servicios, ...contexto], posiciones, ahora: Date.now(), umbralGpsMin: umbralMin }) : {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [servicios, contexto, posiciones, umbralMin, tic]);
 
   function alSoltar(e: DragEndEvent) {
     if (!e.over) return;
@@ -127,7 +151,7 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
     if (destino === SIN) { setAviso({ t: "No se puede dejar sin asignar: para quitar el conductor, cancela el servicio o espera un rechazo.", error: true }); return; }
     const c = conductores.find((x) => x.id === destino);
     if (!c) return;
-    const r = encaja(aPlan(s), agendaDe(c.id));
+    const r = encaja(aPlan(s), agendaDe(c.id), margenMinimo);
     if (!r.encaja) { setPendiente({ s, c, razon: r.razon ?? "No encaja en su agenda" }); return; }
     asignar(s, c);
   }
@@ -175,7 +199,7 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
       {aviso && <p role="status" className={`rounded-lg px-3 py-2 text-sm ${aviso.error ? "bg-red-500/20 text-red-300" : "bg-green-500/20 text-green-300"}`}>{aviso.t}</p>}
       <div className="flex max-w-full gap-3 overflow-x-auto pb-3">
         <Columna id={SIN} titulo="Sin asignar" items={de(SIN)} chips={chips} onAsignar={asignar} />
-        {conductores.map((c) => <Columna key={c.id} id={c.id} titulo={c.nombre} items={de(c.id)} traslados={traslados} />)}
+        {conductores.map((c) => <Columna key={c.id} id={c.id} titulo={c.nombre} items={de(c.id)} traslados={traslados} punt={punt} />)}
       </div>
       {pendiente && (
         <div role="dialog" aria-modal="true" aria-label="Confirmar asignación" onClick={() => setPendiente(null)}

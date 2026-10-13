@@ -1,10 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { direccionCorta } from "@/lib/dominio/direccion";
 import type { GrupoCentral } from "@/lib/dominio/centralMovil";
-import type { EstadoServicio, Servicio } from "@/lib/dominio/tipos";
+import type { EstadoServicio, PosicionActual, Servicio } from "@/lib/dominio/tipos";
+import { indicadoresPuntualidad, resumenIndicadores } from "@/lib/dominio/puntualidadCentral";
+import ChipPuntualidad from "./ChipPuntualidad";
 
 const ITEMS: { titulo: string; grupo: GrupoCentral; estados: EstadoServicio[] }[] = [
   { titulo: "Pendientes", grupo: "sin_asignar", estados: ["pendiente"] },
@@ -19,8 +21,18 @@ const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour:
 const corta = (t: string) => { const d = direccionCorta(t); return d.localidad ? `${d.principal} · ${d.localidad}` : d.principal; };
 
 /** Contadores del día; al pulsar uno se abre una ventana con esos servicios para ir directamente a cada ficha. */
-export default function Contadores({ servicios, conductores = [] }: { servicios: Servicio[]; conductores?: { id: string; nombre: string }[] }) {
+export default function Contadores({ servicios, conductores = [], posiciones = [], umbralMin = 5 }: {
+  servicios: Servicio[]; conductores?: { id: string; nombre: string }[]; posiciones?: PosicionActual[]; umbralMin?: number;
+}) {
   const [abierto, setAbierto] = useState<(typeof ITEMS)[number] | null>(null);
+  // Semáforo de puntualidad (verde/naranja/rojo): se recalcula con cada cambio en tiempo real y cada 30 s.
+  const [tic, setTic] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 30_000); return () => clearInterval(t); }, []);
+  const punt = useMemo(() => indicadoresPuntualidad({
+    servicios: servicios.filter((s) => Date.parse(s.fecha_hora_recogida) > Date.now() - 12 * 3600e3), posiciones, ahora: Date.now(), umbralGpsMin: umbralMin,
+  }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [servicios, posiciones, umbralMin, tic]);
   const hoy = diaMadrid(new Date());
   const delDia = servicios.filter((s) => diaMadrid(s.fecha_hora_recogida) === hoy);
   const de = (it: (typeof ITEMS)[number]) => delDia.filter((s) => it.estados.includes(s.estado as EstadoServicio))
@@ -42,6 +54,15 @@ export default function Contadores({ servicios, conductores = [] }: { servicios:
             className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-left transition hover:border-marca-claro hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-marca-claro">
             <p className="text-3xl font-semibold text-marca-claro">{de(it).length}</p>
             <p className="text-sm text-slate-400">{it.titulo} <span aria-hidden className="text-slate-500">›</span></p>
+            {(() => {
+              const r = resumenIndicadores(de(it).map((s) => punt[s.id]));
+              return (r.tarde > 0 || r.justo > 0) && (
+                <p className="mt-1 flex flex-wrap gap-1 text-xs font-semibold" data-desglose={it.titulo}>
+                  {r.tarde > 0 && <span className="rounded-full bg-red-600 px-2 py-0.5 text-white">{r.tarde} {r.tarde === 1 ? "va" : "van"} tarde</span>}
+                  {r.justo > 0 && <span className="rounded-full bg-amber-500 px-2 py-0.5 text-slate-950">{r.justo} justo{r.justo === 1 ? "" : "s"}</span>}
+                </p>
+              );
+            })()}
           </button>
         ))}
       </div>
@@ -64,6 +85,7 @@ export default function Contadores({ servicios, conductores = [] }: { servicios:
                       <span className="block truncate text-sm text-red-300">↑ {corta(s.origen_texto)}</span>
                       <span className="block truncate text-sm text-green-300">↓ {corta(s.destino_texto)}</span>
                       <span className="block text-xs text-slate-400">{ETIQUETA[s.estado as EstadoServicio] ?? s.estado}{nombre(s.conductor_id) ? ` · ${nombre(s.conductor_id)}` : ""}</span>
+                      <ChipPuntualidad ind={punt[s.id]} className="mt-1 flex" />
                     </span>
                     <span aria-hidden className="self-center text-slate-500">›</span>
                   </Link>

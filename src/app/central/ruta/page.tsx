@@ -21,12 +21,15 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
   const desdeCtx = madridAUtc(desplazar(dia, -1), "18:00");
   const hastaCtx = madridAUtc(desplazar(dia, 1), "06:00");
   const sb = await clienteServidor();
-  const [{ data: conductores, error: errC }, { data: servicios, error }, { data: vehiculos }, { data: aj }] = await Promise.all([
+  const esHoy = dia === diaMadrid(new Date());
+  const [{ data: conductores, error: errC }, { data: servicios, error }, { data: vehiculos }, { data: aj }, { data: posiciones }] = await Promise.all([
     sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").or(FILTRO_CONDUCEN).order("nombre"),
     sb.from("servicios").select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,duracion_estimada_min,origen_lat,origen_lng,destino_lat,destino_lng").eq("es_prueba", false)
       .gte("fecha_hora_recogida", desdeCtx).lt("fecha_hora_recogida", hastaCtx).neq("estado", "cancelado").order("fecha_hora_recogida"),
     sb.from("vehiculos").select("id,plazas,maletas,estado"),
-    sb.from("ajustes").select("modulos").maybeSingle(),
+    sb.from("ajustes").select("modulos,umbral_sin_senal_min,margen_minimo_min").maybeSingle(),
+    // Posiciones solo para el semáforo de puntualidad de hoy.
+    esHoy ? sb.from("posicion_actual").select("conductor_id,lat,lng,en_servicio,registrado_en") : Promise.resolve({ data: [] }),
   ]);
   const conVuelos = leerModulos(aj?.modulos).vuelos;
   const todos = ((servicios ?? []) as TarjetaRuta[]).map((x) => (conVuelos ? x : { ...x, numero_vuelo: null }));
@@ -46,7 +49,8 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
         <div className="sm:ml-auto"><DialogoAutoasignar dia={dia} /></div>
       </div>
       {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
-        : <TableroRuta servicios={delDia} contexto={contexto} conductores={conductores ?? []} vehiculos={vehiculos ?? []} />}
+        : <TableroRuta servicios={delDia} contexto={contexto} conductores={conductores ?? []} vehiculos={vehiculos ?? []}
+          margenMinimo={aj?.margen_minimo_min ?? 15} posiciones={esHoy ? posiciones ?? [] : null} umbralMin={aj?.umbral_sin_senal_min ?? 5} />}
     </div>
   );
 }
