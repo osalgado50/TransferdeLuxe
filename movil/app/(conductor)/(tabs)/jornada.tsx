@@ -7,6 +7,9 @@ import { formatoDuracion, rangosJornada, resumenConductor, type AccionJornada, t
 import { leerModulos } from "@dominio/modulos";
 import { itemsActivos, type ItemChecklist } from "@dominio/checklist";
 import { diaMadrid } from "@dominio/geo";
+import { proximasAusencias, textoAusencia, type Ausencia } from "@dominio/ausencias";
+import { accionFinJornada, ESTADOS_PENDIENTE_HOY, MOTIVO_FIN_JORNADA, pendientesHoy, textoPendientes } from "@dominio/finJornada";
+import { lugarBreve } from "@dominio/actividad";
 import type { EstadoInterruptor } from "@dominio/gpsNativo";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, AppState, Linking, Modal, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -17,6 +20,8 @@ import { ChecklistTarjeta } from "~/components/ModulosConductor";
 import { AvisoSinFondo, useExplicacionUbicacion } from "~/components/InterruptorGps";
 import { Aviso, Boton } from "~/components/ui";
 import { llamarApi } from "~/lib/api";
+import { nuevoIdAccion } from "~/lib/acciones";
+import { avisar as avisarCola, colaDe, drenar } from "~/lib/cola";
 import { hora as fmtHora, fmt } from "~/lib/formato";
 import { apagarServicio, encenderServicio, estadoGps } from "~/lib/gps";
 import { alCambiarGps, avisarCambioJornada } from "~/lib/jornada";
@@ -25,6 +30,7 @@ import { supabase } from "~/lib/supabase";
 import { color } from "~/lib/tema";
 import { useConsulta } from "~/lib/tiempoReal";
 
+interface PendienteHoy { id: string; estado: string; fecha_hora_recogida: string; origen_texto: string; destino_texto: string }
 interface IncidenciaHoy { id: string; tipo: string; zonas: string[] | null; descripcion: string; creado_en: string; resuelta: boolean }
 
 const VERDE = "#16a34a", AMBAR = "#d97706", ROJO = "#dc2626";
@@ -48,7 +54,7 @@ export default function PantallaJornada() {
   const yo = sesion!.user.id;
   const { datos, error, cargando, recargar } = useConsulta(async () => {
     const r = rangosJornada(new Date());
-    const [aj, jor, veh, per, inc, it, rev] = await Promise.all([
+    const [aj, jor, veh, per, inc, it, rev, aus] = await Promise.all([
       supabase.from("ajustes").select("modulos").eq("id", 1).maybeSingle(),
       supabase.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)").eq("conductor_id", yo).or(`fin.is.null,fin.gte.${r.semana.desde}`).order("inicio"),
       supabase.from("vehiculos").select("id,matricula,modelo,km_actuales").eq("estado", "activo").order("matricula"),
@@ -56,6 +62,8 @@ export default function PantallaJornada() {
       supabase.from("incidencias").select("id,tipo,zonas,descripcion,creado_en,resuelta").eq("conductor_id", yo).gte("creado_en", r.hoy.desde).order("creado_en", { ascending: false }),
       supabase.from("checklist_items").select("id,texto,orden,activo"),
       supabase.from("checklist_revisiones").select("vehiculo_id").eq("conductor_id", yo).eq("fecha", diaMadrid(new Date())),
+      // Próximas ausencias marcadas por la central (solo lectura). Con un servidor sin la tabla, simplemente vacío.
+      supabase.from("ausencias").select("id,conductor_id,desde,hasta,franja,tipo,nota").eq("conductor_id", yo).gte("hasta", diaMadrid(new Date())).order("desde").limit(10),
     ]);
     if (jor.error) throw new Error(jor.error.message);
     const m = leerModulos(aj.data?.modulos);
@@ -69,6 +77,7 @@ export default function PantallaJornada() {
     return {
       checklist,
       m, jornadas: (jor.data ?? []) as Jornada[], incidencias: (inc.data ?? []) as IncidenciaHoy[],
+      ausencias: proximasAusencias((aus.data ?? []) as Ausencia[], diaMadrid(new Date())),
       // Hoja de cierre al finalizar (módulos jornada + checklist + cierre); sin vehículos activos, como antes.
       cierre: cierreObligatorio(m) && vehiculos.length > 0 ? { vehiculos, habitual: (per.data?.vehiculo_habitual_id as string | null) ?? null } : null,
     };
@@ -123,6 +132,35 @@ export default function PantallaJornada() {
   const apagarGps = async () => {
     const avisado = await apagarServicio(yo);
     return avisado ? "GPS apagado: ya no se envía tu ubicación." : "GPS apagado (no se pudo avisar a la central; te verá desconectado en unos minutos).";
+  };
+  // Finalizar: antes de la hoja de cierre, los servicios de HOY aún por hacer (los de mañana son otra jornada: no se tocan).
+  const [pendientes, setPendientes] = useState<PendienteHoy[] | null>(null);
+  const [volvere, setVolvere] = useState(false);
+  const pulsarFinalizar = () => void conOcupado(async () => {
+    const ahora = new Date();
+    let lista: PendienteHoy[] = [];
+    try {
+      const { data } = await supabase.from("servicios").select("id,estado,fecha_hora_recogida,origen_texto,destino_texto").eq("conductor_id", yo)
+        .in("estado", [...ESTADOS_PENDIENTE_HOY]).gt("fecha_hora_recogida", ahora.toISOString()).lt("fecha_hora_recogida", rangosJornada(ahora).hoy.hasta).limit(50);
+      lista = pendientesHoy((data ?? []) as PendienteHoy[], ahora);
+    } catch { /* sin conexión: no se bloquea el cierre */ }
+    if (lista.length) { setVolvere(false); setPendientes(lista); } else finalizar();
+  })();
+  const devolverTodos = async () => {
+    const lista = pendientes ?? [];
+    setPendientes(null);
+    const c = await colaDe(yo);
+    let n = 0;
+    for (const s of lista) {
+      const a = accionFinJornada(s.estado);
+      if (!a) continue;
+      c.rechazos.delete(s.id);
+      c.cola.encolar({ idAccion: nuevoIdAccion(), servicioId: s.id, accion: a, motivo: MOTIVO_FIN_JORNADA });
+      n++;
+    }
+    avisarCola(c);
+    void drenar(yo, true).catch(() => {}); // si no hay cobertura, la cola reintenta
+    Alert.alert("Servicios devueltos", `${n === 1 ? "1 servicio devuelto" : `${n} servicios devueltos`} a la central para reasignarlos.`, [{ text: "Seguir", onPress: finalizar }]);
   };
   const finalizar = () => {
     if (!datos) return;
@@ -187,7 +225,7 @@ export default function PantallaJornada() {
           {r.estado === "en_pausa" && <Boton texto="▶ Reanudar" alto={64} tamano={20} deshabilitado={ocupado} estilo={{ backgroundColor: AMBAR }}
             onPress={() => void conOcupado(async () => { await accion("reanudar"); })()} />}
           {r.estado !== "fuera" && <Boton texto="🏁 Finalizar jornada" alto={64} tamano={20} variante="secundario" cargando={ocupado && !hoja}
-            etiqueta={datos.cierre ? "Finalizar jornada: rellenar la hoja de cierre del vehículo" : "Finalizar jornada"} onPress={finalizar} />}
+            etiqueta={datos.cierre ? "Finalizar jornada: rellenar la hoja de cierre del vehículo" : "Finalizar jornada"} onPress={pulsarFinalizar} />}
           {sinGps && (
             <View style={e.sinGps} accessibilityRole="alert">
               <Text style={e.sinGpsTexto}>{sinGps}</Text>
@@ -196,6 +234,16 @@ export default function PantallaJornada() {
           )}
         </>
       ) : <Aviso texto="El registro de jornada está desactivado por la central." />}
+
+      <View style={{ gap: 8, marginTop: 8 }}>
+        <Text style={e.subtitulo} accessibilityRole="header">Próximas ausencias</Text>
+        {datos.ausencias.length === 0 ? <Text style={e.vacio}>Ninguna marcada por la central.</Text> : datos.ausencias.map((a) => (
+          <View key={a.id ?? `${a.desde}-${a.tipo}`} style={e.incidencia}>
+            <Text style={e.incTitulo}>{textoAusencia(a)}</Text>
+            {!!a.nota && <Text style={e.incDesc}>{a.nota}</Text>}
+          </View>
+        ))}
+      </View>
 
       {m.incidencias && (
         <View style={{ gap: 10, marginTop: 8 }}>
@@ -222,6 +270,35 @@ export default function PantallaJornada() {
       {hoja && datos.cierre && (
         <HojaCierre vehiculos={datos.cierre.vehiculos} vehiculoInicial={datos.cierre.habitual} zonasIniciales={acumulado.zonas}
           incidenciasHoy={acumulado.resumen} alCancelar={() => setHoja(false)} alEnviado={cerrada} />
+      )}
+      {pendientes && (
+        <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPendientes(null)}>
+          <SafeAreaProvider>
+            <SafeAreaView style={{ flex: 1, backgroundColor: color.fondo }} edges={["top", "bottom"]}>
+              <ScrollView contentContainerStyle={e.contenido}>
+                {!volvere ? <>
+                  <Text style={[e.subtitulo, { color: "#fcd34d" }]} accessibilityRole="header">Te quedan {textoPendientes(pendientes.map((p) => hhmm(p.fecha_hora_recogida)))}</Text>
+                  {pendientes.map((p) => (
+                    <View key={p.id} style={e.incidencia}>
+                      <Text style={e.incTitulo}>{hhmm(p.fecha_hora_recogida)} · {lugarBreve(p.origen_texto)} → {lugarBreve(p.destino_texto)}</Text>
+                    </View>
+                  ))}
+                  <Text style={e.ayudaModal}>¿Vas a volver para hacerlos? Si no, no pueden quedar desatendidos.</Text>
+                  <Boton texto="No, devolverlos a la central" alto={64} tamano={19} estilo={{ backgroundColor: AMBAR }} onPress={() => void devolverTodos()} />
+                  <Boton texto="Sí, volveré para hacerlos" alto={64} tamano={19} variante="secundario" onPress={() => setVolvere(true)} />
+                  <Boton texto="Cancelar" variante="texto" alto={48} onPress={() => setPendientes(null)} />
+                </> : <>
+                  <Text style={[e.subtitulo, { color: "#fcd34d" }]} accessibilityRole="header">Mejor haz una pausa</Text>
+                  <Text style={e.ayudaModal}>Si vas a volver hoy, usa ⏸ Pausa en vez de finalizar: la jornada sigue abierta y la central sabe que harás esos servicios.</Text>
+                  {r.estado === "trabajando" && <Boton texto="⏸ Hacer una pausa" alto={64} tamano={19} estilo={{ backgroundColor: AMBAR }}
+                    onPress={() => { setPendientes(null); void conOcupado(async () => { await accion("pausa"); })(); }} />}
+                  <Boton texto="Finalizar igualmente" alto={64} tamano={19} variante="secundario" onPress={() => { setPendientes(null); finalizar(); }} />
+                  <Boton texto="Cancelar" variante="texto" alto={48} onPress={() => setPendientes(null)} />
+                </>}
+              </ScrollView>
+            </SafeAreaView>
+          </SafeAreaProvider>
+        </Modal>
       )}
       {pidiendoChecklist && datos.checklist && (
         // Checklist antes de empezar: al guardarlo se inicia la jornada (y el GPS) automáticamente.

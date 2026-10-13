@@ -4,7 +4,9 @@ import { exigirConductor } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { permitir } from "@/lib/limite";
 import { accionJornada, exigirModulo, guardarRevision, registrarCierre, registrarIncidencia, subirFotoIncidencia, type Res, type ResCierre } from "@/lib/conductor/modulos";
-import { ACCIONES_JORNADA, type AccionJornada } from "@/lib/dominio/jornada";
+import { ACCIONES_JORNADA, rangosJornada, type AccionJornada } from "@/lib/dominio/jornada";
+import { ESTADOS_PENDIENTE_HOY, pendientesHoy } from "@/lib/dominio/finJornada";
+import { lugarBreve } from "@/lib/dominio/actividad";
 
 const lento: Res = { ok: false, error: "Demasiadas peticiones. Espera un momento." };
 
@@ -55,4 +57,15 @@ export async function cierreConductor(p: unknown): Promise<ResCierre> {
   const r = await registrarCierre(clienteAdmin(), yo.id, p);
   revalidatePath("/conductor", "layout");
   return r.ok ? r : { ok: false, error: r.error };
+}
+
+/** Servicios de HOY aún por hacer (asignado/aceptado/en camino, recogida posterior a ahora): se preguntan al finalizar. */
+export async function pendientesHoyConductor(): Promise<{ id: string; estado: string; fecha_hora_recogida: string; trayecto: string }[]> {
+  const yo = await exigirConductor();
+  const ahora = new Date();
+  const { data } = await clienteAdmin().from("servicios").select("id,estado,fecha_hora_recogida,origen_texto,destino_texto")
+    .eq("conductor_id", yo.id).in("estado", [...ESTADOS_PENDIENTE_HOY]).gt("fecha_hora_recogida", ahora.toISOString())
+    .lt("fecha_hora_recogida", rangosJornada(ahora).hoy.hasta).limit(50);
+  return pendientesHoy((data ?? []) as { id: string; estado: string; fecha_hora_recogida: string; origen_texto: string; destino_texto: string }[], ahora)
+    .map((s) => ({ id: s.id, estado: s.estado, fecha_hora_recogida: s.fecha_hora_recogida, trayecto: `${lugarBreve(s.origen_texto)} → ${lugarBreve(s.destino_texto)}` }));
 }
