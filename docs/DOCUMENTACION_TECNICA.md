@@ -514,6 +514,38 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   destino sin alerta y jornada revisada una vez por el vigilante); al final, servicios `es_prueba` y cancelados,
   ausencias de prueba borradas y conductor3 fuera de servicio.
 
+- **Horarios de los conductores y base / depósito (13/10/2026)**. Petición del responsable: «un conductor de VTC trabaja
+  normalmente una jornada continuada de una hora a otra y se va a casa, o el coche queda en depósito y lo coge otro
+  conductor con otro horario; también puede tener horario partido de mañana y tarde con un rato para comer». Decisión: el
+  coche SIEMPRE vuelve a la base y allí se hace el relevo. *Datos* (migración `0029`, aditiva): `ajustes.base_texto/
+  base_lat/base_lng` («Base / depósito» en Flota y ajustes con el autocompletado de direcciones), `plantillas_horario`,
+  `horarios_conductor` (semana tipo: un día por fila con sus tramos `[{inicio,fin}]` y el vehículo del turno),
+  `excepciones_horario` (cambios de un día) y `alertas_horario` (una por caso: clave única). RLS: la central todo; el
+  conductor lee lo suyo. Un conductor sin horario sigue disponible todo el día. *Dominio puro*
+  `src/lib/dominio/horarios.ts` (48 tests, incluido el cambio de hora del 25/10/2026): tramos del día (excepción > semana
+  tipo > sin restricción), en turno, estado del turno («en turno hasta 15:00», «en pausa hasta 16:00», «fuera de
+  turno»), `cabeServicio` (la recogida dentro de un tramo; si es el primero del tramo, salir de la base después del inicio;
+  si es el último, volver a la base antes del fin, con el modelo de traslado de la planificación), vehículo del turno,
+  solape de vehículo entre conductores, alertas y recordatorios. *Central*: página «Horarios» (menú) con la semana tipo de
+  cada conductor (continua o partida, «+ añadir tramo», copiar el lunes a los laborables, plantillas reutilizables,
+  vehículo del turno), cambios de un día, vista semanal de toda la plantilla (franjas en turno pintadas, fuera de turno
+  rayado y ausencias encima) y aviso si dos conductores comparten vehículo en tramos que se solapan (el relevo 15:00/15:00
+  no cuenta). *Asignación*: la sugerencia, la asignación automática, la hoja de ruta (chip «Mejor») y el diálogo de
+  asignar (web y app central) marcan no apto con «Fuera de horario (pausa 13:00–16:00)», «No vuelve a la base antes de
+  las 15:00», «Empieza antes de su turno…» o «Fuera de horario (libre ese día)»; asignar a mano pide confirmación y el
+  servidor no lo impide pero lo registra en el evento («fuera_horario: …», visible en la actividad). Al asignar se usa el
+  vehículo del turno (también si la petición no trae vehículo). *Panel*: «Turnos de hoy» con el estado de cada conductor
+  con horario; la hoja de ruta pinta la barra de turno de cada columna y marca las tarjetas fuera de turno. *Conductor*
+  (PWA y app nativa): «Tu horario de hoy: 08:00–13:00 · 16:00–20:00» en Jornada y, en la app, notificación local 5 min
+  antes de cada tramo si no ha iniciado la jornada (expo-notifications ya instalado; se reprograma al abrir la app y al
+  cambiar la jornada, y se cancela al iniciarla). *Vigilante* (como mucho una pasada por minuto, push + actividad, gravedad
+  aviso, una vez por caso): servicio asignado fuera del horario del conductor; sin iniciar jornada 15 min después del
+  inicio de su tramo (solo con el módulo de jornada y sin ausencia); en servicio más de 30 min pasado el fin de su turno
+  con servicios que no le dejan volver a la base. App nativa: solo JS (huella sin cambios). Prueba en producción
+  `scripts/prueba-horarios.mjs` (conductor de demo sin actividad, horario de prueba solo para mañana): RLS, sugerencia
+  dentro/fuera/pausa/no vuelve/día libre, propuesta automática, asignación manual registrada con el vehículo del turno,
+  una sola alerta «fuera de horario» (sin duplicar en la pasada siguiente, en `/api/central/resumen`) y limpieza de todo lo creado: 26 comprobaciones OK.
+
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
   plano), Mindee, Tabscanner, Azure y Google Document AI. Se elige Claude Haiku 5.5 porque devuelve los datos ya
@@ -739,6 +771,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   ±2 min en la tabla de posiciones; un índice único parcial garantiza una alerta por servicio y tipo aunque el
   conductor deshaga y vuelva a marcar. En las ausencias, la media jornada se decide por la hora de recogida en Madrid
   (mañana < 14:00), con la misma función en la central, el servidor y los tests.
+
+- **Horarios sin romper la asignación existente (13/10/2026)**: el horario es opcional (sin filas = disponible todo el
+  día) y se carga junto a las ausencias en `cargarDisponibilidad`; si las tablas fallan, devuelve vacío y nunca bloquea
+  asignar. Las horas se guardan como hora de pared de Madrid («08:00») y se convierten a instantes con `madridAUtc` el día
+  concreto: así un turno de 00:00 a 06:00 del 25/10/2026 dura 7 h y el de 08:00 sigue empezando a las 08:00 tras el
+  cambio de hora. «Primero/último del tramo» se decide con la agenda del conductor dentro de ese tramo: solo el primero
+  sale de la base y solo el último tiene que volver a ella. Las alertas del vigilante no dependen de su cursor: se
+  insertan con `ON CONFLICT DO NOTHING` sobre (tipo, conductor, clave) y solo se avisa si la fila es nueva, así dos
+  instancias o dos pasadas nunca duplican.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
