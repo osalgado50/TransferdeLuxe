@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { extraerDatosTicket } from "@/lib/lector/extraer";
 
 const TICKET_A = `ESTACION DEMO COSTA DORADA
@@ -73,4 +73,27 @@ Tarjeta ****1234`);
 test("GASOIL y GASÓLEO se detectan como Diésel", () => {
   expect(extraerDatosTicket("GASOIL\nLITROS 10,00\nTOTAL 15,00").tipo_combustible).toBe("Diésel");
   expect(extraerDatosTicket("GASÓLEO\nLITROS 10,00\nTOTAL 15,00").tipo_combustible).toBe("Diésel");
+});
+
+describe("ticket de prepago con ruido del OCR (tesseract en el servidor, app nativa)", () => {
+  // Texto tal cual lo devuelve tesseract.js de un ticket de ejemplo de Plenergy (CIF y números de ejemplo públicos).
+  const OCR = `PLENERGY GRUPO, S.L.\n\nCIF: B93275394\n\nFecha:[ 25/04/2024 ) 16:55\n\nTurno: 1468\n\nldent. —: w==.........3770\n\nMatricula:\n\n` +
+    `Factura simplificada: 039R2400065003\n\nSurtidor : 6\n\nProducto : DIESEL\n\nLitros +: 15,52\n\nPrecio +: 1,289\n\nImporte : 20,00\n\n` +
+    `194: 21,07\n\nB. Imp. : 16,53\n\nImp. 108: 3,47\n\nTotal reservado: 20,00 Eur\n\nTotal suninist. + [20,00 Eur`;
+  test("lee fecha, gasolinera, litros, precio, importe y combustible", () => {
+    expect(extraerDatosTicket(OCR)).toEqual({
+      fecha: "2024-04-25", gasolinera: "PLENERGY GRUPO, S.L.", litros: 15.52, precio_litro: 1.289, importe: 20,
+      tipo_combustible: "Diésel", confianza: "alta",
+    });
+  });
+  test("prepago: cuenta lo suministrado, no lo reservado", () => {
+    const d = extraerDatosTicket("REPSOL\nLitros: 12,62\nPrecio: 1,459\nTotal reservado: 20,00\nTotal suministrado: 18,41");
+    expect(d.importe).toBe(18.41);
+    expect(d.gasolinera).toBe("REPSOL");
+  });
+  test("combustibles con nombre comercial", () => {
+    expect(extraerDatosTicket("Producto: SP95\nLitros 10\nTotal 15,00").tipo_combustible).toBe("Gasolina 95");
+    expect(extraerDatosTicket("EFITEC 98\nLitros 10\nTotal 17,00").tipo_combustible).toBe("Gasolina 98");
+    expect(extraerDatosTicket("Gasoleo A\nLitros 10\nTotal 14,00").tipo_combustible).toBe("Diésel");
+  });
 });

@@ -29,6 +29,8 @@ const cabeceras = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // tesseract.js en el servidor (lectura de tickets de la app nativa) arranca su worker desde node_modules: sin empaquetar.
+  serverExternalPackages: ["tesseract.js"],
   async headers() {
     return [{ source: "/:path*", headers: cabeceras }];
   },

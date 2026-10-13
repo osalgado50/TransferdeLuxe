@@ -2,6 +2,8 @@ import type { DatosTicket } from "./tipos";
 import { esCoherente } from "./parsear";
 
 const NUM = String.raw`(\d{1,4}(?:[.,]\d{1,3})?)`;
+/** Lo que el OCR pone entre la etiqueta y el número: «:», «+:», «=», «[», puntos, rayas… («Litros +: 15,52»). */
+const SEP = String.raw`[\s:+=.;|\[\](){}—–-]*`;
 const aNumero = (s: string) => Number(s.replace(",", "."));
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
@@ -26,30 +28,40 @@ function fecha(texto: string): string | null {
 
 function tipo(texto: string): string | null {
   const t = texto.toUpperCase();
-  if (/DIESEL|GASOLEO|GASOIL/.test(t)) return "Diésel";
-  if (/(SIN PLOMO|GASOLINA|SP)\s*98/.test(t)) return "Gasolina 98";
-  if (/(SIN PLOMO|GASOLINA|SP)\s*95|SIN PLOMO|GASOLINA/.test(t)) return "Gasolina 95";
+  if (/DIESEL|GASOLEO|GASOIL|\bGO\s*A\b|E\+?\s*DIESEL/.test(t)) return "Diésel";
+  if (/(SIN PLOMO|GASOLINA|S\.?P\.?|\bG|EFITEC|NEOTECH|ULTIMATE|OPTIMA)\s*98/.test(t)) return "Gasolina 98";
+  if (/(SIN PLOMO|GASOLINA|S\.?P\.?|\bG|EFITEC|NEOTECH|OPTIMA)\s*95|SIN PLOMO|GASOLINA/.test(t)) return "Gasolina 95";
+  if (/\bKWH\b|RECARGA|CARGADOR/.test(t)) return "Eléctrico";
   return null;
 }
 
+/** Marcas de gasolinera habituales en España: si sale alguna, manda sobre «la primera línea en mayúsculas». */
+const MARCAS = ["REPSOL", "CEPSA", "MOEVE", "GALP", "SHELL", "PLENERGY", "BALLENOIL", "PETRONOR", "PETROPRIX", "ESCLAT", "BONAREA",
+  "CARREFOUR", "ALCAMPO", "EROSKI", "AVIA", "DISA", "MEROIL", "PETROCAT", "VALCARCE", "Q8", "BP", "ESSO", "TAMOIL", "CAMPSA"];
+
 function gasolinera(texto: string): string | null {
-  const linea = texto.split(/\r?\n/).map((l) => l.trim()).find((l) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9 .,&'-]{2,}$/.test(l) && /[A-Z]{3}/.test(l));
+  const lineas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const conMarca = lineas.find((l) => MARCAS.some((m) => new RegExp(`\\b${m}\\b`, "i").test(l)) && l.length <= 60);
+  if (conMarca) return conMarca;
+  const linea = lineas.find((l) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9 .,&'-]{2,}$/.test(l) && /[A-Z]{3}/.test(l));
   return linea ?? null;
 }
 
 export function extraerDatosTicket(texto: string): DatosTicket {
   const t = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ \t]+/g, " ");
   let litros = buscar(t, [
-    new RegExp(String.raw`(?:LITROS|VOLUMEN|\bLTS?)\s*:?\s*` + NUM, "i"),
+    new RegExp(String.raw`(?:LITROS|VOLUMEN|CANTIDAD|\bLTS?)` + SEP + NUM, "i"),
     new RegExp(NUM + String.raw`\s*(?:L|\bLTS?|LITROS)\b(?!\s*\/)`, "i"),
   ]);
   let precio = buscar(t, [
-    new RegExp(String.raw`(?:PRECIO|P\.?\s*UNIT\.?)\s*(?:\/\s*L)?\s*:?\s*` + NUM, "i"),
+    new RegExp(String.raw`(?:PRECIO|P\.?\s*UNIT\.?)\s*(?:\/\s*L)?` + SEP + NUM, "i"),
     new RegExp(NUM + String.raw`\s*(?:€|EUR)?\s*\/\s*L`, "i"),
   ]);
   const importe = buscar(t, [
-    new RegExp(String.raw`(?<!SUB\s?)TOTAL\s*:?\s*(?:A PAGAR|\(?EUR\)?|€)?\s*:?\s*` + NUM, "i"),
-    new RegExp(String.raw`IMPORTE\s*:?\s*` + NUM, "i"),
+    // Prepago: «Total reservado 20,00» / «Total suministrado 18,40»: lo que cuenta es lo suministrado.
+    new RegExp(String.raw`TOTAL\s+SU[MN]+I\w*` + SEP + NUM, "i"),
+    new RegExp(String.raw`(?<!SUB\s?)TOTAL` + SEP + String.raw`(?:A PAGAR|\(?EUR\)?|€)?` + SEP + NUM, "i"),
+    new RegExp(String.raw`IMPORTE` + SEP + NUM, "i"),
   ]);
   if (litros != null) litros = r2(litros);
   if (precio == null && litros && importe) precio = r3(importe / litros);

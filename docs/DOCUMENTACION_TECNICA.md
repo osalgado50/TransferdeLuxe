@@ -578,6 +578,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   y se mantiene el límite de 1 petición/s de Nominatim. En el navegador, pausa entre teclas de 250 ms, caché de búsquedas
   recientes e indicador «Buscando…» (icono giratorio accesible). Resultado: de ~5,6 s a 0,6–1,2 s en las consultas
   habituales, solo con servicios gratuitos.
+- **Lectura de tickets también en la app nativa (13/10/2026)**. El responsable fotografía un ticket de ejemplo
+  (Plenergy, prepago) con la app del iPhone y no se rellena nada: la app nativa solo subía la foto (el OCR, tesseract.js,
+  corría en el navegador, solo en la web). Ahora el mismo motor libre corre en el servidor (`src/lib/lector/ocrServidor.ts`:
+  un worker reutilizado, cola de uno en uno, se cierra tras 5 min sin uso, idioma cacheado en /tmp; `serverExternalPackages`)
+  y `POST /api/conductor/ticket/leer` (Bearer, solo sus fotos, 10/min) devuelve los datos; la app los pone en los campos
+  que el conductor no haya tocado y avisa «Leyendo el ticket…» / «Datos leídos: revisa y añade los kilómetros». Además,
+  el extractor tolera el ruido del OCR entre etiqueta y número («Litros +: 15,52», «[20,00»), en prepago toma el
+  «Total suministrado» y no el reservado, reconoce marcas de gasolinera y nombres comerciales (SP95, Efitec 98, Gasóleo A).
+  Medido en local: primera lectura 2,6 s (arranque), siguientes ~0,6 s; el ticket de ejemplo sale completo.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
