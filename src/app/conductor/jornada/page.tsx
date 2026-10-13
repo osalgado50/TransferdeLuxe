@@ -8,6 +8,7 @@ import JornadaConductor from "@/components/conductor/JornadaConductor";
 import BotonIncidencia from "@/components/conductor/BotonIncidencia";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { proximasAusencias, textoAusencia, type Ausencia } from "@/lib/dominio/ausencias";
+import { agruparHorarios, textoHorarioHoy } from "@/lib/dominio/horarios";
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
@@ -19,13 +20,17 @@ export default async function PaginaJornada() {
   const m = leerModulos(aj?.modulos);
   const r = rangosJornada(new Date());
   const hoy = diaMadrid(new Date());
-  const [jor, vehs, inc, aus] = await Promise.all([
+  const [jor, vehs, inc, aus, hor, exc] = await Promise.all([
     m.jornada ? sb.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)").eq("conductor_id", yo.id).or(`fin.is.null,fin.gte.${r.semana.desde}`).order("inicio") : Promise.resolve({ data: [] }),
     m.jornada && cierreObligatorio(m) ? sb.from("vehiculos").select("id,matricula,modelo,km_actuales").eq("estado", "activo").order("matricula") : Promise.resolve({ data: [] }),
     sb.from("incidencias").select("id,tipo,zonas,descripcion,creado_en,resuelta").eq("conductor_id", yo.id).gte("creado_en", r.hoy.desde).order("creado_en", { ascending: false }),
     // Próximas ausencias (vacaciones, fiestas…) que ha marcado la central: solo lectura. Si la tabla falla, nada.
     sb.from("ausencias").select("id,conductor_id,desde,hasta,franja,tipo,nota").eq("conductor_id", yo.id).gte("hasta", hoy).order("desde").limit(10),
+    // Su horario (semana tipo + cambio de hoy), solo lectura. Sin horario o si la tabla falla: no se muestra nada.
+    sb.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").eq("conductor_id", yo.id),
+    sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota").eq("conductor_id", yo.id).eq("fecha", hoy),
   ]);
+  const horarioHoy = textoHorarioHoy(agruparHorarios(hor.data ?? [], exc.data ?? []).get(yo.id), hoy);
   const ausencias = proximasAusencias((aus.data ?? []) as Ausencia[], hoy);
   const vehiculos = (vehs.data ?? []) as { id: string; matricula: string; modelo: string; km_actuales: number }[];
   const incidencias = (inc.data ?? []) as { id: string; tipo: string; zonas: string[] | null; descripcion: string; creado_en: string; resuelta: boolean }[];
@@ -33,6 +38,7 @@ export default async function PaginaJornada() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-marca-claro">Jornada</h1>
+      {horarioHoy && <p data-horario-hoy className="rounded-xl border border-slate-700 bg-slate-900 p-3 text-lg font-semibold">🕒 {horarioHoy}</p>}
       {m.jornada
         ? <JornadaConductor jornadas={(jor.data ?? []) as Jornada[]} acumulado={acumulado} conductorId={yo.id}
             cierre={vehiculos.length > 0 ? { vehiculos, vehiculoInicial: yo.vehiculo_habitual_id ?? null } : null} />

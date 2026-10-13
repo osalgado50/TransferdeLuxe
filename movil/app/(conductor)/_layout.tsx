@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { AvisosPush } from "~/components/AvisosPush";
 import { DrenajeCola } from "~/components/DrenajeCola";
 import { ServicioNuevo } from "~/components/ServicioNuevo";
+import { RecordatorioTurno } from "~/components/RecordatorioTurno";
 import { useSesion } from "~/lib/sesion";
 import { color } from "~/lib/tema";
 
@@ -19,6 +20,7 @@ export default function LayoutConductor() {
       {yo && <DrenajeCola key={`d-${yo}`} conductorId={yo} />}
       {yo && <AvisosPush key={`p-${yo}`} yo={yo} />}
       {yo && <ServicioNuevo key={`n-${yo}`} yo={yo} />}
+      {yo && <RecordatorioTurno key={`t-${yo}`} yo={yo} />}
     </View>
   );
 }

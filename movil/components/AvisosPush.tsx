@@ -39,6 +39,7 @@ export function AvisosPush({ yo, central }: { yo: string; central?: boolean }) {
     const d = ultima.notification.request.content.data as DatosPush | undefined;
     if (central) router.navigate(d?.tipo === "servicio_nuevo" ? "/central/mis" : "/central");
     else if (d?.tipo === "servicio_nuevo") router.navigate("/");
+    else if (d?.tipo === "turno") router.navigate("/jornada"); // recordatorio de inicio de turno
     void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
   }, [ultima, central]);
   return null;

@@ -10,6 +10,7 @@ import { diaMadrid } from "@dominio/geo";
 import { proximasAusencias, textoAusencia, type Ausencia } from "@dominio/ausencias";
 import { accionFinJornada, ESTADOS_PENDIENTE_HOY, MOTIVO_FIN_JORNADA, pendientesHoy, textoPendientes } from "@dominio/finJornada";
 import { lugarBreve } from "@dominio/actividad";
+import { agruparHorarios, textoHorarioHoy } from "@dominio/horarios";
 import type { EstadoInterruptor } from "@dominio/gpsNativo";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, AppState, Linking, Modal, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -54,7 +55,7 @@ export default function PantallaJornada() {
   const yo = sesion!.user.id;
   const { datos, error, cargando, recargar } = useConsulta(async () => {
     const r = rangosJornada(new Date());
-    const [aj, jor, veh, per, inc, it, rev, aus] = await Promise.all([
+    const [aj, jor, veh, per, inc, it, rev, aus, hor, exc] = await Promise.all([
       supabase.from("ajustes").select("modulos").eq("id", 1).maybeSingle(),
       supabase.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)").eq("conductor_id", yo).or(`fin.is.null,fin.gte.${r.semana.desde}`).order("inicio"),
       supabase.from("vehiculos").select("id,matricula,modelo,km_actuales").eq("estado", "activo").order("matricula"),
@@ -64,6 +65,9 @@ export default function PantallaJornada() {
       supabase.from("checklist_revisiones").select("vehiculo_id").eq("conductor_id", yo).eq("fecha", diaMadrid(new Date())),
       // Próximas ausencias marcadas por la central (solo lectura). Con un servidor sin la tabla, simplemente vacío.
       supabase.from("ausencias").select("id,conductor_id,desde,hasta,franja,tipo,nota").eq("conductor_id", yo).gte("hasta", diaMadrid(new Date())).order("desde").limit(10),
+      // Su horario (semana tipo + cambio de hoy). Con un servidor sin las tablas, simplemente no se muestra.
+      supabase.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").eq("conductor_id", yo),
+      supabase.from("excepciones_horario").select("conductor_id,fecha,tramos,nota").eq("conductor_id", yo).eq("fecha", diaMadrid(new Date())),
     ]);
     if (jor.error) throw new Error(jor.error.message);
     const m = leerModulos(aj.data?.modulos);
@@ -78,6 +82,7 @@ export default function PantallaJornada() {
       checklist,
       m, jornadas: (jor.data ?? []) as Jornada[], incidencias: (inc.data ?? []) as IncidenciaHoy[],
       ausencias: proximasAusencias((aus.data ?? []) as Ausencia[], diaMadrid(new Date())),
+      horarioHoy: textoHorarioHoy(agruparHorarios(hor.data ?? [], exc.data ?? []).get(yo), diaMadrid(new Date())),
       // Hoja de cierre al finalizar (módulos jornada + checklist + cierre); sin vehículos activos, como antes.
       cierre: cierreObligatorio(m) && vehiculos.length > 0 ? { vehiculos, habitual: (per.data?.vehiculo_habitual_id as string | null) ?? null } : null,
     };
@@ -198,6 +203,7 @@ export default function PantallaJornada() {
     <ScrollView contentContainerStyle={e.contenido} refreshControl={<RefreshControl refreshing={refrescando} onRefresh={tirar} tintColor={color.marcaClaro} />}>
       <Text style={e.titulo} accessibilityRole="header">Jornada</Text>
       {error && <Aviso tipo="error" texto={`Error al actualizar: ${error}`} />}
+      {datos.horarioHoy && <Text style={e.horario} accessibilityRole="text">🕒 {datos.horarioHoy}</Text>}
 
       {m.jornada ? (
         <>
@@ -335,6 +341,7 @@ const e = StyleSheet.create({
   horasEtiqueta: { color: color.textoTenue, fontSize: 15 },
   horasValor: { color: color.texto, fontSize: 22, fontWeight: "700" },
   gps: { fontSize: 17, fontWeight: "700" },
+  horario: { color: color.texto, fontSize: 19, fontWeight: "700", borderWidth: 1, borderColor: color.borde, borderRadius: 14, padding: 12, backgroundColor: color.tarjeta },
   ayuda: { color: color.textoSuave, fontSize: 15 },
   sinGps: { backgroundColor: "#450a0a", borderColor: ROJO, borderWidth: 1.5, borderRadius: 14, padding: 12, gap: 10 },
   sinGpsTexto: { color: "#fee2e2", fontSize: 16, fontWeight: "600", lineHeight: 22 },
