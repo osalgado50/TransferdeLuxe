@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  agruparHorarios, alertaFinTurno, esNocturno, intervalosDelDia, tramosPintadosDia, alertaFueraHorario, alertaSinJornada, cabeServicio, copiarALaborables, diaSemana, enTurno, estadoTurno,
+  agruparHorarios, alertaFinTurno, esNocturno, intervalosDelDia, tramosPintadosDia, alertaFueraHorario, alertaSinJornada, cabeServicio, copiarATodos, diaSemana, enTurno, estadoTurno,
   fueraDeTurno, intervalo, leerTramos, lunesDeSemana, motivoAsignadoFueraHorario, preguntaAsignarFueraHorario, recordatoriosTurno,
   segmentosDia, solapeVehiculo, textoHorarioHoy, textoTramos, tipoJornada, tramosDelDia, turnoQueContiene, validarTramos, vehiculoDelTurno,
   type HorarioConductor, type Tramo,
@@ -261,13 +261,12 @@ describe("vehículos compartidos y semana tipo", () => {
     const c = { conductorId: "c", semana: [{ dia_semana: 1, tramos: CONTINUO, vehiculo_id: null }] };
     expect(solapeVehiculo([a, b, c])).toEqual([]);
   });
-  test("copiar a todos los días laborables", () => {
-    const s = copiarALaborables([{ dia_semana: 1, tramos: PARTIDO, vehiculo_id: "v1" }, { dia_semana: 6, tramos: CONTINUO, vehiculo_id: "v2" }]);
+  test("copiar el lunes a todos los días (lunes a domingo)", () => {
+    const s = copiarATodos([{ dia_semana: 1, tramos: PARTIDO, vehiculo_id: "v1" }, { dia_semana: 6, tramos: CONTINUO, vehiculo_id: "v2" }]);
     expect(s).toHaveLength(7);
-    expect(s.slice(0, 5).every((d) => d.tramos.length === 2 && d.vehiculo_id === "v1")).toBe(true);
-    expect(s[5]).toMatchObject({ dia_semana: 6, tramos: CONTINUO, vehiculo_id: "v2" });
-    expect(s[6]).toMatchObject({ dia_semana: 7, tramos: [] });
-    expect(copiarALaborables([], 1).every((d) => d.tramos.length === 0)).toBe(true);
+    expect(s.every((d) => d.tramos.length === 2 && d.vehiculo_id === "v1")).toBe(true);
+    expect(s.map((d) => d.dia_semana)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(copiarATodos([], 1).every((d) => d.tramos.length === 0)).toBe(true);
   });
   test("segmentos para pintar y huecos fuera de turno", () => {
     expect(segmentosDia([t("06:00", "12:00")])).toEqual([{ desde: 25, hasta: 50, tramo: t("06:00", "12:00") }]);

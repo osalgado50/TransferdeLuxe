@@ -527,7 +527,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   turno»), `cabeServicio` (la recogida dentro de un tramo; si es el primero del tramo, salir de la base después del inicio;
   si es el último, volver a la base antes del fin, con el modelo de traslado de la planificación), vehículo del turno,
   solape de vehículo entre conductores, alertas y recordatorios. *Central*: página «Horarios» (menú) con la semana tipo de
-  cada conductor (continua o partida, «+ añadir tramo», copiar el lunes a los laborables, plantillas reutilizables,
+  cada conductor (continua o partida, «+ añadir tramo», copiar el lunes a todos los días —antes solo a los laborables; el responsable prefirió de lunes a domingo—, plantillas reutilizables,
   vehículo del turno), cambios de un día, vista semanal de toda la plantilla (franjas en turno pintadas, fuera de turno
   rayado y ausencias encima) y aviso si dos conductores comparten vehículo en tramos que se solapan (el relevo 15:00/15:00
   no cuenta). *Asignación*: la sugerencia, la asignación automática, la hoja de ruta (chip «Mejor») y el diálogo de

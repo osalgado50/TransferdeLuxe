@@ -279,12 +279,12 @@ export function solapeVehiculo(conductores: readonly { conductorId: string; sema
   return out;
 }
 
-/** Semana tipo con lunes–viernes copiados de `origen` (fines de semana sin tocar). */
-export function copiarALaborables<T extends DiaSemanaHorario>(semana: readonly T[], origen = 1): DiaSemanaHorario[] {
+/** Semana tipo con los 7 días (lunes a domingo) copiados de `origen`. */
+export function copiarATodos<T extends DiaSemanaHorario>(semana: readonly T[], origen = 1): DiaSemanaHorario[] {
   const o = semana.find((d) => d.dia_semana === origen);
   return DIAS_SEMANA.map((dia) => {
     const actual = semana.find((d) => d.dia_semana === dia) ?? { dia_semana: dia, tramos: [], vehiculo_id: null, plantilla_id: null };
-    if (dia > 5 || !o) return { ...actual };
+    if (!o) return { ...actual };
     return { dia_semana: dia, tramos: o.tramos.map((t) => ({ ...t })), vehiculo_id: o.vehiculo_id ?? null, plantilla_id: o.plantilla_id ?? null };
   });
 }

@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { borrarExcepcion, borrarPlantilla, guardarExcepcion, guardarPlantilla, guardarSemana, quitarHorario, type Resultado } from "@/app/central/horarios/actions";
 import {
-  DIAS_SEMANA, MAX_TRAMOS, NOMBRE_DIA, copiarALaborables, esNocturno, minutos, textoTramos, tipoJornada, validarTramos,
+  DIAS_SEMANA, MAX_TRAMOS, NOMBRE_DIA, copiarATodos, esNocturno, minutos, textoTramos, tipoJornada, validarTramos,
   type DiaSemanaHorario, type ExcepcionHorario, type Plantilla, type Tramo,
 } from "@/lib/dominio/horarios";
 
@@ -55,7 +55,7 @@ function EditorTramos({ tramos, onChange, etiqueta }: { tramos: Tramo[]; onChang
 
 type Vehiculo = { id: string; matricula: string; modelo: string; estado: string };
 
-/** Semana tipo de un conductor: 7 días con tramos, vehículo del turno y plantilla; copiar a laborables; guardar. */
+/** Semana tipo de un conductor: 7 días con tramos, vehículo del turno y plantilla; copiar a toda la semana; guardar. */
 export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHorario }: {
   conductor: { id: string; nombre: string; vehiculo_habitual_id: string | null }; semana: DiaSemanaHorario[]; plantillas: Plantilla[];
   vehiculos: Vehiculo[]; tieneHorario: boolean;
@@ -71,11 +71,11 @@ export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHo
   const cambiar = (dia: number, c: Partial<DiaSemanaHorario>) => { setR(null); setDias((ds) => ds.map((d) => (d.dia_semana === dia ? { ...d, ...c } : d))); };
   const errores = Object.fromEntries(dias.map((d) => { const v = validarTramos(d.tramos); return [d.dia_semana, v.ok ? null : v.error]; }));
   const hayErrores = Object.values(errores).some(Boolean);
-  const aplicarALaborables = () => {
+  const aplicarATodos = () => {
     const p = plantillas.find((x) => x.id === plantillaLab);
     if (!p) return;
     setR(null);
-    setDias((ds) => ds.map((d) => (d.dia_semana <= 5 ? { ...d, tramos: p.tramos.map((t) => ({ ...t })), plantilla_id: p.id } : d)));
+    setDias((ds) => ds.map((d) => ({ ...d, tramos: p.tramos.map((t) => ({ ...t })), plantilla_id: p.id })));
   };
   const guardar = () => ini(async () => {
     const res = await guardarSemana(conductor.id, dias.map((d) => ({ dia_semana: d.dia_semana, tramos: d.tramos, vehiculo_id: d.vehiculo_id ?? null, plantilla_id: d.plantilla_id ?? null })));
@@ -96,14 +96,14 @@ export function EditorSemana({ conductor, semana, plantillas, vehiculos, tieneHo
       <p className="text-sm text-slate-400">Jornada continua (un tramo) o partida (dos tramos con un rato para comer). Un día sin tramos es libre. El coche
         sale de la base y vuelve a ella en cada tramo: allí se hace el relevo con el siguiente conductor.</p>
       <div className="flex flex-wrap items-end gap-2">
-        <button type="button" onClick={() => { setR(null); setDias(copiarALaborables(dias, 1)); }} className={secundario}>Copiar el lunes a todos los laborables</button>
+        <button type="button" onClick={() => { setR(null); setDias(copiarATodos(dias, 1)); }} className={secundario}>Copiar el lunes a todos los días</button>
         {plantillas.length > 0 && <>
-          <label className="text-sm">Plantilla para L–V<br />
+          <label className="text-sm">Plantilla para L–D<br />
             <select value={plantillaLab} onChange={(e) => setPlantillaLab(e.target.value)} className={campo}>
               <option value="">Elige…</option>
               {plantillas.map((p) => <option key={p.id} value={p.id}>{p.nombre} ({textoTramos(p.tramos)})</option>)}
             </select></label>
-          <button type="button" disabled={!plantillaLab} onClick={aplicarALaborables} className={secundario}>Aplicar a laborables</button>
+          <button type="button" disabled={!plantillaLab} onClick={aplicarATodos} className={secundario}>Aplicar a todos los días</button>
         </>}
       </div>
       <ul className="divide-y divide-slate-800">
