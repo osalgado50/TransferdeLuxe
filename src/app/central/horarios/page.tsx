@@ -78,23 +78,7 @@ export default async function PaginaHorarios({ searchParams }: { searchParams: P
         </div>
       )}
 
-      {conductores.length === 0 ? <p className="text-slate-400">No hay conductores.</p> : (
-        <>
-          <nav aria-label="Conductor" className="flex flex-wrap gap-2">
-            {conductores.map((c) => (
-              <Link key={c.id} href={enlace({ c: c.id })} aria-current={c.id === sel?.id ? "page" : undefined}
-                className={`rounded-full border px-3 py-1.5 text-sm ${c.id === sel?.id ? "border-marca-claro bg-marca/20 text-marca-claro" : "border-slate-600 hover:border-marca-claro"}`}>
-                {c.nombre}{horarios.get(c.id)?.semana.length ? "" : " · sin horario"}
-              </Link>
-            ))}
-          </nav>
-          {sel && <EditorSemana key={claveEditor} conductor={sel} semana={hSel?.semana ?? []} plantillas={plantillas} vehiculos={vehiculos} tieneHorario={!!hSel?.semana.length} />}
-          {sel && <GestionExcepciones key={`ex-${sel.id}`} conductor={sel} hoy={hoy} excepciones={(hSel?.excepciones ?? []).filter((e) => e.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha))} />}
-        </>
-      )}
-
-      <GestionPlantillas plantillas={plantillas} />
-
+      {/* Vista de la semana de toda la plantilla, arriba: lo primero que se consulta. */}
       <section aria-label="Semana de la plantilla" className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Semana del {fmtDia.format(new Date(`${dias[0]}T12:00:00Z`))} al {fmtDia.format(new Date(`${dias[6]}T12:00:00Z`))}</h2>
@@ -147,6 +131,24 @@ export default async function PaginaHorarios({ searchParams }: { searchParams: P
           </table>
         </div>
       </section>
+
+      {conductores.length === 0 ? <p className="text-slate-400">No hay conductores.</p> : (
+        <>
+          <nav aria-label="Conductor" className="flex flex-wrap gap-2">
+            {conductores.map((c) => (
+              <Link key={c.id} href={enlace({ c: c.id })} aria-current={c.id === sel?.id ? "page" : undefined}
+                className={`rounded-full border px-3 py-1.5 text-sm ${c.id === sel?.id ? "border-marca-claro bg-marca/20 text-marca-claro" : "border-slate-600 hover:border-marca-claro"}`}>
+                {c.nombre}{horarios.get(c.id)?.semana.length ? "" : " · sin horario"}
+              </Link>
+            ))}
+          </nav>
+          {sel && <EditorSemana key={claveEditor} conductor={sel} semana={hSel?.semana ?? []} plantillas={plantillas} vehiculos={vehiculos} tieneHorario={!!hSel?.semana.length} />}
+          {sel && <GestionExcepciones key={`ex-${sel.id}`} conductor={sel} hoy={hoy} excepciones={(hSel?.excepciones ?? []).filter((e) => e.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha))} />}
+        </>
+      )}
+
+      <GestionPlantillas plantillas={plantillas} />
+
     </div>
   );
 }
