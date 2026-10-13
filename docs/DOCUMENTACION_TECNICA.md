@@ -480,6 +480,39 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   comprobaciones OK — reparto 2/2/2, sin solapes ni márgenes < 15 min (auditoría independiente en el script),
   confirmar asigna los 6 con el vehículo habitual, cada conductor ve solo los suyos, reintento del lote sin duplicar,
   lote nuevo sobre uno ya asignado → saltado; al final quedan `es_prueba` y cancelados.
+- **Fin de jornada con servicios pendientes, CARGA/DESCARGA lejos del punto y ausencias (13/10/2026)**. Tres peticiones
+  del responsable. *Fin de jornada*: al pulsar «Finalizar jornada» (PWA y app nativa, antes de la hoja de cierre) se
+  consultan los servicios del conductor de HOY (día de Madrid) en asignado/aceptado/en camino con la recogida posterior a
+  ahora (`src/lib/dominio/finJornada.ts`, pura): si hay, se listan con hora y trayecto y se pregunta. «No, devolverlos a
+  la central» encola por la cola offline cada uno con motivo «Fin de jornada» (`devolver` si estaba aceptado/en camino,
+  `rechazar` si solo estaba asignado); «Sí, volveré» sugiere ⏸ Pausa (o «Finalizar igualmente»). Los de mañana no se
+  tocan. La central recibe UN aviso agrupado («🔁 Jordi ha terminado la jornada y ha devuelto 2 servicios de esta
+  tarde»), en push y en la actividad. Red de seguridad en el servidor (también para apps antiguas): el vigilante revisa
+  cada jornada cerrada (2 min de gracia para la cola offline, marca atómica `jornadas.pendientes_revisada_en`, una sola
+  vez) y, si quedan servicios de hoy sin devolver, avisa «⚠️ Marc ha cerrado la jornada con 2 servicios pendientes hoy
+  (16:00, 18:30)» (sonido de aviso, push y tarjeta ámbar en el panel); no devuelve nada solo. La sugerencia y la
+  asignación automática no proponen para HOY a quien ya cerró su jornada hoy («Jornada cerrada hoy»). *CARGA/DESCARGA
+  lejos*: el vigilante, al ver un evento «recogido»/«completado», toma la posición del conductor en ese momento
+  (posiciones ±2 min o la actual reciente) y la compara con el origen/destino (`src/lib/dominio/anomalias.ts`, pura);
+  por encima de `ajustes.umbral_anomalia_m` (500 m por defecto, editable en «Flota y ajustes») inserta UNA vez el
+  evento `anomalia_carga`/`anomalia_descarga` (índice único) y sale el aviso «⚠️ Marc ha marcado CARGA a 2,3 km de la
+  recogida (Salou – Plaza Europa) · está cerca de Cambrils» con «Ver en el mapa» (centra el mapa en esa posición),
+  «Llamar» y «Visto». Sin coordenadas o sin GPS: no se alerta. *Ausencias*: tabla `ausencias` (migración 0028, RLS:
+  la central todo, el conductor lee las suyas) y página «Ausencias» en la central con alta/edición/borrado (día completo,
+  mañana < 14:00 o tarde), calendario mensual de toda la plantilla coloreado por tipo y, al guardar, la lista de
+  servicios asignados/aceptados en esas fechas con «Devolver para reasignar» (nueva acción de la central `desasignar`,
+  por la RPC atómica `transicion_servicio`: «Sin asignar» con alerta y aviso push al conductor). La sugerencia y la
+  asignación automática marcan al ausente «No disponible · vacaciones» (o «… (tarde)»); asignarlo a mano pide
+  confirmación («Está de vacaciones ese día. ¿Asignar igualmente?», web y app) y el servidor no lo impide pero lo
+  registra en el evento («ausente: vacaciones», visible en la actividad). El conductor ve «Próximas ausencias» en su
+  pestaña Jornada (solo lectura). Además, el vigilante ya no manda push de servicios cuyas notas empiezan por
+  «PRUEBA AUTOMÁTICA». App nativa: solo JS (huella sin cambios). Prueba en producción
+  `scripts/prueba-ausencias-jornada.mjs`: 28 comprobaciones OK (devolver/rechazar con «Fin de jornada», el de mañana
+  sigue asignado, aviso agrupado en `/api/central/resumen`, «Jornada cerrada hoy» solo para hoy, RLS de ausencias,
+  sugerencia y propuesta con «No disponible · vacaciones», tarde libre que bloquea solo la tarde, asignación a un
+  ausente registrada, CARGA a 3,0 km → aviso con posición y teléfono, «deshacer + CARGA» sin duplicar, DESCARGA en el
+  destino sin alerta y jornada revisada una vez por el vigilante); al final, servicios `es_prueba` y cancelados,
+  ausencias de prueba borradas y conductor3 fuera de servicio.
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto
@@ -696,6 +729,16 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   dispararía el límite del servidor público (1 petición/s). El semáforo usa el modelo de traslado (instantáneo, también
   en el navegador con los datos en tiempo real) y solo la duración del servicio aprovecha una ruta OSRM si ya estaba en
   caché. El orden importa: si el conductor lleva pasajeros, su ETA a la siguiente recogida pasa por el destino actual.
+- **Que el cierre de jornada no deje servicios desatendidos sin romper apps antiguas (13/10/2026)**: bloquear el cierre
+  en el servidor dejaría colgadas las apps que aún no preguntan (iPhone pendiente de compilar). Por eso la pregunta
+  vive en el cliente y el servidor solo vigila: el vigilante revisa cada jornada cerrada una vez, con 2 minutos de
+  gracia para que lleguen las devoluciones que la cola offline envió justo antes de cerrar (si no, avisaría de
+  servicios que ya estaban devueltos). La revisión se «reclama» con un `update … where pendientes_revisada_en is null`,
+  así dos instancias del servidor no avisan dos veces. Para la anomalía de CARGA, la posición del conductor no viaja con
+  la acción (la cola offline no la lleva y cambiarlo exigiría tocar apps instaladas): se busca la posición más cercana en
+  ±2 min en la tabla de posiciones; un índice único parcial garantiza una alerta por servicio y tipo aunque el
+  conductor deshaga y vuelva a marcar. En las ausencias, la media jornada se decide por la hora de recogida en Madrid
+  (mañana < 14:00), con la misma función en la central, el servidor y los tests.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
