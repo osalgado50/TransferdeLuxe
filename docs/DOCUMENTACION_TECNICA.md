@@ -407,7 +407,8 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   Nominatim con `viewbox` + `bounded=1`. Si la consulta limpia no da nada, se prueba el núcleo. *Fusión*
   (`fusionarResultados` en `geocodificacion.ts`, pura): repetidos fuera (misma calle + número + localidad, o < 30 m del
   mismo tipo); orden: localidad detectada > cercanía a Salou por anillos de 10/30/60 km > palabras buscadas presentes >
-  dirección exacta > calle > lugar > población. Si el portal tecleado no existe en el mapa, la calle sale como
+  dirección exacta > calle > lugar > población (sin número tecleado, el lugar antes que la calle: si no, «aeropuerto
+  reus» ponía primero la carretera de acceso al aeropuerto). Si el portal tecleado no existe en el mapa, la calle sale como
   «Avinguda del Doctor Eduard Punset, 7 · Salou (número aproximado)» con las coordenadas de la calle (campo
   `aproximado`), así el conductor ve el número. *UI* (`CampoDireccion`): si tras ≥ 6 letras no hay ninguna
   sugerencia, el desplegable ofrece «Usar “…” tal cual (sin punto en el mapa)»; el orden 🏢/⭐ de la central no cambia.

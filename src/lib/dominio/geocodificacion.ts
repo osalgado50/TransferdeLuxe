@@ -108,6 +108,8 @@ export function parsearNominatim(json: unknown): Candidato[] | null {
 /** Costa Dorada (Salou): las sugerencias más cercanas, primero. */
 export const CENTRO_COSTA_DORADA = { lat: 41.07, lng: 1.14 };
 const ORDEN_TIPO: Record<TipoLugar, number> = { direccion: 0, calle: 1, poi: 2, localidad: 3 };
+/** Sin número tecleado se busca más bien un sitio: «aeropuerto reus» → el aeropuerto antes que su carretera de acceso. */
+const ORDEN_TIPO_SIN_NUMERO: Record<TipoLugar, number> = { direccion: 0, poi: 1, calle: 2, localidad: 3 };
 const ANILLOS_KM = [10, 30, 60];
 
 /** ¿El resultado es de la localidad detectada (por nombre de municipio o a menos de 3 km de su centro)? */
@@ -125,7 +127,8 @@ export function palabrasQueFaltan(etiqueta: string, buscado: string): number {
 /**
  * Fusiona Photon + Nominatim: marca el número aproximado (calle sin el portal tecleado), quita repetidos
  * (misma calle + número + localidad, o a menos de 30 m y del mismo tipo) y ordena: localidad detectada >
- * cercanía a la Costa Dorada (anillos de 10/30/60 km) > palabras buscadas presentes > tipo > orden del proveedor.
+ * cercanía a la Costa Dorada (anillos de 10/30/60 km) > palabras buscadas presentes > tipo (con número: dirección >
+ * calle > lugar > población; sin número, el lugar antes que la calle) > orden del proveedor.
  */
 export function fusionarResultados(listas: (Candidato[] | null | undefined)[], consulta: Pick<ConsultaAnalizada, "numero" | "localidad"> & { nucleo?: string }, max = 8): LugarSugerido[] {
   const todos = listas.flatMap((l) => l ?? []).map((c): Candidato => {
@@ -148,7 +151,7 @@ export function fusionarResultados(listas: (Candidato[] | null | undefined)[], c
   const anillo = (c: Candidato) => { const d = distanciaKm(c, CENTRO_COSTA_DORADA); const i = ANILLOS_KM.findIndex((k) => d < k); return i < 0 ? ANILLOS_KM.length : i; };
   const orden = (c: Candidato, i: number) => [
     consulta.localidad && deLaLocalidad(c, consulta.localidad) ? 0 : 1, anillo(c),
-    consulta.nucleo ? palabrasQueFaltan(c.etiqueta, consulta.nucleo) : 0, ORDEN_TIPO[c.tipo], i,
+    consulta.nucleo ? palabrasQueFaltan(c.etiqueta, consulta.nucleo) : 0, (consulta.numero ? ORDEN_TIPO : ORDEN_TIPO_SIN_NUMERO)[c.tipo], i,
   ];
   const ordenados = unicos.map((c, i) => ({ c, k: orden(c, i) })).sort((x, y) => {
     for (let i = 0; i < x.k.length; i++) if (x.k[i] !== y.k[i]) return x.k[i] - y.k[i];

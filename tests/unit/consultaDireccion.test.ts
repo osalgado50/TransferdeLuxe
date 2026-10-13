@@ -164,6 +164,14 @@ describe("fusionarResultados", () => {
     ]], { numero: "5", localidad: LOCALIDADES.find((l) => l.nombre === "Reus")! });
     expect(r2.map((x) => x.etiqueta)).toEqual(["Carrer Major 5 · Reus"]); // con el portal exacto, la calle aproximada sobra
   });
+  it("sin número tecleado, el lugar antes que la calle («aeropuerto reus»)", () => {
+    const reus = LOCALIDADES.find((l) => l.nombre === "Reus")!;
+    const r = fusionarResultados([[
+      c({ etiqueta: "Carretera de l'Aeroport de Reus · Reus", tipo: "calle", calle: "Carretera de l'Aeroport de Reus", localidad: "Reus", lat: 41.1448, lng: 1.1428 }),
+      c({ etiqueta: "Aeroport de Reus · Carretera de l'Aeroport de Reus · Reus", tipo: "poi", calle: "Carretera de l'Aeroport de Reus", localidad: "Reus", lat: 41.1469, lng: 1.1577 }),
+    ]], { numero: null, localidad: reus, nucleo: "aeropuerto" });
+    expect(r[0].etiqueta).toBe("Aeroport de Reus · Carretera de l'Aeroport de Reus · Reus");
+  });
   it("como mucho 8", () => {
     const muchos = Array.from({ length: 12 }, (_, i) => c({ etiqueta: `Lugar ${i}`, tipo: "poi", lat: 41 + i / 100 }));
     expect(fusionarResultados([muchos], { numero: null, localidad: null })).toHaveLength(8);
