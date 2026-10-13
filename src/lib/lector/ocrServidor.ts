@@ -1,5 +1,6 @@
 import "server-only";
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Worker } from "tesseract.js";
@@ -19,6 +20,8 @@ import { extraerDatosTicket } from "./extraer";
 declare const __non_webpack_require__: NodeJS.Require;
 /** El `require` de Node de verdad (webpack no lo toca): tesseract.js se carga de node_modules tal cual. */
 const requerir = (m: string): unknown => __non_webpack_require__(m);
+/** Versión del OCR del servidor (sale en el diagnóstico: así se sabe qué código responde tras un despliegue). */
+const VERSION_OCR = "ocr-5-wasm-sincrono";
 let enProcesoListo = false;
 /**
  * Variante del motor wasm: primero la SIMD (más rápida); si aborta al arrancar, la siguiente vez la normal. Cada fallo de
@@ -27,6 +30,25 @@ let enProcesoListo = false;
 const VARIANTES = ["tesseract-core-simd-lstm", "tesseract-core-lstm"] as const;
 let variante = 0;
 type FabricaCore = (opts: Record<string, unknown>) => Promise<unknown>;
+const modulos = new Map<string, WebAssembly.Module>();
+/**
+ * En Hostinger la compilación asíncrona del wasm (WebAssembly.instantiate) no termina nunca; la síncrona sí. Se compila
+ * aquí (una vez, ~1–3 s) y se le da ya instanciado a emscripten con su gancho `instantiateWasm`.
+ */
+function instanciarSincrono(nombre: string) {
+  return (imports: WebAssembly.Imports, recibir: (i: WebAssembly.Instance, m: WebAssembly.Module) => void) => {
+    let m = modulos.get(nombre);
+    if (!m) {
+      const t = Date.now();
+      m = new WebAssembly.Module(fs.readFileSync(__non_webpack_require__.resolve(`tesseract.js-core/${nombre}.wasm`)));
+      modulos.set(nombre, m);
+      ultimoPaso = `wasm ${nombre} compilado en ${Date.now() - t} ms`;
+    }
+    const i = new WebAssembly.Instance(m, imports);
+    recibir(i, m);
+    return i.exports;
+  };
+}
 function getCoreConDiagnostico(): (oem: unknown, corePath: unknown, res: { progress: (p: { status: string; progress: number }) => void }) => Promise<FabricaCore> {
   return async (_oem, _corePath, res) => {
     const nombre = VARIANTES[Math.min(variante, VARIANTES.length - 1)];
@@ -36,6 +58,7 @@ function getCoreConDiagnostico(): (oem: unknown, corePath: unknown, res: { progr
     return (opts) => {
       const p = Core({
         ...opts,
+        instantiateWasm: instanciarSincrono(nombre),
         printErr: (t: string) => { ultimoPaso = `${nombre} printErr: ${t}`.slice(0, 200); },
         onAbort: (w: unknown) => { ultimoPaso = `${nombre} abort: ${String(w)}`.slice(0, 200); variante++; },
       });
@@ -81,7 +104,7 @@ function pruebaWasm(): string {
 function conTiempo<T>(p: Promise<T>, ms: number, fase: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
   const limite = new Promise<never>((_, no) => {
-    t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s (último paso: ${ultimoPaso}; node ${process.version}; ${pruebaWasm()})`)), ms);
+    t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s (último paso: ${ultimoPaso}; ${VERSION_OCR}; node ${process.version}; ${pruebaWasm()})`)), ms);
   });
   return Promise.race([p, limite]).finally(() => clearTimeout(t));
 }
