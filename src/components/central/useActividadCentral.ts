@@ -32,7 +32,7 @@ export function useActividadCentral(o: {
   const [ahora, setAhora] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setAhora(Date.now()), 60_000); return () => clearInterval(t); }, []);
 
-  const { movimientos, graves } = useMemo(() => construirActividad({
+  const { movimientos, graves, avisos } = useMemo(() => construirActividad({
     eventos, incidencias, revisiones, jornadas, cierres, conductores, posiciones, vehiculos,
     servicios: [...serviciosExtra, ...servicios], // los del panel (en vivo) pisan a los extra
     desde: new Date(ahora - HORAS_ACTIVIDAD * 3600e3),
@@ -47,13 +47,15 @@ export function useActividadCentral(o: {
     return n;
   }), []);
   const sinVer = useMemo(() => graves.filter((g) => !vistos?.has(g.id)), [graves, vistos]);
+  const avisosSinVer = useMemo(() => avisos.filter((g) => !vistos?.has(g.id)), [avisos, vistos]);
 
   // Avisos nuevos (llegados por Realtime) → tres pitidos. Las graves suenan con la alarma de abajo.
   const conocidos = useRef<Set<string> | null>(null);
   useEffect(() => {
     const vistosAntes = conocidos.current;
     const ahoraMs = Date.now();
-    const claves = [...incidencias.map((i) => `inc-${i.id}`), ...revisiones.map((r) => `rev-${r.id}`), ...cierres.map((c) => `cie-${c.id}`)];
+    const claves = [...incidencias.map((i) => `inc-${i.id}`), ...revisiones.map((r) => `rev-${r.id}`), ...cierres.map((c) => `cie-${c.id}`),
+      ...jornadas.filter((j) => j.pendientes_cierre?.length).map((j) => `jorp-${j.id}`)];
     if (!vistosAntes) { conocidos.current = new Set(claves); return; }
     const reciente = (iso: string) => ahoraMs - Date.parse(iso) <= RECIENTE_MS;
     let aviso = false;
@@ -76,9 +78,15 @@ export function useActividadCentral(o: {
       if (c.gravedad === "mantenimiento") aviso = true;
       else if (c.gravedad === "ok") verde = true;
     }
+    // Jornada cerrada con servicios pendientes hoy (lo marca el vigilante al revisar la jornada): tres pitidos.
+    for (const j of jornadas) {
+      if (!j.pendientes_cierre?.length || vistosAntes.has(`jorp-${j.id}`)) continue;
+      vistosAntes.add(`jorp-${j.id}`);
+      if (j.fin && ahoraMs - Date.parse(j.fin) <= 90 * 60_000) aviso = true;
+    }
     if (aviso) pedir("incidencia");
     else if (verde) pedir("completado");
-  }, [incidencias, revisiones, cierres, pedir]);
+  }, [incidencias, revisiones, cierres, jornadas, pedir]);
 
   // Alarma insistente para las graves sin ver.
   const alarma = useRef<EstadoAlarma | null>(null);
@@ -97,5 +105,5 @@ export function useActividadCentral(o: {
     return () => clearInterval(t);
   }, [clave, pedir]);
 
-  return { movimientos, graves: sinVer, marcarVisto };
+  return { movimientos, graves: sinVer, avisos: avisosSinVer, marcarVisto };
 }

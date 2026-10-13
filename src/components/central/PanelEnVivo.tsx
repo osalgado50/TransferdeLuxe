@@ -7,6 +7,7 @@ import MapaFlota from "@/components/mapa/MapaFlotaCarga";
 import ColumnaAlertas, { type EventoAlerta } from "./ColumnaAlertas";
 import Contadores from "./Contadores";
 import AlertasGraves from "./AlertasGraves";
+import AvisosAtencion from "./AvisosAtencion";
 import ActividadEnVivo from "./ActividadEnVivo";
 import { useSonidosCentral } from "./useSonidosCentral";
 import { useActividadCentral } from "./useActividadCentral";
@@ -25,7 +26,7 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
   const jor = useTiempoReal<JornadaAct>("jornadas", jornadas, "id");
   const cie = useTiempoReal<CierreAct>("cierres_jornada", cierres, "id");
   const pedirSonido = useSonidosCentral(ev, sv);
-  const { movimientos, graves, marcarVisto } = useActividadCentral({
+  const { movimientos, graves, avisos, marcarVisto } = useActividadCentral({
     eventos: ev, incidencias: inc, revisiones: rev, jornadas: jor, cierres: cie, servicios: sv, serviciosExtra,
     conductores, posiciones: ps, vehiculos, pedir: pedirSonido,
   });
@@ -35,19 +36,20 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
     setCentrar((c) => ({ ...p, n: (c?.n ?? 0) + 1 }));
     mapa.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
-  const tarjetasGraves = <AlertasGraves graves={graves} alVisto={marcarVisto} alCentrar={alCentrar} />;
+  const tarjetasGraves = <><AlertasGraves graves={graves} alVisto={marcarVisto} alCentrar={alCentrar} /><AvisosAtencion avisos={avisos} alVisto={marcarVisto} alCentrar={alCentrar} /></>;
+  const hayArriba = graves.length > 0 || avisos.length > 0;
   return (
     <div className="space-y-4">
       {!ok && <p role="status" className="text-xs text-amber-300">Reconectando…</p>}
       {/* En pantallas estrechas lo grave va arriba del todo (antes del mapa); en escritorio, arriba de la columna de alertas. */}
-      {graves.length > 0 && <div className="lg:hidden">{tarjetasGraves}</div>}
+      {hayArriba && <div className="space-y-3 lg:hidden">{tarjetasGraves}</div>}
       <Contadores servicios={sv} conductores={conductores} posiciones={ps} umbralMin={umbralMin} />
       {/* Mapa grande (ocupa casi toda la altura) y alertas al lado con su propio scroll, sin salirse por la derecha. */}
       <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4">
         <div ref={mapa} className="min-w-0 lg:col-span-2 xl:col-span-3"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} centrar={centrar} /></div>
         <div className="min-w-0 space-y-5 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto lg:pr-1">
           <ColumnaAlertas servicios={sv} eventos={ev} conductores={conductores} vehiculos={vehiculos}
-            arriba={graves.length > 0 ? <div className="hidden lg:block">{tarjetasGraves}</div> : null} />
+            arriba={hayArriba ? <div className="hidden space-y-3 lg:block">{tarjetasGraves}</div> : null} />
           <ActividadEnVivo movimientos={movimientos} />
         </div>
       </div>

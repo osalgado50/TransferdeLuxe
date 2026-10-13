@@ -5,6 +5,9 @@ import { esIncidenciaGrave, nombreTipoIncidencia } from "./incidencias";
 import { etiquetaEvento } from "./navegacion";
 import { zonaCercana } from "./zonas";
 import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
+import { agruparFinJornada, textoDevueltosFinJornada, textoJornadaConPendientes } from "./finJornada";
+import { esAnomalia, leerMotivoAnomalia, textoAnomalia } from "./anomalias";
+import { PREFIJO_ASIGNADO_AUSENTE } from "./ausencias";
 
 /**
  * «Actividad en vivo» de la central (lógica pura, compartida por la web y por /api/central/resumen de la app):
@@ -40,6 +43,8 @@ export interface Movimiento {
   cierreId?: string | null;
   zonasDanadas?: string[];
   matricula?: string | null;
+  /** Aviso que pide atención (CARGA/DESCARGA lejos, jornada cerrada con pendientes): tarjeta con «Ver en el mapa» y «Llamar». */
+  alerta?: boolean;
 }
 
 export interface EventoAct { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string; actor_id?: string | null }
@@ -50,7 +55,9 @@ export interface IncidenciaAct {
   zonas?: string[] | null;
 }
 export interface RevisionAct { id: string; conductor_id: string; vehiculo_id: string; con_fallos: boolean; observaciones?: string | null; creado_en: string }
-export interface JornadaAct { id: string; conductor_id: string; inicio: string; fin: string | null }
+export interface JornadaAct { id: string; conductor_id: string; inicio: string; fin: string | null;
+  /** Servicios de hoy sin devolver al cerrar (lo rellena el vigilante; null = aún sin revisar). */
+  pendientes_cierre?: { id: string; hora: string }[] | null }
 export interface CierreAct {
   id: string; conductor_id: string; vehiculo_id: string; zonas: string[]; tecnico: Tecnico; combustible: string;
   comentario: string | null; gravedad: GravedadCierre; creado_en: string; visto: boolean;
@@ -111,11 +118,13 @@ const ICONO: Record<string, string> = {
   creado: "🆕", asignado: "📤", reasignado: "🔁", aceptado: "✅", rechazado: "❌", expirado: "⏰", en_camino: "🚗",
   llegando_recogida: "📍", llegando_destino: "📍", recogido: "🧳", completado: "🏁", cancelado: "🚫", subcontratado: "🤝",
   llegada_vuelo: "✈️", recogida_reajustada: "🕒", retraso_recogida: "🔴", deshecho: "↩️", devuelto: "🔁", aviso_cliente: "💬",
+  anomalia_carga: "⚠️", anomalia_descarga: "⚠️", desasignado: "↩️",
 };
 /** Eventos que hace el propio conductor (el actor es él). En el resto se nombra al conductor asignado. */
-const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido", "completado", "llegando_recogida", "llegando_destino", "devuelto"]);
+const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido", "completado", "llegando_recogida", "llegando_destino", "devuelto",
+  "anomalia_carga", "anomalia_descarga"]);
 
-export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDAD): { movimientos: Movimiento[]; graves: Movimiento[] } {
+export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDAD): { movimientos: Movimiento[]; graves: Movimiento[]; avisos: Movimiento[] } {
   const servicios = new Map<string, ServicioAct>();
   for (const s of e.servicios) servicios.set(s.id, s);
   const ocultos = new Set(e.ocultos ?? []);
@@ -145,8 +154,22 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     return servicios.get(ev.servicio_id)?.conductor_id ?? null;
   };
 
+  // «Fin de jornada»: las devoluciones del mismo conductor en pocos minutos, en un solo movimiento.
+  const agrupados = new Set<number>();
+  for (const g of agruparFinJornada((e.eventos ?? []).filter((x) => !ocultos.has(x.servicio_id)))) {
+    if (g.length < 2) continue;
+    g.forEach((x) => agrupados.add(x.id));
+    const ult = g[g.length - 1];
+    const servs = g.map((x) => servicios.get(x.servicio_id)).filter((x): x is ServicioAct => !!x);
+    const cid = g[0].actor_id ?? null;
+    const m = base(`fdj-${g[0].id}`, ult.creado_en, cid, undefined);
+    out.push({ ...m, tipo: "devuelto_fin_jornada", icono: "🔁", gravedad: "aviso", servicioId: servs[0]?.id ?? null,
+      texto: textoDevueltosFinJornada(nombre(cid), servs.length ? servs.map((x) => x.fecha_hora_recogida) : g.map(() => ult.creado_en)),
+      detalle: servs.map((x) => `${horaMadrid(x.fecha_hora_recogida)} ${trayectoBreve(x)}`).join(" · ") || null, descripcion: "Fin de jornada" });
+  }
+
   for (const ev of e.eventos ?? []) {
-    if (ocultos.has(ev.servicio_id)) continue;
+    if (ocultos.has(ev.servicio_id) || agrupados.has(ev.id)) continue;
     const s = servicios.get(ev.servicio_id);
     const deshecho = ev.tipo === "deshecho" ? leerDeshecho(ev.motivo) : null;
     // Aviso al cliente: lo manda el conductor o la central (actor que no es conductor → «La central»).
@@ -164,8 +187,27 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     let texto: string;
     switch (ev.tipo) {
       case "creado": texto = s?.origen_pedido === "web" ? `Reserva nueva de la web para ${s ? cuando(s, ev.creado_en) : "un servicio"}${T}` : `Servicio nuevo para ${s ? cuando(s, ev.creado_en) : "—"}${T}`; break;
-      case "asignado": texto = `${Serv} enviado a ${cid ? N : "un conductor"}${T}`; break;
-      case "reasignado": texto = `${Serv} reasignado a ${cid ? N : "un conductor"}${T}`; break;
+      case "asignado": case "reasignado": {
+        texto = `${Serv} ${ev.tipo === "asignado" ? "enviado" : "reasignado"} a ${cid ? N : "un conductor"}${T}`;
+        // Asignado igualmente a un conductor ausente (vacaciones, baja…): queda registrado.
+        if (ev.motivo?.startsWith(`${PREFIJO_ASIGNADO_AUSENTE}:`)) { texto += ` · aunque estaba de ${ev.motivo.slice(PREFIJO_ASIGNADO_AUSENTE.length + 1).trim()}`; m.gravedad = "aviso"; }
+        break;
+      }
+      case "desasignado": {
+        const motivo = ev.motivo?.trim() ? ` (${recortar(ev.motivo.trim(), 120)})` : "";
+        texto = `↩ La central ha quitado ${serv} al conductor para reasignarlo${motivo}`;
+        m.gravedad = "aviso";
+        break;
+      }
+      case "anomalia_carga": case "anomalia_descarga": {
+        // CARGA / DESCARGA lejos del punto: posición del conductor en ese momento (para «Ver en el mapa»).
+        const a = leerMotivoAnomalia(ev.motivo);
+        const lugar = s ? lugarDetallado(ev.tipo === "anomalia_carga" ? s.origen_texto : s.destino_texto) : null;
+        texto = a ? textoAnomalia(N, ev.tipo, a.distanciaM, lugar, a) : `⚠️ ${N}: ${etiquetaEvento(ev.tipo)}`;
+        if (a) { m.lat = a.lat; m.lng = a.lng; m.zona = zonaCercana(a.lat, a.lng)?.texto ?? null; }
+        m.gravedad = "aviso"; m.alerta = true;
+        break;
+      }
       case "aceptado": texto = `${N} ha aceptado ${serv}${T}`; break;
       case "rechazado": texto = ev.motivo?.trim() ? `${N} ha rechazado: ${recortar(ev.motivo.trim(), 120)}` : `${N} ha rechazado ${serv}`; m.gravedad = "aviso"; break;
       case "expirado": texto = `${N} no ha respondido a tiempo a ${serv}`; m.gravedad = "aviso"; break;
@@ -248,7 +290,14 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
 
   for (const j of e.jornadas ?? []) {
     out.push({ ...base(`jor-${j.id}-i`, j.inicio, j.conductor_id, undefined), tipo: "jornada_inicio", icono: "▶️", texto: `${nombre(j.conductor_id)} ha empezado la jornada` });
-    if (j.fin) out.push({ ...base(`jor-${j.id}-f`, j.fin, j.conductor_id, undefined), tipo: "jornada_fin", icono: "⏹️", texto: `${nombre(j.conductor_id)} ha terminado la jornada` });
+    if (j.fin && j.pendientes_cierre?.length) {
+      // Cerró la jornada con servicios de hoy sin devolver (red de seguridad del vigilante): la central tiene que actuar.
+      const m = base(`jor-${j.id}-f`, j.fin, j.conductor_id, undefined);
+      const p = pos.get(j.conductor_id);
+      out.push({ ...m, tipo: "jornada_pendientes", icono: "⚠️", gravedad: "aviso", alerta: true,
+        texto: textoJornadaConPendientes(nombre(j.conductor_id), j.pendientes_cierre.map((x) => x.hora)),
+        servicioId: j.pendientes_cierre[0]?.id ?? null, lat: p?.lat ?? null, lng: p?.lng ?? null, zona: p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null });
+    } else if (j.fin) out.push({ ...base(`jor-${j.id}-f`, j.fin, j.conductor_id, undefined), tipo: "jornada_fin", icono: "⏹️", texto: `${nombre(j.conductor_id)} ha terminado la jornada` });
   }
 
   // Hoja de cierre: grave (daños, testigo, avería) → tarjeta roja fija hasta «Visto»; mantenimiento → aviso; ok → info verde.
@@ -271,8 +320,8 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
   const orden = (a: Movimiento, b: Movimiento) => t(b) - t(a) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
   const unicos = [...new Map(out.map((m) => [m.id, m])).values()].sort(orden);
   const desde = e.desde?.getTime();
-  const movimientos = (desde != null ? unicos.filter((m) => t(m) >= desde) : unicos).slice(0, limite);
-  return { movimientos, graves: unicos.filter((m) => m.pendiente) };
+  const recientes = desde != null ? unicos.filter((m) => t(m) >= desde) : unicos;
+  return { movimientos: recientes.slice(0, limite), graves: unicos.filter((m) => m.pendiente), avisos: recientes.filter((m) => m.alerta) };
 }
 
 // ── Alarma insistente (central web y app): suena al aparecer una grave nueva y se repite cada 30 s, máx. 5 veces,

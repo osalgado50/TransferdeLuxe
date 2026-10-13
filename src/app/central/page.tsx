@@ -29,7 +29,7 @@ export default async function PanelCentral() {
     sb.from("incidencias").select("id,conductor_id,servicio_id,tipo,descripcion,lat,lng,creado_en,resuelta,zonas")
       .or(`creado_en.gte.${hace12h},and(resuelta.is.false,tipo.in.(${TIPOS_GRAVES.join(",")}))`).order("creado_en", { ascending: false }).limit(100),
     sb.from("checklist_revisiones").select("id,conductor_id,vehiculo_id,con_fallos,observaciones,creado_en").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(100),
-    sb.from("jornadas").select("id,conductor_id,inicio,fin").or(`inicio.gte.${hace12h},fin.gte.${hace12h}`).order("inicio", { ascending: false }).limit(100),
+    sb.from("jornadas").select("id,conductor_id,inicio,fin,pendientes_cierre").or(`inicio.gte.${hace12h},fin.gte.${hace12h}`).order("inicio", { ascending: false }).limit(100),
     // Hojas de cierre: las de las últimas 12 h y las graves sin ver (aunque sean más antiguas).
     sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en,visto")
       .or(`creado_en.gte.${hace12h},and(gravedad.eq.grave,visto.is.false)`).order("creado_en", { ascending: false }).limit(100),

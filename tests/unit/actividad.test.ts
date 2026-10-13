@@ -198,3 +198,36 @@ describe("devuelto y aviso al cliente", () => {
     expect(central.texto).toBe("💬 La central ha avisado al cliente (Lucía): llega con retraso (SMS)");
   });
 });
+
+describe("ausencias, fin de jornada y anomalías en la actividad", () => {
+  const S2 = { ...S, id: "s2", fecha_hora_recogida: "2026-10-11T16:30:00Z" };
+  it("devoluciones por «Fin de jornada» agrupadas en un movimiento", () => {
+    const r = construirActividad(entrada({ servicios: [S, S2], eventos: [
+      ev(1, "rechazado", { motivo: "Fin de jornada" }), { ...ev(2, "devuelto", { motivo: "Fin de jornada" }), servicio_id: "s2" },
+    ] }));
+    expect(r.movimientos).toHaveLength(1);
+    expect(r.movimientos[0]).toMatchObject({ tipo: "devuelto_fin_jornada", gravedad: "aviso", conductor: "Marc",
+      texto: "🔁 Marc ha terminado la jornada y ha devuelto 2 servicios de esta tarde", detalle: "15:00 Salou → Aeropuerto de Reus · 18:30 Salou → Aeropuerto de Reus" });
+  });
+  it("CARGA lejos: aviso con posición para el mapa, teléfono y alerta", () => {
+    const r = construirActividad(entrada({ eventos: [ev(3, "anomalia_carga", { motivo: "d=2300;lat=41.06700;lng=1.05970" })] }));
+    expect(r.avisos).toHaveLength(1);
+    expect(r.avisos[0]).toMatchObject({ tipo: "anomalia_carga", alerta: true, gravedad: "aviso", lat: 41.067, lng: 1.0597, telefono: "600000001", servicioId: "s1",
+      texto: "⚠️ Marc ha marcado CARGA a 2,3 km de la recogida (Salou – Plaza Europa) · está en Cambrils" });
+  });
+  it("jornada cerrada con pendientes → aviso; sin pendientes → «ha terminado la jornada»", () => {
+    const r = construirActividad(entrada({ jornadas: [
+      { id: "j1", conductor_id: "c1", inicio: "2026-10-11T06:00:00Z", fin: "2026-10-11T10:00:00Z", pendientes_cierre: [{ id: "s1", hora: "16:00" }, { id: "s2", hora: "18:30" }] },
+      { id: "j2", conductor_id: "c2", inicio: "2026-10-11T06:00:00Z", fin: "2026-10-11T10:00:00Z", pendientes_cierre: [] },
+    ] }));
+    const f = r.movimientos.filter((m) => m.id.endsWith("-f"));
+    expect(f.find((m) => m.conductorId === "c1")).toMatchObject({ tipo: "jornada_pendientes", alerta: true, texto: "⚠️ Marc ha cerrado la jornada con 2 servicios pendientes hoy (16:00, 18:30)" });
+    expect(f.find((m) => m.conductorId === "c2")).toMatchObject({ tipo: "jornada_fin", texto: "Laia ha terminado la jornada" });
+    expect(r.avisos.map((m) => m.tipo)).toEqual(["jornada_pendientes"]);
+  });
+  it("asignado a un ausente queda registrado; desasignado por la central", () => {
+    const r = construirActividad(entrada({ eventos: [ev(4, "asignado", { motivo: "ausente: vacaciones", actor_id: "op" }), ev(5, "desasignado", { motivo: "Ausencia: vacaciones", actor_id: "op" })] }));
+    expect(r.movimientos.find((m) => m.tipo === "asignado")?.texto).toMatch(/enviado a Marc .* · aunque estaba de vacaciones$/);
+    expect(r.movimientos.find((m) => m.tipo === "desasignado")?.texto).toBe("↩ La central ha quitado el servicio de las 15:00 al conductor para reasignarlo (Ausencia: vacaciones)");
+  });
+});

@@ -77,6 +77,23 @@ function TarjetaGrave({ g, alVisto, alResuelta }: { g: Movimiento; alVisto: () =
   );
 }
 
+/** CARGA/DESCARGA lejos del punto o jornada cerrada con pendientes: aviso ámbar con «Llamar» y «Mapa». */
+function TarjetaAviso({ g, alVisto }: { g: Movimiento; alVisto: () => void }) {
+  return (
+    <View style={estilos.avisoAt} accessibilityRole="alert">
+      <Text style={estilos.avisoAtTitulo}>{g.texto}</Text>
+      <Text style={estilos.graveMeta}>{g.hora}{g.detalle ? ` · ${g.detalle}` : ""}</Text>
+      <View style={estilos.fila}>
+        {!!g.telefono && <Boton texto="📞 Llamar" estilo={{ flex: 1 }} etiqueta={`Llamar a ${g.conductor ?? "conductor"}`}
+          onPress={() => { void Linking.openURL(`tel:${g.telefono}`).catch(() => undefined); }} />}
+        {g.lat != null && g.lng != null && <Boton texto="📍 Mapa" variante="secundario" estilo={{ flex: 1 }} etiqueta="Ver la posición en el mapa"
+          onPress={() => { void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${g.lat},${g.lng}`).catch(() => undefined); }} />}
+        <Boton texto="Visto" variante="secundario" estilo={{ flex: 1 }} onPress={alVisto} />
+      </View>
+    </View>
+  );
+}
+
 const COLOR_MOV = { grave: "#fca5a5", aviso: "#fcd34d", info: color.texto } as const;
 const VERDE = "#86efac"; // hoja de cierre sin incidencias
 const VISIBLES = 8;
@@ -113,6 +130,7 @@ export default function Central() {
   const marcadores = useMemo(() => (datos ? marcadoresFlota(datos.posiciones, datos.hoy, datos.conductores, ahora, umbral) : []), [datos, ahora, umbral]);
   const alertas = datos?.alertas ?? [];
   const graves = (datos?.graves ?? []).filter((g) => !vistos.has(g.id));
+  const avisos = (datos?.avisos ?? []).filter((g) => !vistos.has(g.id));
 
   return (
     <ScrollView contentContainerStyle={estilos.contenido}
@@ -132,6 +150,7 @@ export default function Central() {
           await recargar();
         }} />
       ))}
+      {avisos.map((g) => <TarjetaAviso key={g.id} g={g} alVisto={() => marcarGraveVista(g.id)} />)}
       {/* Sin alertas: una franja verde pequeña (deja sitio al mapa). Con alertas: título y tarjetas. */}
       {!cargando && alertas.length === 0 && graves.length === 0 && !error
         ? <View style={estilos.ok} accessibilityRole="text"><Text style={estilos.okTexto}>✓ Sin alertas · todo en orden</Text></View>
@@ -172,6 +191,8 @@ const estilos = StyleSheet.create({
   actividad: { gap: 6 },
   subtitulo: { color: color.marcaClaro, fontSize: 20, fontWeight: "700", marginTop: 4 },
   mov: { flexDirection: "row", gap: 8, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10, backgroundColor: color.tarjeta, borderWidth: 1, borderColor: color.borde },
+  avisoAt: { borderWidth: 2, borderColor: "#f59e0b", backgroundColor: "rgba(120,53,15,0.5)", borderRadius: 14, padding: 12, gap: 8 },
+  avisoAtTitulo: { color: "#fde68a", fontSize: 17, fontWeight: "800" },
   movGrave: { borderColor: "#ef4444", backgroundColor: "rgba(127,29,29,0.5)" },
   movIcono: { fontSize: 16, width: 22, textAlign: "center" },
   movTexto: { fontSize: 15 },

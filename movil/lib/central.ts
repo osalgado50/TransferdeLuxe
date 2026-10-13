@@ -21,6 +21,8 @@ export interface ResumenCentral {
   posiciones: (PosicionActual & { nombre?: string })[]; conductores: ConductorCentral[];
   /** Últimos movimientos (12 h) ya redactados y lo grave sin resolver (opcionales: servidores anteriores no los traen). */
   actividad?: Movimiento[]; graves?: Movimiento[];
+  /** CARGA/DESCARGA lejos del punto y jornadas cerradas con pendientes (opcional: servidores anteriores no lo traen). */
+  avisos?: Movimiento[];
   /** Semáforo de llegada a la recogida por id de servicio (opcional: servidores anteriores no lo traen). */
   puntualidad?: Record<string, IndicadorPuntualidad>;
 }
