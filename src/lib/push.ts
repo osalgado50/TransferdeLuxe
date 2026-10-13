@@ -65,8 +65,9 @@ function hora(iso: string) {
 export async function notificarServicioNuevo(servicioId: string): Promise<void> {
   try {
     const sb = clienteAdmin();
-    const { data: s } = await sb.from("servicios").select("id,conductor_id,fecha_hora_recogida,origen_texto,destino_texto").eq("id", servicioId).maybeSingle();
+    const { data: s } = await sb.from("servicios").select("id,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,notas,es_prueba").eq("id", servicioId).maybeSingle();
     if (!s?.conductor_id) return;
+    if (s.es_prueba || (s.notas ?? "").startsWith("PRUEBA AUTOMÁTICA")) return; // pruebas automáticas: sin aviso al móvil
     const { data: disp } = await sb.from("dispositivos_push").select("token").eq("conductor_id", s.conductor_id);
     const tokens = (disp ?? []).map((d: { token: string }) => d.token);
     if (!tokens.length) return;

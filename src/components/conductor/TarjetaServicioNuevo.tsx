@@ -52,7 +52,7 @@ export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: {
       const cur = actual.current;
       if (!cur) return;
       try {
-        const { data, error: e } = await clienteNavegador().from("servicios").select("id,asignado_en").eq("conductor_id", yo).eq("estado", "asignado");
+        const { data, error: e } = await clienteNavegador().from("servicios").select("id,asignado_en").eq("conductor_id", yo).eq("estado", "asignado").eq("es_prueba", false).or("notas.is.null,notas.not.like.PRUEBA AUTOMÁTICA*");
         if (e || !data) return;
         const vivos = new Set(data.map(clave));
         if (!vivos.has(clave(cur))) {

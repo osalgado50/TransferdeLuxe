@@ -24,7 +24,7 @@ const VUELTA = "El servicio ha vuelto a la central";
 /** Modal a pantalla completa cuando la central me asigna un servicio (el más antiguo primero). */
 export function ServicioNuevo({ yo }: { yo: string }) {
   const { datos, recargar } = useConsulta(async () =>
-    exigir(await supabase.from("servicios").select(CAMPOS).eq("conductor_id", yo).eq("estado", "asignado")) as Nuevo[], [yo]);
+    exigir(await supabase.from("servicios").select(CAMPOS).eq("conductor_id", yo).eq("estado", "asignado").eq("es_prueba", false).or("notas.is.null,notas.not.like.PRUEBA AUTOMÁTICA*")) as Nuevo[], [yo]);
   const [ahora, setAhora] = useState(() => new Date());
   const [ocultos, setOcultos] = useState<Set<string>>(new Set());
   const [aviso, setAviso] = useState<string | null>(null);

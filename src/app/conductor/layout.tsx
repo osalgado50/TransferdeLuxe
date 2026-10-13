@@ -25,7 +25,7 @@ export default async function LayoutConductor({ children }: { children: React.Re
   const { data: aj } = await sb.from("ajustes").select("modulos").maybeSingle();
   const { data: nuevos } = await sb.from("servicios")
     .select("id,estado,conductor_id,asignado_en,plazo_respuesta_min,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,notas")
-    .eq("conductor_id", yo.id).eq("estado", "asignado");
+    .eq("conductor_id", yo.id).eq("estado", "asignado").eq("es_prueba", false).or("notas.is.null,notas.not.like.PRUEBA AUTOMÁTICA*");
   return (
     <div className="min-h-screen bg-slate-950 pb-24 text-slate-200">
       <RegistroSW />
