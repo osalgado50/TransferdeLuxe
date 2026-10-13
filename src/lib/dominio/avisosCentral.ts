@@ -2,11 +2,13 @@ import { esIncidenciaGrave, nombreTipoIncidencia } from "./incidencias";
 import { leerDeshecho } from "./deshacer";
 import { zonaCercana } from "./zonas";
 import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type Tecnico } from "./cierre";
+import { agruparFinJornada, textoDevueltosFinJornada, textoJornadaConPendientes } from "./finJornada";
+import { esAnomalia, leerMotivoAnomalia, textoAnomalia } from "./anomalias";
 
 /** Lógica pura de los avisos push a la central (vigilante del servidor). */
 export interface AvisoCentral { titulo: string; cuerpo: string; data: { tipo: string; servicioId?: string; incidenciaId?: string; cierreId?: string; grave?: boolean } }
 export interface ServicioAviso { id: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string; origen_pedido: string; conductor_id?: string | null }
-export interface EventoAviso { id: number; servicio_id: string; tipo: string; actor_id: string | null; motivo: string | null }
+export interface EventoAviso { id: number; servicio_id: string; tipo: string; actor_id: string | null; motivo: string | null; creado_en?: string }
 export interface IncidenciaAviso { id?: string; conductor_id: string; servicio_id: string | null; tipo: string; descripcion: string; lat?: number | null; lng?: number | null; zonas?: string[] | null }
 export interface RevisionAviso { conductor_id: string; vehiculo_id: string }
 export interface CierreAviso {
@@ -17,6 +19,8 @@ export interface Entrada {
   servicios: Map<string, ServicioAviso>; nombres: Map<string, string>; matriculas: Map<string, string>;
   /** Última posición de cada conductor: zona de la incidencia si no trae coordenadas. */
   posiciones?: Map<string, { lat: number; lng: number }>;
+  /** Jornadas cerradas con servicios de hoy aún sin devolver (una vez por jornada; lo detecta el vigilante). */
+  jornadasPendientes?: { conductor_id: string; horas: string[] }[];
 }
 
 export const MAX_AVISOS = 8;
@@ -35,7 +39,23 @@ const recortar = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}
 export function construirAvisos(e: Entrada): AvisoCentral[] {
   const out: AvisoCentral[] = [];
   const nombre = (id: string | null) => (id && e.nombres.get(id)) || "un conductor";
+  // «Fin de jornada»: las devoluciones del mismo conductor van en un solo aviso.
+  const finJornada = new Set<number>();
+  for (const g of agruparFinJornada(e.eventos.map((x, i) => ({ ...x, creado_en: x.creado_en ?? new Date(i).toISOString() })))) {
+    const servs = g.map((x) => e.servicios.get(x.servicio_id)).filter((x): x is ServicioAviso => !!x);
+    if (!servs.length) continue;
+    g.forEach((x) => finJornada.add(x.id));
+    const nombreC = (g[0].actor_id && e.nombres.get(g[0].actor_id)) || "Un conductor";
+    out.push({ titulo: textoDevueltosFinJornada(nombreC, servs.map((x) => x.fecha_hora_recogida)),
+      cuerpo: `${recortar(servs.map(trayecto).join(" · "), 160)} · Reasígnalos`, data: { tipo: "devuelto", servicioId: servs[0].id } });
+  }
+  for (const j of e.jornadasPendientes ?? []) {
+    if (!j.horas.length) continue;
+    const n = (e.nombres.get(j.conductor_id)) || "Un conductor";
+    out.push({ titulo: textoJornadaConPendientes(n, j.horas), cuerpo: "Llama al conductor o reasigna esos servicios", data: { tipo: "jornada_pendientes" } });
+  }
   for (const ev of e.eventos) {
+    if (finJornada.has(ev.id)) continue;
     const s = e.servicios.get(ev.servicio_id);
     if (!s) continue;
     const data = { tipo: ev.tipo, servicioId: s.id };
@@ -47,6 +67,14 @@ export function construirAvisos(e: Entrada): AvisoCentral[] {
       // «No puedo hacer este servicio»: vuelve a «Sin asignar»; la central tiene que reasignarlo.
       out.push({ titulo: `🔁 ${nombre(ev.actor_id)} ha devuelto el servicio de las ${horaMadrid(s.fecha_hora_recogida)}${ev.motivo ? `: ${recortar(ev.motivo, 60)}` : ""}`,
         cuerpo: `${trayecto(s)} · Reasígnalo`, data });
+    }
+    else if (esAnomalia(ev.tipo)) {
+      // CARGA / DESCARGA lejos del punto: quizá hay que llamarlo.
+      const m = leerMotivoAnomalia(ev.motivo);
+      if (m) {
+        const lugar = lugarCorto(ev.tipo === "anomalia_carga" ? s.origen_texto : s.destino_texto);
+        out.push({ titulo: textoAnomalia(nombre(ev.actor_id), ev.tipo, m.distanciaM, lugar, m), cuerpo: `${trayecto(s)} · Llama al conductor`, data });
+      }
     }
     else if (ev.tipo === "deshecho") {
       // Solo lo que deshace el conductor (lo de la central lo ha hecho ella misma).

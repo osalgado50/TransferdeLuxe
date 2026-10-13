@@ -7,7 +7,8 @@ export const NOMBRE_CANAL: Record<SonidoPush, string> = {
   servicio_nuevo: "Servicios nuevos", alarma: "Alarmas (averías y accidentes)", aviso: "Avisos (retrasos, rechazos)", aceptado: "Confirmaciones",
 };
 
-const AVISOS = new Set(["rechazado", "expirado", "retraso", "retraso_recogida", "no_presentado", "checklist", "deshecho", "servicio_retirado", "cierre_mantenimiento"]);
+const AVISOS = new Set(["rechazado", "expirado", "retraso", "retraso_recogida", "no_presentado", "checklist", "deshecho", "servicio_retirado", "cierre_mantenimiento",
+  "devuelto", "desasignado", "anomalia_carga", "anomalia_descarga", "jornada_pendientes"]);
 
 /** Qué sonido corresponde a un aviso según su tipo (y si es grave). null = sonido normal del sistema. */
 export function sonidoDeAviso(d: { tipo?: string; grave?: boolean } | undefined): SonidoPush | null {

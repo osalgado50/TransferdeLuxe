@@ -90,3 +90,33 @@ describe("servicio devuelto → push a la central", () => {
     expect(construirAvisos(base({ eventos: [{ id: 10, servicio_id: "s1", tipo: "aviso_cliente", actor_id: "c1", motivo: "en_camino" }] }))).toEqual([]);
   });
 });
+
+describe("fin de jornada, jornada cerrada con pendientes y CARGA/DESCARGA lejos", () => {
+  const S2 = { ...S, id: "s2", fecha_hora_recogida: "2026-10-11T16:30:00Z" };
+  const servicios = new Map([["s1", S], ["s2", S2]]);
+  test("las devoluciones por «Fin de jornada» del mismo conductor van en UN aviso; las demás, sueltas", () => {
+    const r = construirAvisos(base({ servicios, eventos: [
+      { id: 1, servicio_id: "s1", tipo: "rechazado", actor_id: "c1", motivo: "Fin de jornada", creado_en: "2026-10-11T10:00:00Z" },
+      { id: 2, servicio_id: "s2", tipo: "devuelto", actor_id: "c1", motivo: "Fin de jornada", creado_en: "2026-10-11T10:00:02Z" },
+    ] }));
+    expect(r).toHaveLength(1);
+    expect(r[0].titulo).toBe("🔁 Laia Demo ha terminado la jornada y ha devuelto 2 servicios de esta tarde");
+    expect(r[0].cuerpo).toBe("Reus → Salou 15:00 · Reus → Salou 18:30 · Reasígnalos");
+    expect(sonidoDeAviso(r[0].data)).toBe("aviso");
+    const suelto = construirAvisos(base({ eventos: [{ id: 3, servicio_id: "s1", tipo: "devuelto", actor_id: "c1", motivo: "Avería" }] }));
+    expect(suelto[0].titulo).toMatch(/^🔁 Laia Demo ha devuelto el servicio de las 15:00: Avería$/);
+  });
+  test("jornada cerrada con servicios pendientes hoy → aviso con sonido de aviso", () => {
+    const r = construirAvisos(base({ jornadasPendientes: [{ conductor_id: "c1", horas: ["16:00", "18:30"] }, { conductor_id: "c1", horas: [] }] }));
+    expect(r).toEqual([{ titulo: "⚠️ Laia Demo ha cerrado la jornada con 2 servicios pendientes hoy (16:00, 18:30)",
+      cuerpo: "Llama al conductor o reasigna esos servicios", data: { tipo: "jornada_pendientes" } }]);
+    expect(sonidoDeAviso(r[0].data)).toBe("aviso");
+  });
+  test("CARGA lejos de la recogida: distancia, lugar y zona del conductor", () => {
+    const r = construirAvisos(base({ servicios: new Map([["s1", { ...S, origen_texto: "Salou – Plaza Europa, Salou" }]]),
+      eventos: [{ id: 9, servicio_id: "s1", tipo: "anomalia_carga", actor_id: "c1", motivo: "d=2300;lat=41.06700;lng=1.05970" }] }));
+    expect(r[0].titulo).toBe("⚠️ Laia Demo ha marcado CARGA a 2,3 km de la recogida (Salou – Plaza Europa) · está en Cambrils");
+    expect(r[0].data).toEqual({ tipo: "anomalia_carga", servicioId: "s1" });
+    expect(sonidoDeAviso(r[0].data)).toBe("aviso");
+  });
+});
