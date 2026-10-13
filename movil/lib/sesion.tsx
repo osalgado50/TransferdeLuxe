@@ -55,7 +55,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     const r = await leerPerfil(s.user.id);
     if (!vivo.current) return;
     if (r.tipo === "no_conductor") {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       if (vivo.current) { setSesion(null); setPerfil(null); setSinConexion(false); }
       return;
     }
@@ -99,8 +99,8 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     if (error) return esErrorDeRed(error.message, error.status) ? ERROR_RED : ERROR_CREDENCIALES;
     if (!data.session) return ERROR_CREDENCIALES;
     const r = await leerPerfil(data.session.user.id);
-    if (r.tipo === "red") { await supabase.auth.signOut(); return ERROR_RED; }
-    if (r.tipo === "no_conductor") { await supabase.auth.signOut(); return ERROR_ROL; }
+    if (r.tipo === "red") { await supabase.auth.signOut({ scope: "local" }); return ERROR_RED; }
+    if (r.tipo === "no_conductor") { await supabase.auth.signOut({ scope: "local" }); return ERROR_ROL; }
     await limpiarDatosGps().catch(() => undefined); // cola/último envío de sesiones anteriores
     if (vivo.current) { setPerfil(r.perfil); setSesion(data.session); setSinConexion(false); }
     return null;
@@ -111,7 +111,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     const id = (await supabase.auth.getSession()).data.session?.user.id;
     if (id) { await pararGps(id).catch(() => undefined); await marcarFueraDeServicio(); }
     await darDeBajaPush(); // este dispositivo deja de recibir avisos de servicios
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     if (vivo.current) { setSesion(null); setPerfil(null); setSinConexion(false); }
   }, []);
 

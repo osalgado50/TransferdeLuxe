@@ -12,4 +12,5 @@ export async function entrar(_: unknown, fd: FormData): Promise<{ error?: string
   const valido = destino === area || destino.startsWith(area + "/");
   redirect(valido ? destino : area);
 }
-export async function salir() { const sb = await clienteServidor(); await sb.auth.signOut(); redirect("/login"); }
+// Solo este dispositivo: con scope global, salir en un móvil cerraba la cuenta en todos (cuentas de demo compartidas).
+export async function salir() { const sb = await clienteServidor(); await sb.auth.signOut({ scope: "local" }); redirect("/login"); }
