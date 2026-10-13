@@ -1130,3 +1130,81 @@ La base de datos de búsqueda, por ejemplo, del destino o del origen, eh, la pue
 
 ---
 
+## 2026-10-13 11:52 · Claude Code · sesión `b3c0e64f`
+
+que dia y hora empezamos el proyecto?
+
+---
+
+## 2026-10-13 12:00 · Claude Code · sesión `b3c0e64f`
+
+En este formulario de la página, eh, activa la búsqueda predictiva cuando escribas en el, en el campo de dirección o el campo de destino, que contraste con las direcciones que hay reales en, el Google Maps
+
+---
+
+## 2026-10-13 12:02 · Claude Code · sesión `b3c0e64f`
+
+seguimos solo con lo gratuito, avísame cuando esté publicado
+
+---
+
+## 2026-10-13 12:30 · Claude Code · sesión `b3c0e64f`
+
+Eh, vamos a hacer una prueba. Eh, voy a salir, ¿vale? Voy a crear un porte como si fuera yo un, un transportista y me voy a dar una vuelta. Y cuando tenga activado el, el servicio, ¿vale? Que lo voy a activar dentro de diez minutos más o menos, eh, me mandas dos o tres servicios para comprobar que funciona bien mientras yo estoy conduciendo, que me van llegando los servicios y los pueda aceptar en el momento, si puedo contestar porque estoy conduciendo, o reservarlos para, para después y y aceptar o rechazar en función de, de cómo esté.
+
+---
+
+## 2026-10-13 12:46 · Claude Code · sesión `b3c0e64f`
+
+Cuando se inicie la jornada, haz que el cuadro de checklist salga para que se valide antes de empezar la jornada.
+
+---
+
+## 2026-10-13 13:01 · Claude Code · sesión `b3c0e64f`
+
+Vale, vamos a preparar la lógica de la distribución de servicios. Cada servicio tendrías que calcular lo que tarda en tiempo en realizarse, más o menos, para evitar que cuando se distribuyan los servicios haya muy poco margen entre servicio y servicio y el conductor no pueda llegar. Cuando hay muchos servicios acumulados, el gestor del centro de control tendría que tener un botón que le diera asignar automáticamente y tu lógica de asignación le asignaría a los conductores. Cuando le des a esta orden de asignación, seleccionarás una lista de los conductores disponibles para asignar las tareas. ¿Tienes alguna duda?
+
+---
+
+## 2026-10-13 13:19 · Claude Code · sesión `b3c0e64f`
+
+Vale, si además añades un indicador visual en los servicios del centro de control para ver si están en plazo, llegan puntuales o llegan retrasados, pues eso estaría, vamos, para abordarlo. Verde llegamos bien, naranja estamos justo y rojo estamos retrasados.
+
+---
+
+## 2026-10-13 13:20 · Claude Code · sesión `b3c0e64f`
+
+Y ya que te pones, me gustaría que el conductor pudiera enviar algún tipo de comunicación o mensaje al cliente diciendo, pues estoy en camino, o me retraso, o se ha cancelado el servicio para que Central le asigne otro conductor.
+
+---
+
+## 2026-10-13 13:23 · Claude Code · sesión `b3c0e64f`
+
+Otra cosa, cuando el conductor acepta un servicio, si detectas que está lejos del punto de recogida, crea una alerta en el panel de control para tenerlo claro en qué posición ha activado el servicio de recogida, que si está lejos de donde el cliente ha dicho, hay alguna anomalía y quizá habrá que llamarlo o ver qué está pasando.
+
+---
+
+## 2026-10-13 13:28 · Claude Code · sesión `b3c0e64f`
+
+Vale, muy bien. ¿Qué pasa, por ejemplo, si soy el conductor y tengo asignados servicios por la tarde y termino mi jornada a mediodía? ¿Esos servicios quedan desatendidos? En tal caso, lo que deberías hacer esos servicios de la tarde, porque he terminado mi jornada y no voy a volver a trabajar, devolverlos a central con un aviso para que se reasignen a otros conductores libres.
+
+---
+
+## 2026-10-13 13:31 · Claude Code · sesión `b3c0e64f`
+
+Vale, pero tened en consideración que los servicios del día siguiente es otra jornada de trabajo, por lo tanto no tienes que devolverlos, ¿vale? Solo los del día actual porque ese conductor no va a trabajar más hasta el día siguiente. También deberíamos de de poder marcar en la aplicación de control los días de fiesta o vacaciones de los conductores. Para que queden los huecos bloqueados para que no se les pueda asignar trabajos.
+
+---
+
+## 2026-10-13 13:33 · Claude Code · sesión `b3c0e64f`
+
+porque?
+
+---
+
+## 2026-10-13 13:34 · Claude Code · sesión `b3c0e64f`
+
+ok, avísame cuando esté publicado todo
+
+---
+
