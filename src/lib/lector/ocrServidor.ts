@@ -21,7 +21,7 @@ declare const __non_webpack_require__: NodeJS.Require;
 /** El `require` de Node de verdad (webpack no lo toca): tesseract.js se carga de node_modules tal cual. */
 const requerir = (m: string): unknown => __non_webpack_require__(m);
 /** Versión del OCR del servidor (sale en el diagnóstico: así se sabe qué código responde tras un despliegue). */
-const VERSION_OCR = "ocr-5-wasm-sincrono";
+const VERSION_OCR = "ocr-7-en-proceso";
 let enProcesoListo = false;
 /**
  * Variante del motor wasm: primero la SIMD (más rápida); si aborta al arrancar, la siguiente vez la normal. Cada fallo de
@@ -42,7 +42,7 @@ function instanciarSincrono(nombre: string) {
       const t = Date.now();
       m = new WebAssembly.Module(fs.readFileSync(__non_webpack_require__.resolve(`tesseract.js-core/${nombre}.wasm`)));
       modulos.set(nombre, m);
-      ultimoPaso = `wasm ${nombre} compilado en ${Date.now() - t} ms`;
+      paso(`wasm ${nombre} compilado en ${Date.now() - t} ms`);
     }
     const i = new WebAssembly.Instance(m, imports);
     recibir(i, m);
@@ -59,10 +59,10 @@ function getCoreConDiagnostico(): (oem: unknown, corePath: unknown, res: { progr
       const p = Core({
         ...opts,
         instantiateWasm: instanciarSincrono(nombre),
-        printErr: (t: string) => { ultimoPaso = `${nombre} printErr: ${t}`.slice(0, 200); },
-        onAbort: (w: unknown) => { ultimoPaso = `${nombre} abort: ${String(w)}`.slice(0, 200); variante++; },
+        printErr: (t: string) => { paso(`${nombre} printErr: ${t}`); },
+        onAbort: (w: unknown) => { paso(`${nombre} abort: ${String(w)}`); variante++; },
       });
-      p.catch((e: unknown) => { ultimoPaso = `${nombre} error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200); variante++; });
+      p.catch((e: unknown) => { paso(`${nombre} error: ${e instanceof Error ? e.message : String(e)}`); variante++; });
       return p;
     };
   };
@@ -71,6 +71,10 @@ function getCoreConDiagnostico(): (oem: unknown, corePath: unknown, res: { progr
 function prepararEnProceso() {
   if (enProcesoListo) return;
   const req = requerir;
+  // Next ya puede haber cargado tesseract.js (paquete externo): se olvidan sus módulos (salvo el script del worker) para
+  // que createWorker se vuelva a cargar con el adaptador sustituido.
+  const cache = __non_webpack_require__.cache ?? {};
+  for (const k of Object.keys(cache)) if (/[\\/]tesseract\.js[\\/]src[\\/]/.test(k) && !/worker-script/.test(k)) delete cache[k];
   const nodo = req("tesseract.js/src/worker/node") as Record<string, unknown>;
   const script = req("tesseract.js/src/worker-script") as { dispatchHandlers: (p: unknown, send: (o: unknown) => void) => void; setAdapter: (a: unknown) => void };
   script.setAdapter({
@@ -78,6 +82,7 @@ function prepararEnProceso() {
     fetch: req("node-fetch"), ...(req("tesseract.js/src/worker-script/node/cache") as object),
   });
   class HiloFalso extends EventEmitter {
+    constructor() { super(); paso("worker en el proceso"); }
     postMessage(p: unknown) { setImmediate(() => script.dispatchHandlers(p, (o) => this.emit("message", o))); }
     terminate() { this.removeAllListeners(); }
   }
@@ -94,7 +99,9 @@ let worker: Promise<Worker> | null = null;
 let cola: Promise<unknown> = Promise.resolve();
 let temporizador: ReturnType<typeof setTimeout> | null = null;
 /** Último paso que ha anunciado tesseract (para saber dónde se queda si no arranca). */
-let ultimoPaso = "sin empezar";
+let pasos: string[] = [];
+/** Anota un paso del arranque (se guardan los 14 últimos para el diagnóstico). */
+function paso(t: string) { pasos = [...pasos, t.slice(0, 160)].slice(-14); }
 
 /** ¿Puede este proceso crear memoria WebAssembly? (en hostings con límite de memoria virtual, no). */
 function pruebaWasm(): string {
@@ -104,7 +111,7 @@ function pruebaWasm(): string {
 function conTiempo<T>(p: Promise<T>, ms: number, fase: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
   const limite = new Promise<never>((_, no) => {
-    t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s (último paso: ${ultimoPaso}; ${VERSION_OCR}; node ${process.version}; ${pruebaWasm()})`)), ms);
+    t = setTimeout(() => no(new Error(`${fase}: más de ${ms / 1000} s (pasos: ${pasos.join(" → ") || "ninguno"}; ${VERSION_OCR}; node ${process.version}; ${pruebaWasm()})`)), ms);
   });
   return Promise.race([p, limite]).finally(() => clearTimeout(t));
 }
@@ -117,16 +124,17 @@ function descartar() {
 
 async function obtenerWorker(): Promise<Worker> {
   if (!worker) {
-    ultimoPaso = "importando tesseract.js";
+    pasos = [];
+    paso("importando tesseract.js");
     prepararEnProceso();
     const { createWorker } = requerir("tesseract.js") as typeof import("tesseract.js");
-    ultimoPaso = "creando el worker";
+    paso("creando el worker");
     worker = createWorker("spa", 1, {
       cachePath: path.join(os.tmpdir(), "tdl-tesseract"),
-      logger: (m: { status: string; progress: number }) => { ultimoPaso = `${m.status} ${Math.round(m.progress * 100)}%`; },
+      logger: (m: { status: string; progress: number }) => { paso(`${m.status} ${Math.round(m.progress * 100)}%`); },
       errorHandler: (e: unknown) => console.error("[ocr] worker:", e instanceof Error ? e.message : e),
     });
-    worker.catch((e) => { ultimoPaso = `error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 150); worker = null; });
+    worker.catch((e) => { paso(`error: ${e instanceof Error ? e.message : String(e)}`); worker = null; });
   }
   return worker;
 }
@@ -144,9 +152,10 @@ export function leerTextoTicket(imagen: Buffer): Promise<string> {
     let w: Worker;
     try { w = await conTiempo(obtenerWorker(), ARRANQUE_MS, "arranque del OCR"); } catch (e) { descartar(); throw e; }
     const t1 = Date.now();
+    const pasosArranque = pasos.join(" → ");
     try {
       const { data } = await conTiempo(w.recognize(imagen), LECTURA_MS, "lectura del ticket");
-      console.log(`[ocr] arranque ${t1 - t0} ms · lectura ${Date.now() - t1} ms`);
+      console.log(`[ocr] arranque ${t1 - t0} ms · lectura ${Date.now() - t1} ms · ${pasosArranque}`);
       return data.text;
     } catch (e) { descartar(); throw e; }
   });
