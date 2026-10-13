@@ -38,7 +38,7 @@ export default function Ticket() {
   async function leerTicket(path: string) {
     setLectura({ estado: "leyendo" });
     try {
-      const r = await llamarApi("/api/conductor/ticket/leer", { method: "POST", body: { fotoPath: path } });
+      const r = await llamarApi("/api/conductor/ticket/leer", { method: "POST", body: { fotoPath: path }, tiempoMs: 65_000 });
       const j = (await r.json().catch(() => ({}))) as { datos?: DatosLeidos };
       const d = r.ok ? j.datos : undefined;
       if (!d) { setLectura({ estado: "nada" }); return; }

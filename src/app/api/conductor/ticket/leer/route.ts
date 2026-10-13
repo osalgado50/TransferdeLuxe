@@ -4,7 +4,7 @@ import { permitir } from "@/lib/limite";
 import { leerTicketServidor } from "@/lib/lector/ocrServidor";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 /**
  * Lee un ticket ya subido (`fotoPath` de /api/conductor/ticket/foto) con OCR libre en el servidor y devuelve los datos
@@ -24,7 +24,9 @@ export async function POST(req: Request) {
     const datos = await leerTicketServidor(Buffer.from(await data.arrayBuffer()));
     return Response.json({ datos });
   } catch (e) {
-    console.error("[ticket/leer]", e instanceof Error ? e.message : e);
-    return Response.json({ error: "No se pudo leer el ticket. Rellena los datos a mano." }, { status: 503 });
+    const detalle = e instanceof Error ? e.message.slice(0, 200) : "error";
+    console.error("[ticket/leer]", detalle);
+    // `detalle`: en qué fase falló (arranque / lectura), sin datos personales: ayuda a diagnosticar en producción.
+    return Response.json({ error: "No se pudo leer el ticket. Rellena los datos a mano.", detalle }, { status: 503 });
   }
 }
