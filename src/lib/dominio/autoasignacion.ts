@@ -2,6 +2,7 @@ import type { Punto } from "./tipos";
 import { distanciaKm } from "./geo";
 import { tiempoTraslado } from "./planificacion";
 import { bloqueoConductor, type Ausencia } from "./ausencias";
+import { cabeServicio, type HorarioConductor } from "./horarios";
 
 /**
  * Asignación automática (lógica pura y determinista; la usan la central web, la API y los tests).
@@ -37,9 +38,13 @@ export interface ConductorAuto {
   ausencias?: Ausencia[];
   /** Día (Madrid) en que ya ha cerrado la jornada: nada más ese día. */
   jornadaCerradaDia?: string | null;
+  /** Horario: nada fuera de turno, en la pausa ni que no le deje volver a la base antes del fin del tramo. */
+  horario?: HorarioConductor | null;
 }
 export interface EntradaAuto {
   servicios: ServicioAuto[]; conductores: ConductorAuto[]; estrategia: Estrategia; margenMinimoMin: number; ahora: number;
+  /** Base/depósito (el coche sale de ella y vuelve a ella en cada tramo). */
+  base?: Punto | null;
 }
 export interface LineaPropuesta {
   servicioId: string; conductorId: string | null;
@@ -94,7 +99,7 @@ export interface Chequeo {
 }
 
 /** ¿Puede el conductor hacer `s` con el resto de su ruta (`otros`, sin `s`)? */
-export function comprobar(c: ConductorAuto, otros: ServicioAuto[], s: ServicioAuto, margenMin: number, ahora: number): Chequeo {
+export function comprobar(c: ConductorAuto, otros: ServicioAuto[], s: ServicioAuto, margenMin: number, ahora: number, puntoBase: Punto | null = null): Chequeo {
   const base: Chequeo = { ok: false, grave: true, motivo: null, llegada: null, margenAntes: null, margenDespues: null, kmVacio: null, kmDelta: 0 };
   if (s.inicio < ahora) return { ...base, motivo: `La recogida (${hh(s.inicio)}) ya pasó` };
   const bloqueo = bloqueoConductor(c, s.inicio);
@@ -102,6 +107,10 @@ export function comprobar(c: ConductorAuto, otros: ServicioAuto[], s: ServicioAu
   const cap = problemaCapacidad(c, s);
   if (cap) return { ...base, motivo: cap };
   const lista = otros.filter((o) => o.id !== s.id).sort(porHora);
+  if (c.horario) {
+    const hz = cabeServicio(c.horario, s, { base: puntoBase, agenda: lista.map((o) => ({ id: o.id, inicio: o.inicio, fin: fin(o) })) });
+    if (!hz.cabe) return { ...base, motivo: hz.motivo };
+  }
   const finS = fin(s);
   const solape = lista.find((o) => o.inicio < finS && s.inicio < fin(o));
   if (solape) return { ...base, motivo: `Ocupado de ${hh(solape.inicio)} a ${hh(fin(solape))}` };
@@ -177,7 +186,7 @@ class Estado {
   }
   /** Todos los servicios nuevos de la ruta siguen cumpliendo. */
   rutaOk(c: ConductorAuto, items: Item[]) {
-    return items.every((x) => x.fijo || comprobar(c, items, x, this.e.margenMinimoMin, this.e.ahora).ok);
+    return items.every((x) => x.fijo || comprobar(c, items, x, this.e.margenMinimoMin, this.e.ahora, this.e.base ?? null).ok);
   }
   cuentas() { return this.cs.filter(util).map((c) => metricasRuta(c, this.ruta(c.id))); }
 }
@@ -214,7 +223,7 @@ function insertar(st: Estado, s: ServicioAuto): string | null {
   const viables: { c: ConductorAuto; ch: Chequeo; n: number; horas: number }[] = [];
   const fallos: { nombre: string; motivo: string }[] = [];
   for (const c of st.cs) {
-    const ch = comprobar(c, st.ruta(c.id), s, e.margenMinimoMin, e.ahora);
+    const ch = comprobar(c, st.ruta(c.id), s, e.margenMinimoMin, e.ahora, e.base ?? null);
     if (!ch.ok) { fallos.push({ nombre: c.nombre, motivo: ch.motivo ?? "No encaja" }); continue; }
     const m = cuentas.get(c.id);
     viables.push({ c, ch, n: m?.servicios ?? 0, horas: m?.horas ?? 0 });
@@ -250,7 +259,7 @@ function mejorar(st: Estado, servicios: ServicioAuto[]) {
       for (const c of cs) {
         if (c.id === desde) continue;
         const nueva = [...st.ruta(c.id), { ...s, fijo: false }];
-        if (!comprobar(c, st.ruta(c.id), s, st.e.margenMinimoMin, st.e.ahora).ok || !st.rutaOk(c, nueva)) continue;
+        if (!comprobar(c, st.ruta(c.id), s, st.e.margenMinimoMin, st.e.ahora, st.e.base ?? null).ok || !st.rutaOk(c, nueva)) continue;
         const origen = st.asign[s.id]!;
         st.quitar(s.id); st.poner(s, c.id);
         const o = objetivo(st);
@@ -325,7 +334,7 @@ export function evaluarAsignacion(e: EntradaAuto, asignacion: Record<string, str
       return { servicioId: s.id, conductorId: null, llegadaEstimada: null, margenMin: null, margenAntesMin: null, margenDespuesMin: null,
         kmVacio: null, ok: false, grave: false, motivoSiNo: motivos[s.id]?.motivo ?? "Sin asignar", subcontratar: motivos[s.id]?.subcontratar ?? false };
     }
-    const ch = comprobar(c, rutas.get(c.id)!, s, e.margenMinimoMin, e.ahora);
+    const ch = comprobar(c, rutas.get(c.id)!, s, e.margenMinimoMin, e.ahora, e.base ?? null);
     const ms = [ch.margenAntes, ch.margenDespues].filter((x): x is number => x != null);
     return {
       servicioId: s.id, conductorId: c.id, llegadaEstimada: ch.llegada, margenMin: ms.length ? Math.min(...ms) : null,
@@ -358,6 +367,11 @@ export function auditarPropuesta(e: EntradaAuto, p: Propuesta): string[] {
       if (esNuevo && margen < e.margenMinimoMin) errores.push(`${c.nombre}: margen ${margen} min entre ${a.id} y ${b.id}`);
     }
     for (const s of nuevos) { const cap = problemaCapacidad(c, s); if (cap) errores.push(`${c.nombre}: ${cap} (${s.id})`); }
+    for (const s of nuevos) {
+      if (!c.horario) continue;
+      const hz = cabeServicio(c.horario, s, { base: e.base ?? null, agenda: ruta.filter((o) => o.id !== s.id).map((o) => ({ id: o.id, inicio: o.inicio, fin: fin(o) })) });
+      if (!hz.cabe) errores.push(`${c.nombre}: ${hz.motivo} (${s.id})`);
+    }
   }
   return errores;
 }
