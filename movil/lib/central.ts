@@ -3,6 +3,7 @@ import type { Movimiento } from "@dominio/actividad";
 import type { Conexion } from "@dominio/conexionConductor";
 import { crearFreno } from "@dominio/reintento";
 import type { Sugerencia } from "@dominio/sugerencia";
+import type { IndicadorPuntualidad } from "@dominio/puntualidadCentral";
 import type { PosicionActual, Rol, Servicio } from "@dominio/tipos";
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
@@ -20,6 +21,8 @@ export interface ResumenCentral {
   posiciones: (PosicionActual & { nombre?: string })[]; conductores: ConductorCentral[];
   /** Últimos movimientos (12 h) ya redactados y lo grave sin resolver (opcionales: servidores anteriores no los traen). */
   actividad?: Movimiento[]; graves?: Movimiento[];
+  /** Semáforo de llegada a la recogida por id de servicio (opcional: servidores anteriores no lo traen). */
+  puntualidad?: Record<string, IndicadorPuntualidad>;
 }
 export type SugerenciaCentral = Sugerencia & { vehiculoId: string | null; matricula: string | null; conexion?: Conexion };
 

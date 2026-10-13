@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BloqueDireccion } from "~/components/BloqueDireccion";
+import { ChipPuntualidad } from "~/components/ChipPuntualidad";
 import { EstadoBadge } from "~/components/EstadoBadge";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 import { asignarServicio, deshacerPaso, leerSugerencias, useCentral, type SugerenciaCentral } from "~/lib/central";
@@ -122,6 +123,7 @@ export default function Ficha() {
           <Text style={estilos.meta}>{s.pasajeros} pax · {s.maletas} maletas{s.origen_pedido === "web" ? " · Reserva web" : ""}</Text>
           <Text style={estilos.dato}>Cliente: {s.cliente_nombre}</Text>
           <Text style={estilos.dato}>Conductor: {conductor?.nombre ?? "Sin asignar"}</Text>
+          <ChipPuntualidad ind={datos?.puntualidad?.[s.id]} />
           {vuelo && <Text style={estilos.dato}>Vuelo: {vuelo}</Text>}
           {s.notas && <Text style={estilos.notas}>Notas: {s.notas}</Text>}
         </Tarjeta>

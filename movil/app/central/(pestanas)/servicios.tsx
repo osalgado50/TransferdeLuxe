@@ -3,13 +3,15 @@ import { FILTROS_GRUPO, agruparServiciosCentral, contarServiciosPorGrupo, filtra
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ChipPuntualidad } from "~/components/ChipPuntualidad";
 import { EstadoBadge } from "~/components/EstadoBadge";
 import { Aviso } from "~/components/ui";
+import type { IndicadorPuntualidad } from "@dominio/puntualidadCentral";
 import { useCentral, type ServicioCentral } from "~/lib/central";
 import { fechaHora, fmt, hora } from "~/lib/formato";
 import { color } from "~/lib/tema";
 
-function Fila({ s, conductor, conDia }: { s: ServicioCentral; conductor: string | null; conDia: boolean }) {
+function Fila({ s, conductor, conDia, punt }: { s: ServicioCentral; conductor: string | null; conDia: boolean; punt?: IndicadorPuntualidad }) {
   const h = fmt(conDia ? fechaHora : hora, s.fecha_hora_recogida);
   return (
     <Pressable onPress={() => router.push(`/central/ficha/${s.id}`)} accessibilityRole="button"
@@ -21,6 +23,7 @@ function Fila({ s, conductor, conDia }: { s: ServicioCentral; conductor: string 
       </View>
       <Text style={estilos.ruta} numberOfLines={2}>{s.origen_texto} → {s.destino_texto}</Text>
       <Text style={estilos.meta}>{s.pasajeros} pax · {s.maletas} maletas · {conductor ?? "Sin conductor"}{s.numero_vuelo ? ` · ${s.numero_vuelo}` : ""}</Text>
+      <ChipPuntualidad ind={punt} />
     </Pressable>
   );
 }
@@ -58,7 +61,7 @@ export default function Servicios() {
   const filtrados = useMemo(() => filtrarPorGrupo(todos, filtro), [todos, filtro]);
   const idsHoy = useMemo(() => new Set(datos?.hoy.map((s) => s.id)), [datos]);
   const nombre = (id: string | null) => (id ? datos?.conductores.find((c) => c.id === id)?.nombre ?? "Conductor" : null);
-  const fila = (s: ServicioCentral) => <Fila key={s.id} s={s} conductor={nombre(s.conductor_id)} conDia={!idsHoy.has(s.id)} />;
+  const fila = (s: ServicioCentral) => <Fila key={s.id} s={s} conductor={nombre(s.conductor_id)} conDia={!idsHoy.has(s.id)} punt={datos?.puntualidad?.[s.id]} />;
   const tituloFiltro = FILTROS_GRUPO.find((g) => g.clave === filtro)?.titulo ?? "";
   return (
     <View style={{ flex: 1 }}>
