@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const datos = await leerTicketServidor(Buffer.from(await data.arrayBuffer()));
     return Response.json({ datos });
   } catch (e) {
-    const detalle = e instanceof Error ? e.message.slice(-700) : "error";
+    const detalle = (e instanceof Error ? e.message : String(e)).slice(-700);
     console.error("[ticket/leer]", detalle);
     // `detalle`: en qué fase falló (arranque / lectura), sin datos personales: ayuda a diagnosticar en producción.
     return Response.json({ error: "No se pudo leer el ticket. Rellena los datos a mano.", detalle }, { status: 503 });

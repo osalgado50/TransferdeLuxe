@@ -20,7 +20,7 @@ declare const __non_webpack_require__: NodeJS.Require;
 /** El `require` de Node de verdad (webpack no lo toca): tesseract.js se carga de node_modules tal cual. */
 const requerir = (m: string): unknown => __non_webpack_require__(m);
 /** Versión del OCR del servidor (sale en el diagnóstico: así se sabe qué código responde tras un despliegue). */
-const VERSION_OCR = "ocr-8-wasm-embebido";
+const VERSION_OCR = "ocr-9";
 let enProcesoListo = false;
 /**
  * Motor wasm a usar. En Hostinger el despliegue NO incluye los `.wasm` de node_modules (sí los `.js`): la variante
@@ -139,7 +139,11 @@ export function leerTextoTicket(imagen: Buffer): Promise<string> {
     let w: Worker;
     const fallo = new Promise<never>((_, no) => { alFallarArranque = no; });
     fallo.catch(() => undefined);
-    try { w = await conTiempo(Promise.race([obtenerWorker(), fallo]), ARRANQUE_MS, "arranque del OCR"); } catch (e) { descartar(); throw e; }
+    try { w = await conTiempo(Promise.race([obtenerWorker(), fallo]), ARRANQUE_MS, "arranque del OCR"); } catch (e) {
+      descartar();
+      // tesseract rechaza con textos, no con Error: se envuelve con los pasos para el diagnóstico.
+      throw e instanceof Error ? e : new Error(`arranque del OCR: ${String(e).slice(0, 300)} (pasos: ${pasos.join(" → ")}; ${VERSION_OCR})`);
+    }
     finally { alFallarArranque = null; }
     const t1 = Date.now();
     const pasosArranque = pasos.join(" → ");
