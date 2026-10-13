@@ -28,6 +28,12 @@ let ultimaLlamada = 0; // servidor público de OSRM: como mucho 1 petición por 
 export const claveRuta = (o: Punto, d: Punto) => [o.lat, o.lng, d.lat, d.lng].map((x) => x.toFixed(3)).join(",");
 export function limpiarCacheRuta() { cache.clear(); enVuelo.clear(); ultimaLlamada = 0; }
 
+/** Ruta OSRM ya en la caché de esta instancia (sin pedir nada); null si no está o caducó. */
+export function rutaEnCache(o: Punto, d: Punto): Ruta | null {
+  const c = cache.get(claveRuta(o, d));
+  return c && c.r.fuente === "osrm" && Date.now() - c.t < TTL ? c.r : null;
+}
+
 export async function obtenerRuta(o: Punto, d: Punto, f: typeof fetch = fetch): Promise<Ruta> {
   const k = claveRuta(o, d);
   const c = cache.get(k);
