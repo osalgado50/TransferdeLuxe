@@ -10,7 +10,7 @@ import { sugerirConductores } from "@/lib/dominio/sugerencia";
 import { duracionServicio, textoDuracion } from "@/lib/dominio/duracion";
 import { indicadoresPuntualidad, type IndicadorPuntualidad, type PosicionPuntualidad } from "@/lib/dominio/puntualidadCentral";
 import ChipPuntualidad from "./ChipPuntualidad";
-import { cabeServicio, tramosDelDia, vehiculoDelTurno, type HorarioConductor } from "@/lib/dominio/horarios";
+import { cabeServicio, tramosDelDia, tramosPintadosDia, vehiculoDelTurno, type HorarioConductor } from "@/lib/dominio/horarios";
 import BarraTurno from "./BarraTurno";
 import type { Punto } from "@/lib/dominio/tipos";
 
@@ -87,17 +87,17 @@ function Tarjeta({ s, chip, onAsignar, punt, fueraTurno }: { s: TarjetaRuta; chi
   );
 }
 
-function Columna({ id, titulo, items, chips, traslados, onAsignar, punt = {}, turno, fuera = {} }: {
+function Columna({ id, titulo, items, chips, traslados, onAsignar, punt = {}, turno, pintar, fuera = {} }: {
   id: string; titulo: string; items: TarjetaRuta[]; chips?: Record<string, Chip | null>; traslados?: Record<string, Transicion>;
   onAsignar?: (s: TarjetaRuta, c: Conductor) => void; punt?: Record<string, IndicadorPuntualidad>;
   /** Tramos del conductor ese día (null = sin horario: no se pinta la barra). */
-  turno?: { inicio: string; fin: string }[] | null; fuera?: Record<string, string | null>;
+  turno?: { inicio: string; fin: string }[] | null; pintar?: { inicio: string; fin: string }[] | null; fuera?: Record<string, string | null>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <section ref={setNodeRef} className={`w-64 shrink-0 space-y-2 rounded-xl border p-3 ${isOver ? "border-marca-claro bg-slate-800" : "border-slate-800 bg-slate-950"}`}>
       <h2 className="font-medium text-marca-claro">{titulo} <span className="text-xs text-slate-400">({items.length})</span></h2>
-      {turno && <BarraTurno tramos={turno} />}
+      {turno && <BarraTurno tramos={turno} pintar={pintar} />}
       {items.map((s) => {
         const t = traslados?.[s.id];
         return (
@@ -228,7 +228,7 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
         {conductores.map((c) => {
           const d = dia ? tramosDelDia(horarios[c.id], dia) : null;
           return <Columna key={c.id} id={c.id} titulo={c.nombre} items={de(c.id)} traslados={traslados} punt={punt}
-            turno={d?.restringido ? d.tramos : null} fuera={fuera} />;
+            turno={d?.restringido ? d.tramos : null} pintar={dia ? tramosPintadosDia(horarios[c.id], dia) : null} fuera={fuera} />;
         })}
       </div>
       {pendiente && (

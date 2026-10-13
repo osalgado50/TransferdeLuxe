@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  agruparHorarios, alertaFinTurno, alertaFueraHorario, alertaSinJornada, cabeServicio, copiarALaborables, diaSemana, enTurno, estadoTurno,
+  agruparHorarios, alertaFinTurno, esNocturno, intervalosDelDia, tramosPintadosDia, alertaFueraHorario, alertaSinJornada, cabeServicio, copiarALaborables, diaSemana, enTurno, estadoTurno,
   fueraDeTurno, intervalo, leerTramos, lunesDeSemana, motivoAsignadoFueraHorario, preguntaAsignarFueraHorario, recordatoriosTurno,
   segmentosDia, solapeVehiculo, textoHorarioHoy, textoTramos, tipoJornada, tramosDelDia, turnoQueContiene, validarTramos, vehiculoDelTurno,
   type HorarioConductor, type Tramo,
@@ -32,12 +32,13 @@ const barcelona = { lat: 41.3874, lng: 2.1686 };
 const BASE = salou;
 
 describe("tramos: validación y textos", () => {
-  test("valida, ordena y rechaza solapes, horas mal escritas, cruces de medianoche y más de 4 tramos", () => {
+  test("valida, ordena y rechaza solapes, horas mal escritas, tramos de duración cero y más de 4 tramos", () => {
     expect(validarTramos([t("16:00", "20:00"), t("08:00", "13:00")])).toEqual({ ok: true, tramos: PARTIDO });
     expect(validarTramos([])).toEqual({ ok: true, tramos: [] });
     expect(validarTramos([t("08:00", "24:00")]).ok).toBe(true);
     expect(validarTramos([t("8:00", "13:00")]).ok).toBe(false);
-    expect(validarTramos([t("22:00", "02:00")])).toMatchObject({ ok: false, error: expect.stringMatching(/medianoche/) });
+    expect(validarTramos([t("22:00", "02:00")])).toEqual({ ok: true, tramos: [t("22:00", "02:00")] }); // turno de noche
+    expect(validarTramos([t("10:00", "10:00")])).toMatchObject({ ok: false, error: expect.stringMatching(/no dura nada/) });
     expect(validarTramos([t("08:00", "13:00"), t("12:30", "16:00")])).toMatchObject({ ok: false, error: expect.stringMatching(/solapan/) });
     expect(validarTramos([t("08:00", "13:00"), t("13:00", "16:00")]).ok).toBe(true); // contiguos: vale
     expect(validarTramos([t("01:00", "02:00"), t("03:00", "04:00"), t("05:00", "06:00"), t("07:00", "08:00"), t("09:00", "10:00")]).ok).toBe(false);
@@ -47,6 +48,7 @@ describe("tramos: validación y textos", () => {
   test("leerTramos: tolera basura de la BD sin romper", () => {
     expect(leerTramos(null)).toEqual([]);
     expect(leerTramos([{ inicio: "16:00", fin: "20:00" }, { inicio: "x" }, { inicio: "08:00", fin: "13:00" }])).toEqual(PARTIDO);
+    expect(leerTramos([{ inicio: "22:00", fin: "06:00" }])).toEqual([t("22:00", "06:00")]);
   });
   test("textos: partida, continua, libre", () => {
     expect(textoTramos(PARTIDO)).toBe("08:00–13:00 · 16:00–20:00");
@@ -413,5 +415,99 @@ describe("actividad de la central", () => {
       eventos: [{ id: 1, servicio_id: "s1", tipo: "asignado", motivo: motivoAsignadoFueraHorario("Fuera de horario (pausa 13:00–16:00)"), creado_en: "2026-10-19T08:00:00Z" }] });
     expect(r.movimientos[0].texto).toMatch(/fuera de su horario \(Fuera de horario \(pausa 13:00–16:00\)\)$/);
     expect(r.movimientos[0].gravedad).toBe("aviso");
+  });
+});
+
+describe("turno de noche (22:00–06:00, termina al día siguiente)", () => {
+  const NOCHE = [t("22:00", "06:00")];
+  /** L–V de noche con la furgo v1; sábado y domingo libres. */
+  const noche: HorarioConductor = {
+    semana: [1, 2, 3, 4, 5].map((d) => ({ dia_semana: d, tramos: NOCHE, vehiculo_id: "v1" as string | null }))
+      .concat([6, 7].map((d) => ({ dia_semana: d, tramos: [], vehiculo_id: null }))),
+    excepciones: [],
+  };
+  const MAR = "2026-10-20";
+
+  test("validación: de noche vale; no puede pisar el primer tramo ni solaparse; tras él no se añade otro", () => {
+    expect(esNocturno(t("22:00", "06:00"))).toBe(true);
+    expect(esNocturno(t("22:00", "00:00"))).toBe(true);
+    expect(esNocturno(t("16:00", "24:00"))).toBe(false);
+    expect(validarTramos([t("22:00", "06:00"), t("06:00", "10:00")]).ok).toBe(true); // la cola acaba cuando empieza el primero
+    expect(validarTramos([t("22:00", "09:00"), t("08:00", "12:00")])).toMatchObject({ ok: false, error: expect.stringMatching(/turno de noche/) });
+    expect(validarTramos([t("20:00", "02:00"), t("23:00", "23:30")])).toMatchObject({ ok: false, error: expect.stringMatching(/solapan/) });
+    expect(validarTramos([t("20:00", "02:00"), t("21:00", "01:00")]).ok).toBe(false);
+  });
+
+  test("intervalo: termina a las 06:00 del día siguiente (y con el cambio de hora dura 9 h)", () => {
+    const i = intervalo(LUN, NOCHE[0]);
+    expect(i.inicio).toBe(verano(LUN, "22:00"));
+    expect(i.fin).toBe(verano(MAR, "06:00"));
+    const cambio = intervalo(SAB, NOCHE[0]); // 24→25/10: a las 03:00 vuelven a ser las 02:00
+    expect(cambio.fin).toBe(invierno(DOM, "06:00"));
+    expect((cambio.fin - cambio.inicio) / 3_600_000).toBe(9);
+  });
+
+  test("la madrugada cuenta como turno: enTurno, estado y turnoQueContiene", () => {
+    expect(enTurno(noche, verano(MAR, "03:00"))).toBe(true); // cola del lunes
+    expect(enTurno(noche, verano(MAR, "23:30"))).toBe(true);
+    expect(enTurno(noche, verano(MAR, "12:00"))).toBe(false);
+    expect(enTurno(noche, invierno("2026-10-31", "03:00"))).toBe(true); // sábado de madrugada: cola del viernes
+    expect(enTurno(noche, invierno("2026-11-01", "03:00"))).toBe(false); // domingo de madrugada: el sábado es libre
+    expect(estadoTurno(noche, verano(MAR, "03:00"))).toMatchObject({ estado: "en_turno", hasta: "06:00" });
+    expect(estadoTurno(noche, verano(MAR, "12:00"))).toMatchObject({ estado: "antes", desde: "22:00" }); // no es «pausa»
+    expect(estadoTurno(noche, verano(SAB, "03:00"))).toMatchObject({ estado: "en_turno" }); // sábado libre, pero la noche del viernes sigue
+    expect(estadoTurno(noche, verano(SAB, "12:00"))).toMatchObject({ estado: "fuera" });
+    expect(estadoTurno(noche, verano(DOM, "12:00"))).toMatchObject({ estado: "libre" });
+    expect(turnoQueContiene(noche, verano(MAR, "04:00"), verano(MAR, "05:00"))?.fecha).toBe(LUN);
+  });
+
+  test("cabeServicio: un servicio a las 02:00 cabe; a las 05:30 de 1 h no (acaba después de las 06:00); por la tarde no", () => {
+    const s = (dia: string, h: string, dur = 45) => ({ inicio: verano(dia, h), duracionMin: dur, origen: null, destino: null });
+    expect(cabeServicio(noche, s(MAR, "02:00"))).toMatchObject({ cabe: true, tramo: NOCHE[0] });
+    expect(cabeServicio(noche, s(MAR, "23:00"))).toMatchObject({ cabe: true });
+    expect(cabeServicio(noche, s(MAR, "05:30", 60))).toMatchObject({ cabe: false, tipo: "despues" });
+    expect(cabeServicio(noche, s(MAR, "15:00"))).toMatchObject({ cabe: false, tipo: "fuera", motivo: "Fuera de horario (turno 22:00–06:00)" });
+    expect(cabeServicio(noche, s(SAB, "02:00"))).toMatchObject({ cabe: true }); // cola del viernes
+    expect(cabeServicio(noche, s(DOM, "02:00", 30))).toMatchObject({ cabe: false, tipo: "libre" });
+  });
+
+  test("alertas: sin jornada a las 22:20; fin de turno pasada la hora (06:40) con un servicio en curso", () => {
+    const sj = alertaSinJornada("Laia", noche, verano(LUN, "22:20"), { jornadaAbierta: false });
+    expect(sj).toMatchObject({ tipo: "sin_jornada", clave: `${LUN}|22:00` });
+    expect(alertaSinJornada("Laia", noche, verano(MAR, "03:00"), { jornadaAbierta: false })).toBeNull(); // pasada la ventana de 2 h
+    const ft = alertaFinTurno("Laia", noche, verano(MAR, "06:40"), {
+      servicios: [{ id: "s1", estado: "recogido", inicio: verano(MAR, "06:00"), duracionMin: 60, destino: null }],
+    });
+    expect(ft).toMatchObject({ tipo: "fin_turno", clave: `${LUN}|06:00` });
+  });
+
+  test("un turno que acaba a las 23:30 se sigue vigilando pasada la medianoche", () => {
+    const tarde: HorarioConductor = { semana: [1, 2, 3, 4, 5, 6, 7].map((d) => ({ dia_semana: d, tramos: [t("15:00", "23:30")] })), excepciones: [] };
+    const ft = alertaFinTurno("Marc", tarde, verano(MAR, "00:10"), {
+      servicios: [{ id: "s1", estado: "en_camino", inicio: verano(LUN, "23:20"), duracionMin: 60, destino: null }],
+    });
+    expect(ft).toMatchObject({ tipo: "fin_turno", clave: `${LUN}|23:30` });
+  });
+
+  test("recordatorio solo para el turno que empieza hoy (no para la cola de anoche)", () => {
+    const r = recordatoriosTurno(noche, verano(MAR, "03:00"));
+    expect(r.map((x) => x.tramo.inicio)).toEqual(["22:00"]);
+    expect(r[0].cuando).toBe(verano(MAR, "21:55"));
+  });
+
+  test("pintar el día: cola 00:00–06:00 de la víspera + 22:00–24:00", () => {
+    expect(tramosPintadosDia(noche, MAR)).toEqual([t("00:00", "06:00"), t("22:00", "24:00")]);
+    expect(tramosPintadosDia(noche, LUN)).toEqual([t("22:00", "24:00")]); // el domingo es libre
+    expect(tramosPintadosDia(noche, SAB)).toEqual([t("00:00", "06:00")]);
+    expect(segmentosDia(NOCHE)).toEqual([{ desde: (1320 / 1440) * 100, hasta: 100, tramo: NOCHE[0] }]);
+    expect(fueraDeTurno(NOCHE)).toEqual([t("00:00", "22:00")]);
+    expect(intervalosDelDia(noche, MAR)?.map((i) => i.fecha)).toEqual([LUN, MAR]);
+  });
+
+  test("vehículo compartido: la cola de noche choca con quien coge la furgo a las 05:00, pero no con el relevo de las 06:00", () => {
+    const manana = (inicio: string) => ({ conductorId: "b", semana: [{ dia_semana: 2, tramos: [t(inicio, "14:00")], vehiculo_id: "v1" }] });
+    const a = { conductorId: "a", semana: [{ dia_semana: 1, tramos: NOCHE, vehiculo_id: "v1" }] };
+    expect(solapeVehiculo([a, manana("06:00")])).toEqual([]);
+    expect(solapeVehiculo([a, manana("05:00")])).toMatchObject([{ diaSemana: 2, a: "a", b: "b", tramoA: NOCHE[0] }]);
   });
 });

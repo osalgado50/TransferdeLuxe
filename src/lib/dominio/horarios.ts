@@ -13,7 +13,9 @@ import { tiempoTraslado } from "./planificacion";
  * - Sin horario definido (ninguna fila de semana tipo ni excepción ese día) = disponible todo el día (como antes).
  * - Excepción de ese día > semana tipo > sin restricción. Tramos [] = libre ese día.
  * - Con semana tipo, un día sin fila también es libre (la central ve los 7 días en el editor).
- * - Horas de pared de Madrid («08:00»); «24:00» = medianoche del día siguiente. Los tramos no cruzan la medianoche.
+ * - Horas de pared de Madrid («08:00»); «24:00» = medianoche del día siguiente.
+ * - Turno de noche: un tramo cuyo fin es anterior a su inicio (22:00–06:00) termina al día siguiente. Pertenece al día en
+ *   que empieza; la parte de después de medianoche cuenta también como turno del día siguiente (arrastre).
  * - Un servicio cabe si la recogida cae dentro de un tramo, si siendo el primero del tramo le da tiempo a salir de la
  *   base después del inicio, y si siendo el último le da tiempo a volver a la base antes del fin del tramo.
  */
@@ -53,8 +55,16 @@ export const lunesDeSemana = (fecha: string) => sumarDias(fecha, 1 - diaSemana(f
 
 const ordenar = (ts: Tramo[]) => [...ts].sort((a, b) => minutos(a.inicio) - minutos(b.inicio));
 
+/** Turno de noche: termina al día siguiente (22:00–06:00). «…–24:00» no lo es: acaba justo a medianoche. */
+export const esNocturno = (t: Tramo) => t.fin !== "24:00" && minutos(t.fin) <= minutos(t.inicio);
+/** Fin en minutos desde las 00:00 del día en que empieza (06:00 de un turno de noche = 1800). */
+export const finMinutos = (t: Tramo) => (esNocturno(t) ? minutos(t.fin) + 1440 : minutos(t.fin));
+
 export type ValidacionTramos = { ok: true; tramos: Tramo[] } | { ok: false; error: string };
-/** Valida y ordena los tramos que manda la central (formato, inicio < fin, sin solaparse, máx. 4). */
+/**
+ * Valida y ordena los tramos que manda la central (formato, que duren algo, sin solaparse, máx. 4). Un tramo con el fin
+ * antes del inicio es de noche (acaba al día siguiente); su parte de después de medianoche no puede pisar el primer tramo.
+ */
 export function validarTramos(x: unknown): ValidacionTramos {
   if (!Array.isArray(x)) return { ok: false, error: "Tramos no válidos." };
   if (x.length > MAX_TRAMOS) return { ok: false, error: `Como mucho ${MAX_TRAMOS} tramos al día.` };
@@ -62,12 +72,16 @@ export function validarTramos(x: unknown): ValidacionTramos {
   for (const t of x) {
     const inicio = typeof t?.inicio === "string" ? t.inicio.trim() : "", fin = typeof t?.fin === "string" ? t.fin.trim() : "";
     if (!HORA.test(inicio) || !HORA.test(fin) || inicio === "24:00") return { ok: false, error: "Indica las horas como 08:00." };
-    if (minutos(fin) <= minutos(inicio)) return { ok: false, error: `El tramo ${inicio}–${fin} termina antes de empezar (no puede cruzar la medianoche).` };
+    if (minutos(fin) === minutos(inicio)) return { ok: false, error: `El tramo ${inicio}–${fin} no dura nada.` };
     ts.push({ inicio, fin });
   }
   const o = ordenar(ts);
   for (let i = 1; i < o.length; i++) {
-    if (minutos(o[i].inicio) < minutos(o[i - 1].fin)) return { ok: false, error: `Los tramos ${o[i - 1].inicio}–${o[i - 1].fin} y ${o[i].inicio}–${o[i].fin} se solapan.` };
+    if (minutos(o[i].inicio) < finMinutos(o[i - 1])) return { ok: false, error: `Los tramos ${o[i - 1].inicio}–${o[i - 1].fin} y ${o[i].inicio}–${o[i].fin} se solapan.` };
+  }
+  const noche = o[o.length - 1];
+  if (o.length > 1 && esNocturno(noche) && minutos(noche.fin) > minutos(o[0].inicio)) {
+    return { ok: false, error: `El turno de noche ${noche.inicio}–${noche.fin} acaba después de que empiece el tramo de las ${o[0].inicio}.` };
   }
   return { ok: true, tramos: o };
 }
@@ -78,7 +92,7 @@ export function leerTramos(x: unknown): Tramo[] {
   const v = validarTramos(x);
   if (v.ok) return v.tramos;
   return ordenar(x.filter((t) => typeof t?.inicio === "string" && typeof t?.fin === "string" && HORA.test(t.inicio) && HORA.test(t.fin)
-    && minutos(t.fin) > minutos(t.inicio)).map((t) => ({ inicio: t.inicio, fin: t.fin })));
+    && minutos(t.fin) !== minutos(t.inicio)).map((t) => ({ inicio: t.inicio, fin: t.fin })));
 }
 
 /** «08:00–13:00 · 16:00–20:00»; «Libre» si no hay tramos. */
@@ -116,15 +130,32 @@ export function tramosDelDia(h: HorarioConductor | null | undefined, fecha: stri
 export const vehiculoDelTurno = (h: HorarioConductor | null | undefined, fecha: string) => tramosDelDia(h, fecha).vehiculoId;
 
 export interface Intervalo { fecha: string; tramo: Tramo; inicio: number; fin: number }
-/** Instantes [inicio, fin) de un tramo de ese día (respeta el cambio de hora). */
+/** Instantes [inicio, fin) de un tramo que empieza ese día (respeta el cambio de hora; el de noche acaba al día siguiente). */
 export function intervalo(fecha: string, t: Tramo): Intervalo {
-  const fin = t.fin === "24:00" ? madridAUtc(sumarDias(fecha, 1), "00:00") : madridAUtc(fecha, t.fin);
+  const fin = t.fin === "24:00" ? madridAUtc(sumarDias(fecha, 1), "00:00") : madridAUtc(esNocturno(t) ? sumarDias(fecha, 1) : fecha, t.fin);
   return { fecha, tramo: t, inicio: Date.parse(madridAUtc(fecha, t.inicio)), fin: Date.parse(fin) };
 }
-/** Intervalos del día; null = sin restricción. */
+/** Turno de noche del día anterior que sigue después de medianoche (su intervalo completo, con fecha = día anterior). */
+function arrastreNoche(h: HorarioConductor | null | undefined, fecha: string): Intervalo[] {
+  const ayer = sumarDias(fecha, -1);
+  const d = tramosDelDia(h, ayer);
+  return d.restringido ? d.tramos.filter(esNocturno).map((t) => intervalo(ayer, t)) : [];
+}
+/** Intervalos que tocan el día (los suyos y el turno de noche de la víspera); null = sin restricción. */
 export function intervalosDelDia(h: HorarioConductor | null | undefined, fecha: string): Intervalo[] | null {
   const d = tramosDelDia(h, fecha);
-  return d.restringido ? d.tramos.map((t) => intervalo(fecha, t)) : null;
+  return d.restringido ? [...arrastreNoche(h, fecha), ...d.tramos.map((t) => intervalo(fecha, t))] : null;
+}
+/**
+ * Tramos para pintar un día de 00:00 a 24:00: la cola del turno de noche de la víspera (00:00–06:00) y los del día, con
+ * el de noche cortado a las 24:00. null = sin horario.
+ */
+export function tramosPintadosDia(h: HorarioConductor | null | undefined, fecha: string): Tramo[] | null {
+  const d = tramosDelDia(h, fecha);
+  if (!d.restringido) return null;
+  const ayer = tramosDelDia(h, sumarDias(fecha, -1));
+  const cola = ayer.restringido ? ayer.tramos.filter((t) => esNocturno(t) && t.fin !== "00:00").map((t) => ({ inicio: "00:00", fin: t.fin })) : [];
+  return [...cola, ...d.tramos.map((t) => (esNocturno(t) ? { inicio: t.inicio, fin: "24:00" } : t))];
 }
 
 const instante = (t: number | Date | string) => (typeof t === "number" ? t : typeof t === "string" ? Date.parse(t) : t.getTime());
@@ -156,14 +187,13 @@ export type EstadoTurno =
 export function estadoTurno(h: HorarioConductor | null | undefined, ahora: number | Date): EstadoTurno {
   const t = instante(ahora);
   const fecha = diaMadrid(new Date(t));
-  const d = tramosDelDia(h, fecha);
-  if (!d.restringido) return { estado: "sin_horario", texto: "sin horario (disponible todo el día)" };
-  if (!d.tramos.length) return { estado: "libre", texto: "libre hoy" };
-  const ivs = d.tramos.map((x) => intervalo(fecha, x));
+  const ivs = intervalosDelDia(h, fecha);
+  if (!ivs) return { estado: "sin_horario", texto: "sin horario (disponible todo el día)" };
+  if (!ivs.length) return { estado: "libre", texto: "libre hoy" };
   const dentro = ivs.find((i) => i.inicio <= t && t < i.fin);
   if (dentro) return { estado: "en_turno", hasta: dentro.tramo.fin, texto: `en turno hasta ${dentro.tramo.fin}` };
   const sig = ivs.find((i) => i.inicio > t);
-  const hubo = ivs.some((i) => i.fin <= t);
+  const hubo = ivs.some((i) => i.fin <= t && i.fecha === fecha); // la cola de anoche no es una pausa
   if (sig && hubo) return { estado: "pausa", hasta: sig.tramo.inicio, texto: `en pausa hasta ${sig.tramo.inicio}` };
   if (sig) return { estado: "antes", desde: sig.tramo.inicio, texto: `fuera de turno · entra a las ${sig.tramo.inicio}` };
   return { estado: "fuera", texto: "fuera de turno" };
@@ -188,15 +218,15 @@ export function cabeServicio(h: HorarioConductor | null | undefined, s: Servicio
   const base = { cabe: true, tipo: "ok" as TipoEncajeHorario, motivo: null, tramo: null, salidaBase: null, vueltaBase: null };
   const fecha = diaMadrid(new Date(ini));
   const d = tramosDelDia(h, fecha);
-  if (!d.restringido) return { ...base, tipo: "sin_horario" };
-  if (!d.tramos.length) return { ...base, cabe: false, tipo: "libre", motivo: `Fuera de horario (libre ese día${d.nota ? ` · ${d.nota}` : ""})` };
-  const ivs = d.tramos.map((x) => intervalo(fecha, x));
+  const ivs = intervalosDelDia(h, fecha);
+  if (!d.restringido || !ivs) return { ...base, tipo: "sin_horario" };
+  if (!ivs.length) return { ...base, cabe: false, tipo: "libre", motivo: `Fuera de horario (libre ese día${d.nota ? ` · ${d.nota}` : ""})` };
   const iv = ivs.find((i) => i.inicio <= ini && ini < i.fin);
   if (!iv) {
-    const prev = ivs.filter((i) => i.fin <= ini).pop();
+    const prev = ivs.filter((i) => i.fin <= ini && i.fecha === fecha).pop();
     const next = ivs.find((i) => i.inicio > ini);
     if (prev && next) return { ...base, cabe: false, tipo: "pausa", motivo: `Fuera de horario (pausa ${prev.tramo.fin}–${next.tramo.inicio})` };
-    return { ...base, cabe: false, tipo: "fuera", motivo: `Fuera de horario (turno ${textoTramos(d.tramos)})` };
+    return { ...base, cabe: false, tipo: "fuera", motivo: `Fuera de horario (turno ${textoTramos(d.tramos.length ? d.tramos : ivs.map((i) => i.tramo))})` };
   }
   const otros = (o.agenda ?? []).filter((a) => (s.id == null || a.id !== s.id) && a.inicio < iv.fin && a.fin > iv.inicio);
   const primero = !otros.some((a) => a.inicio < ini);
@@ -225,16 +255,25 @@ export interface SolapeVehiculo { vehiculoId: string; diaSemana: number; a: stri
  */
 export function solapeVehiculo(conductores: readonly { conductorId: string; semana: readonly DiaSemanaHorario[] }[]): SolapeVehiculo[] {
   const out: SolapeVehiculo[] = [];
+  // Por día: [desde, hasta) en minutos de cada tramo con su vehículo; la cola de un turno de noche cuenta en el día
+  // siguiente (00:00–fin) con el vehículo de la víspera.
+  type Uso = { id: string; vehiculo: string; tramo: Tramo; desde: number; hasta: number };
+  const visto = new Set<string>();
   for (const dia of DIAS_SEMANA) {
-    const filas = conductores.flatMap((c) => c.semana.filter((d) => d.dia_semana === dia && d.vehiculo_id).map((d) => ({ id: c.conductorId, d })));
-    for (let i = 0; i < filas.length; i++) for (let j = i + 1; j < filas.length; j++) {
-      const x = filas[i], y = filas[j];
-      if (x.id === y.id || x.d.vehiculo_id !== y.d.vehiculo_id) continue;
-      for (const ta of x.d.tramos) for (const tb of y.d.tramos) {
-        if (minutos(ta.inicio) < minutos(tb.fin) && minutos(tb.inicio) < minutos(ta.fin)) {
-          out.push({ vehiculoId: x.d.vehiculo_id!, diaSemana: dia, a: x.id, b: y.id, tramoA: ta, tramoB: tb });
-        }
-      }
+    const vispera = dia === 1 ? 7 : dia - 1;
+    const usos: Uso[] = conductores.flatMap((c) => [
+      ...c.semana.filter((d) => d.dia_semana === dia && d.vehiculo_id)
+        .flatMap((d) => d.tramos.map((t) => ({ id: c.conductorId, vehiculo: d.vehiculo_id!, tramo: t, desde: minutos(t.inicio), hasta: finMinutos(t) }))),
+      ...c.semana.filter((d) => d.dia_semana === vispera && d.vehiculo_id)
+        .flatMap((d) => d.tramos.filter(esNocturno).map((t) => ({ id: c.conductorId, vehiculo: d.vehiculo_id!, tramo: t, desde: 0, hasta: minutos(t.fin) }))),
+    ]);
+    for (let i = 0; i < usos.length; i++) for (let j = i + 1; j < usos.length; j++) {
+      const x = usos[i], y = usos[j];
+      if (x.id === y.id || x.vehiculo !== y.vehiculo || !(x.desde < y.hasta && y.desde < x.hasta)) continue;
+      const clave = `${dia}|${x.id}|${x.tramo.inicio}|${y.id}|${y.tramo.inicio}`;
+      if (visto.has(clave)) continue;
+      visto.add(clave);
+      out.push({ vehiculoId: x.vehiculo, diaSemana: dia, a: x.id, b: y.id, tramoA: x.tramo, tramoB: y.tramo });
     }
   }
   return out;
@@ -250,15 +289,15 @@ export function copiarALaborables<T extends DiaSemanaHorario>(semana: readonly T
   });
 }
 
-/** Franjas para pintar un día de 24 h (en % del ancho), por hora de pared. */
+/** Franjas para pintar un día de 24 h (en % del ancho), por hora de pared; el turno de noche se corta a las 24:00. */
 export function segmentosDia(ts: readonly Tramo[]): { desde: number; hasta: number; tramo: Tramo }[] {
-  return ordenar([...ts]).map((t) => ({ desde: (minutos(t.inicio) / 1440) * 100, hasta: (minutos(t.fin) / 1440) * 100, tramo: t }));
+  return ordenar([...ts]).map((t) => ({ desde: (minutos(t.inicio) / 1440) * 100, hasta: (Math.min(finMinutos(t), 1440) / 1440) * 100, tramo: t }));
 }
 /** Huecos fuera de turno de un día (para sombrear): complementario de los tramos en [00:00, 24:00). */
 export function fueraDeTurno(ts: readonly Tramo[]): Tramo[] {
   const out: Tramo[] = [];
   let m = 0;
-  for (const t of ordenar([...ts])) { if (minutos(t.inicio) > m) out.push({ inicio: aHora(m), fin: t.inicio }); m = Math.max(m, minutos(t.fin)); }
+  for (const t of ordenar([...ts])) { if (minutos(t.inicio) > m) out.push({ inicio: aHora(m), fin: t.inicio }); m = Math.max(m, Math.min(finMinutos(t), 1440)); }
   if (m < 1440) out.push({ inicio: aHora(m), fin: "24:00" });
   return out;
 }
@@ -289,7 +328,7 @@ export function alertaSinJornada(nombre: string, h: HorarioConductor | null | un
   const iv = ivs?.find((i) => ahora >= i.inicio + GRACIA_SIN_JORNADA_MIN * MIN && ahora < Math.min(i.fin, i.inicio + VENTANA_SIN_JORNADA_MIN * MIN));
   if (!iv) return null;
   const tarde = Math.floor((ahora - iv.inicio) / MIN);
-  return { tipo: "sin_jornada", clave: `${fecha}|${iv.tramo.inicio}`,
+  return { tipo: "sin_jornada", clave: `${iv.fecha}|${iv.tramo.inicio}`,
     texto: `⏰ ${nombre} no ha iniciado la jornada: su turno empezó a las ${iv.tramo.inicio} (hace ${tarde} min)` };
 }
 
@@ -303,8 +342,12 @@ const POR_HACER = new Set(["asignado", "aceptado"]);
 export function alertaFinTurno(nombre: string, h: HorarioConductor | null | undefined, ahora: number,
   o: { servicios: readonly ServicioEnCurso[]; base?: Punto | null }): AlertaHorario | null {
   const fecha = diaMadrid(new Date(ahora));
-  const ivs = intervalosDelDia(h, fecha);
-  if (!ivs?.length) return null;
+  const hoy = intervalosDelDia(h, fecha);
+  if (!hoy) return null;
+  // También los tramos de ayer: un turno que acaba a las 23:30 se sigue vigilando pasada la medianoche.
+  const ivs = [...(intervalosDelDia(h, sumarDias(fecha, -1)) ?? []), ...hoy]
+    .filter((i, k, xs) => xs.findIndex((x) => x.fecha === i.fecha && x.tramo.inicio === i.tramo.inicio) === k).sort((a, b) => a.inicio - b.inicio);
+  if (!ivs.length) return null;
   if (ivs.some((i) => i.inicio <= ahora && ahora < i.fin)) return null; // ya está en otro tramo
   const iv = [...ivs].reverse().find((i) => ahora >= i.fin + GRACIA_FIN_TURNO_MIN * MIN && ahora < i.fin + VENTANA_FIN_TURNO_MIN * MIN);
   if (!iv) return null;
@@ -314,14 +357,14 @@ export function alertaFinTurno(nombre: string, h: HorarioConductor | null | unde
     + (o.base && s.destino ? (tiempoTraslado(s.destino, o.base) ?? 0) * MIN : 0)));
   if (vuelta <= iv.fin) return null;
   const pasado = Math.floor((ahora - iv.fin) / MIN);
-  return { tipo: "fin_turno", clave: `${fecha}|${iv.tramo.fin}`, servicioId: activos[0].id,
+  return { tipo: "fin_turno", clave: `${iv.fecha}|${iv.tramo.fin}`, servicioId: activos[0].id,
     texto: `🕒 ${nombre} sigue en servicio ${pasado} min después de su turno (fin ${iv.tramo.fin}) · vuelta a la base ≈ ${hhmm(vuelta)}` };
 }
 
 /** Recordatorios del conductor (app nativa): 5 min antes de cada tramo de hoy que aún no ha empezado. */
 export function recordatoriosTurno(h: HorarioConductor | null | undefined, ahora: number): { id: string; cuando: number; tramo: Tramo }[] {
   const fecha = diaMadrid(new Date(ahora));
-  return (intervalosDelDia(h, fecha) ?? []).map((i) => ({ id: `turno-${fecha}-${i.tramo.inicio.replace(":", "")}`, cuando: i.inicio - AVISO_ANTES_MIN * MIN, tramo: i.tramo }))
+  return (intervalosDelDia(h, fecha) ?? []).filter((i) => i.fecha === fecha).map((i) => ({ id: `turno-${fecha}-${i.tramo.inicio.replace(":", "")}`, cuando: i.inicio - AVISO_ANTES_MIN * MIN, tramo: i.tramo }))
     .filter((r) => r.cuando > ahora);
 }
 

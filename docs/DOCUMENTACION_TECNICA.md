@@ -545,6 +545,16 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   `scripts/prueba-horarios.mjs` (conductor de demo sin actividad, horario de prueba solo para mañana): RLS, sugerencia
   dentro/fuera/pausa/no vuelve/día libre, propuesta automática, asignación manual registrada con el vehículo del turno,
   una sola alerta «fuera de horario» (sin duplicar en la pasada siguiente, en `/api/central/resumen`) y limpieza de todo lo creado: 25 comprobaciones OK.
+- **Turnos de noche (13/10/2026)**. El responsable intenta crear la plantilla «Nocturno» 22:00–06:00 y el editor lo
+  rechaza («no puede cruzar la medianoche»): «¿por qué no? haz que pueda». Ahora un tramo con el fin antes del inicio es
+  de noche y acaba al día siguiente (sin cambiar la BD: se guarda igual, `{inicio:"22:00", fin:"06:00"}`). Pertenece al
+  día en que empieza, pero su parte de madrugada cuenta también como turno del día siguiente (`intervalosDelDia` añade la
+  «cola» de la víspera), así que un servicio a las 03:00 cabe, el estado dice «en turno hasta 06:00», la asignación
+  automática no da por libre el sábado a quien sale del turno del viernes y el aviso de fin de turno se vigila pasada la
+  medianoche. La vista semanal pinta 22:00–24:00 en su día y 00:00–06:00 en el siguiente; el editor marca «🌙 +1 día».
+  Validación: no puede durar cero ni pisar el primer tramo del día (22:00–09:00 con 08:00–12:00 se rechaza) y el solape
+  de vehículo tiene en cuenta la madrugada (la furgo del turno de noche choca con quien la coge a las 05:00, no con el
+  relevo de las 06:00). Incluye el cambio de hora: la noche del 24 al 25/10 dura 9 h. 10 pruebas nuevas (713 en total).
 
 ## 6. Challenges y soluciones
 - **OCR de tickets: ¿OCR clásico o IA?** Se comparan OCR.space (25.000 peticiones/mes gratis, pero solo texto

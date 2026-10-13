@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { borrarExcepcion, borrarPlantilla, guardarExcepcion, guardarPlantilla, guardarSemana, quitarHorario, type Resultado } from "@/app/central/horarios/actions";
 import {
-  DIAS_SEMANA, MAX_TRAMOS, NOMBRE_DIA, copiarALaborables, minutos, textoTramos, tipoJornada, validarTramos,
+  DIAS_SEMANA, MAX_TRAMOS, NOMBRE_DIA, copiarALaborables, esNocturno, minutos, textoTramos, tipoJornada, validarTramos,
   type DiaSemanaHorario, type ExcepcionHorario, type Plantilla, type Tramo,
 } from "@/lib/dominio/horarios";
 
@@ -12,9 +12,10 @@ const boton = "min-h-10 rounded-lg bg-marca px-4 text-sm font-semibold text-whit
 const secundario = "min-h-10 rounded-lg border border-slate-600 px-3 text-sm hover:border-marca-claro disabled:opacity-50";
 const hora = (m: number) => `${String(Math.floor(Math.min(m, 1440) / 60)).padStart(2, "0")}:${String(Math.min(m, 1440) % 60).padStart(2, "0")}`;
 
-/** Un tramo más: el primero 08:00–15:00; si ya hay, 1 h después del último (4 h, sin pasar de medianoche). */
+/** Un tramo más: el primero 08:00–15:00; si ya hay, 1 h después del último (4 h, sin pasar de medianoche; tras uno de noche, ninguno). */
 function tramoNuevo(ts: Tramo[]): Tramo | null {
   if (!ts.length) return { inicio: "08:00", fin: "15:00" };
+  if (ts.some(esNocturno)) return null;
   const ult = minutos(ts[ts.length - 1].fin);
   if (ult + 60 >= 1440) return null;
   return { inicio: hora(ult + 60), fin: hora(Math.min(ult + 300, 1440)) };
@@ -38,6 +39,7 @@ function EditorTramos({ tramos, onChange, etiqueta }: { tramos: Tramo[]; onChang
           <span className="text-slate-500">–</span>
           <input type="time" step={300} value={t.fin === "24:00" ? "23:59" : t.fin} aria-label={`${etiqueta}: fin del tramo ${i + 1}`} className={`${campo} min-h-9 w-[6.5rem]`}
             onChange={(e) => onChange(tramos.map((x, j) => (j === i ? { ...x, fin: e.target.value === "23:59" ? "24:00" : e.target.value } : x)))} />
+          {esNocturno(t) && <span className="text-xs text-indigo-300" title="Turno de noche: termina al día siguiente">🌙 +1 día</span>}
           <button type="button" aria-label={`${etiqueta}: quitar el tramo ${i + 1}`} onClick={() => onChange(tramos.filter((_, j) => j !== i))}
             className="flex size-8 items-center justify-center rounded text-slate-400 hover:bg-slate-800 hover:text-red-300">×</button>
         </span>

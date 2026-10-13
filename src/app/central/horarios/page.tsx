@@ -6,7 +6,7 @@ import { diaMadrid } from "@/lib/dominio/geo";
 import { sumarDias } from "@/lib/dominio/dias";
 import { cubre, type Ausencia } from "@/lib/dominio/ausencias";
 import {
-  agruparHorarios, leerTramos, lunesDeSemana, solapeVehiculo, textoTramos, tramosDelDia, INICIAL_DIA, NOMBRE_DIA, type Plantilla,
+  agruparHorarios, leerTramos, lunesDeSemana, solapeVehiculo, textoTramos, tramosDelDia, tramosPintadosDia, INICIAL_DIA, NOMBRE_DIA, type Plantilla,
 } from "@/lib/dominio/horarios";
 import { EditorSemana, GestionExcepciones, GestionPlantillas } from "@/components/central/GestionHorarios";
 import BarraTurno from "@/components/central/BarraTurno";
@@ -118,7 +118,7 @@ export default async function PaginaHorarios({ searchParams }: { searchParams: P
                       return (
                         <td key={d} data-dia={d} className={`w-[12%] border-l border-slate-800 px-1.5 py-1 align-top ${d === hoy ? "bg-slate-900/60" : ""}`}
                           title={t.restringido ? `${textoTramos(t.tramos)}${t.restringido && t.fuente === "excepcion" ? " (cambio de ese día)" : ""}` : "Sin horario"}>
-                          <BarraTurno tramos={t.restringido ? t.tramos : null} ausencia={a ? { tipo: a.tipo, franja: a.franja } : null} />
+                          <BarraTurno tramos={t.restringido ? t.tramos : null} pintar={tramosPintadosDia(h, d)} ausencia={a ? { tipo: a.tipo, franja: a.franja } : null} />
                           {t.restringido && t.fuente === "excepcion" && <span className="text-[10px] text-sky-300">✎ cambio</span>}
                           {veh && <span className="block text-[10px] text-slate-500">🚐 {veh}</span>}
                         </td>

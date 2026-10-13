@@ -19,7 +19,7 @@ import type { Punto } from "@/lib/dominio/tipos";
 import { cargarDisponibilidad, disponibilidadDe, type Disponibilidad } from "@/lib/central/disponibilidad";
 import { NOMBRE_FRANJA, NOMBRE_TIPO_AUSENCIA } from "@/lib/dominio/ausencias";
 import { MOTIVO_JORNADA_CERRADA } from "@/lib/dominio/finJornada";
-import { textoTramos, tramosDelDia, vehiculoDelTurno } from "@/lib/dominio/horarios";
+import { intervalosDelDia, textoTramos, tramosDelDia, vehiculoDelTurno } from "@/lib/dominio/horarios";
 
 /** Lógica de servidor de la asignación automática: la usan las Server Actions (web) y /api/central/autoasignar/*. */
 
@@ -83,8 +83,8 @@ function noDisponibleDia(d: Disponibilidad, conductorId: string, dia: string): {
   const a = d.ausencias.find((x) => x.conductor_id === conductorId && dia >= x.desde && dia <= x.hasta);
   if (a) return { texto: `No disponible · ${NOMBRE_TIPO_AUSENCIA[a.tipo]}${a.franja === "dia" ? "" : ` (${NOMBRE_FRANJA[a.franja]})`}`, todoElDia: a.franja === "dia" };
   if (d.cerradasHoy.has(conductorId) && dia === d.hoy) return { texto: MOTIVO_JORNADA_CERRADA, todoElDia: true };
-  const h = tramosDelDia(d.horarios.get(conductorId), dia);
-  if (h.restringido && !h.tramos.length) return { texto: "Libre ese día (horario)", todoElDia: true };
+  const ivs = intervalosDelDia(d.horarios.get(conductorId), dia); // incluye la cola del turno de noche de la víspera
+  if (ivs && !ivs.length) return { texto: "Libre ese día (horario)", todoElDia: true };
   return null;
 }
 /** «Turno 08:00–13:00 · 16:00–20:00» para el diálogo; null sin horario. */
