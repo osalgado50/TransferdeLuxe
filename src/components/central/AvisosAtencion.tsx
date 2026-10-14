@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import type { Movimiento } from "@/lib/dominio/actividad";
+import { useEffect, useState } from "react";
+import { textoAlDia, type Movimiento } from "@/lib/dominio/actividad";
 
 /**
  * Avisos que piden atención (sin ser graves): CARGA/DESCARGA marcada lejos del punto y jornada cerrada con servicios
@@ -10,12 +11,15 @@ import type { Movimiento } from "@/lib/dominio/actividad";
 export default function AvisosAtencion({ avisos, alVisto, alCentrar }: {
   avisos: Movimiento[]; alVisto: (id: string) => void; alCentrar: (p: { lat: number; lng: number }) => void;
 }) {
+  // «hace 15 min» al día: se recalcula al cargar la página y cada 30 s (en el servidor se pinta el texto tal cual).
+  const [ahora, setAhora] = useState<number | null>(null);
+  useEffect(() => { setAhora(Date.now()); const t = setInterval(() => setAhora(Date.now()), 30_000); return () => clearInterval(t); }, []);
   if (!avisos.length) return null;
   return (
     <div className="space-y-3" role="status" aria-live="polite">
       {avisos.map((a) => (
         <article key={a.id} data-alerta={a.tipo} className="rounded-xl border-2 border-amber-500 bg-amber-950/60 p-3">
-          <p className="text-base font-semibold text-amber-100">{a.texto}</p>
+          <p className="text-base font-semibold text-amber-100">{ahora ? textoAlDia(a.texto, a.en, ahora) : a.texto}</p>
           <p className="mt-0.5 text-xs text-amber-200/80">{a.hora}{a.detalle ? ` · ${a.detalle}` : ""}{a.tipo === "jornada_pendientes" ? " · reasigna esos servicios o llama al conductor" : " · quizá hay que llamarlo"}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {a.lat != null && a.lng != null && (

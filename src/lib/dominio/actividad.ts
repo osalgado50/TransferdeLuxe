@@ -352,3 +352,20 @@ export function pasoAlarma(prev: EstadoAlarma | null, pendientes: string[], ahor
   if (prev.veces < max && ahora - prev.ultima >= cadaMs) return { sonar: true, estado: { ids, veces: prev.veces + 1, ultima: ahora } };
   return { sonar: false, estado: { ...prev, ids } };
 }
+
+/** «45 min», «1 h», «4 h 12 min». */
+export function duracionMin(min: number): string {
+  const h = Math.floor(min / 60), m = min % 60;
+  return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
+}
+/**
+ * Texto de una alerta con los minutos al día: «(hace 15 min)» o «sigue en servicio 35 min después de su turno» se
+ * escribieron al crear la alerta (`en`); al mostrarla se les suma lo que ha pasado desde entonces.
+ */
+export function textoAlDia(texto: string, en: string, ahora: number): string {
+  const pasado = Math.max(0, Math.floor((ahora - Date.parse(en)) / 60_000));
+  if (!Number.isFinite(pasado) || !pasado) return texto;
+  return texto
+    .replace(/\(hace (\d+) min\)/g, (_, n: string) => `(hace ${duracionMin(Number(n) + pasado)})`)
+    .replace(/(\d+) min después de su turno/g, (_, n: string) => `${duracionMin(Number(n) + pasado)} después de su turno`);
+}

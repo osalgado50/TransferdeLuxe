@@ -611,6 +611,10 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   web y app): con el importe, el campo del par litros/€/L que el conductor no ha escrito el último se calcula solo
   (marcado «(calc.)») y se recalcula si cambia el importe; nunca se pisa lo que se acaba de escribir. En la app, botón
   «Usar el precio medio de hoy: 1,909 €/L» (Geoportal del Ministerio) que pone ese €/L y calcula los litros.
+- **Alertas con el tiempo al día (14/10/2026)**. El responsable abre la central a las 12 y la alerta dice «Oscar no ha
+  iniciado la jornada… (hace 15 min)»: el texto se escribió a las 08:15 y no cambiaba. `textoAlDia` (en `actividad.ts`,
+  puro con tests) suma a «(hace N min)» y a «N min después de su turno» lo que ha pasado desde que se creó la alerta
+  («hace 4 h 50 min»); las tarjetas de aviso de la web y de la app se recalculan al cargar y cada 30 s.
 
 ## 6. Challenges y soluciones
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba

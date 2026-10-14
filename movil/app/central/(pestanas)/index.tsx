@@ -1,4 +1,4 @@
-import type { Movimiento } from "@dominio/actividad";
+import { textoAlDia, type Movimiento } from "@dominio/actividad";
 import { textoAlertaCentral } from "@dominio/centralMovil";
 import { nombreTipoIncidencia } from "@dominio/incidencias";
 import { etiquetaZona } from "@dominio/cierre";
@@ -79,9 +79,12 @@ function TarjetaGrave({ g, alVisto, alResuelta }: { g: Movimiento; alVisto: () =
 
 /** CARGA/DESCARGA lejos del punto o jornada cerrada con pendientes: aviso ámbar con «Llamar» y «Mapa». */
 function TarjetaAviso({ g, alVisto }: { g: Movimiento; alVisto: () => void }) {
+  // «hace 15 min» al día: se recalcula cada 30 s.
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setAhora(Date.now()), 30_000); return () => clearInterval(t); }, []);
   return (
     <View style={estilos.avisoAt} accessibilityRole="alert">
-      <Text style={estilos.avisoAtTitulo}>{g.texto}</Text>
+      <Text style={estilos.avisoAtTitulo}>{textoAlDia(g.texto, g.en, ahora)}</Text>
       <Text style={estilos.graveMeta}>{g.hora}{g.detalle ? ` · ${g.detalle}` : ""}</Text>
       <View style={estilos.fila}>
         {!!g.telefono && <Boton texto="📞 Llamar" estilo={{ flex: 1 }} etiqueta={`Llamar a ${g.conductor ?? "conductor"}`}
