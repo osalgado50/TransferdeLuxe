@@ -90,12 +90,14 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
                 <td className="px-2 py-1">{urls.get(t.id)
                   ? <a href={urls.get(t.id)} target="_blank" rel="noreferrer"><img src={urls.get(t.id)} alt="Foto del ticket" className="h-12 w-12 rounded object-cover" /></a>
                   : <span className="text-slate-500">{t.foto_path ? "foto no disponible" : "—"}</span>}</td>
-                <td className="px-2">{fechaCorta(t.fecha)}</td>
+                <td className="px-2">{fechaCorta(t.fecha)}{t.hora ? <span className="block text-xs text-slate-400">{t.hora}</span> : null}</td>
                 <td className="px-2">{nomCond.get(t.conductor_id) ?? "—"}</td>
                 <td className="px-2">{nomVeh.get(t.vehiculo_id) ?? "—"}</td>
-                <td className="px-2">{t.gasolinera ?? "—"}</td>
+                <td className="px-2">{t.gasolinera ?? "—"}
+                  {(t.nif_gasolinera || t.numero_factura) && <span className="block text-xs text-slate-400">{[t.nif_gasolinera && `CIF ${t.nif_gasolinera}`, t.numero_factura && `Fra. ${t.numero_factura}`].filter(Boolean).join(" · ")}</span>}</td>
                 <td className="px-2">{litros2(Number(t.litros))}</td>
-                <td className="px-2">{euros(Number(t.importe))}</td>
+                <td className="px-2">{euros(Number(t.importe))}
+                  {t.base_imponible != null && <span className="block text-xs text-slate-400">base {euros(Number(t.base_imponible))}{t.iva_importe != null ? ` + IVA ${t.iva_pct != null ? `${Number(t.iva_pct)} % ` : ""}${euros(Number(t.iva_importe))}` : ""}</span>}</td>
                 <td className="px-2">{t.km}</td>
                 <td className="space-x-1 px-2">
                   {t.datos_ia && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs">🔎 leído automáticamente</span>}

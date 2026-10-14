@@ -11,8 +11,12 @@ const COMBUSTIBLES = ["Diésel", "Gasolina 95", "Gasolina 98", "Eléctrico", "Ot
 const hoyMadrid = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date());
 const num = (s: string) => Number(s.trim().replace(",", "."));
 type Foto = { uri: string; estado: "subiendo" | "ok" | "error"; path?: string; error?: string };
-type Campo = "fecha" | "gasolinera" | "litros" | "precio" | "importe" | "combustible" | "km";
-type DatosLeidos = { fecha: string | null; gasolinera: string | null; litros: number | null; precio_litro: number | null; importe: number | null; tipo_combustible: string | null; avisos?: string[] };
+type Campo = "fecha" | "gasolinera" | "litros" | "precio" | "importe" | "combustible" | "km" | "hora" | "nif" | "factura" | "base" | "ivaPct" | "ivaImporte";
+type DatosLeidos = {
+  fecha: string | null; gasolinera: string | null; litros: number | null; precio_litro: number | null; importe: number | null; tipo_combustible: string | null;
+  hora?: string | null; nif?: string | null; factura?: string | null; base_imponible?: number | null; iva_pct?: number | null; iva_importe?: number | null;
+  avisos?: string[];
+};
 type Referencia = { min: number; max: number; medio: number; fuente: string };
 type Lectura = { estado: "leyendo" } | { estado: "ok"; campos: number; avisos: string[] } | { estado: "nada" };
 const coma = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
@@ -37,7 +41,7 @@ function precioRaro(precio: string, ref: Referencia | null): string | null {
   const arreglo = [10, 100, 1000, 10000].map((d) => p / d).find((x) => x >= min && x <= max);
   return `${coma(p)} €/L no parece un precio por litro${arreglo ? `: ¿${euros(arreglo)}?` : "."}`;
 }
-const VACIO = { fecha: "", gasolinera: "", litros: "", precio: "", importe: "", combustible: "", km: "" };
+const VACIO = { fecha: "", gasolinera: "", litros: "", precio: "", importe: "", combustible: "", km: "", hora: "", nif: "", factura: "", base: "", ivaPct: "", ivaImporte: "" };
 
 /** Misma tolerancia que esCoherente de la web (litros × €/L ≈ importe). */
 function incoherente(litros: string, precio: string, importe: string): boolean {
@@ -88,6 +92,7 @@ export default function Ticket() {
       const leidos: Partial<Record<Campo, string>> = {
         fecha: d.fecha ?? "", gasolinera: d.gasolinera ?? "", litros: coma(d.litros), precio: coma(d.precio_litro), importe: coma(d.importe),
         combustible: d.tipo_combustible && COMBUSTIBLES.includes(d.tipo_combustible) ? d.tipo_combustible : "",
+        hora: d.hora ?? "", nif: d.nif ?? "", factura: d.factura ?? "", base: coma(d.base_imponible ?? null), ivaPct: coma(d.iva_pct ?? null), ivaImporte: coma(d.iva_importe ?? null),
       };
       const aplicar = (Object.entries(leidos) as [Campo, string][]).filter(([k, x]) => x && !tocados.current.has(k));
       setV((a) => ({ ...a, ...Object.fromEntries(aplicar) }));
@@ -130,6 +135,8 @@ export default function Ticket() {
     if (!(num(v.litros) > 0) || !v.litros.trim()) e.push("Indica los litros (mayor que 0).");
     if (!(num(v.importe) > 0) || !v.importe.trim()) e.push("Indica el importe (mayor que 0).");
     if (v.precio.trim() && !(num(v.precio) > 0)) e.push("El precio por litro debe ser mayor que 0.");
+    if (v.hora.trim() && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v.hora.trim())) e.push("La hora debe tener el formato 16:55.");
+    if (v.nif.trim() && !/^[A-Z0-9]{8,12}$/i.test(v.nif.trim())) e.push("El CIF de la gasolinera no parece válido (p. ej. B12345678).");
     if (!/^\d+$/.test(v.km.trim())) e.push("Indica los kilómetros del cuentakilómetros (número entero).");
     const ak = avisoKm(v.km, v.fecha, ultimoKm);
     if (ak?.error) e.push(ak.texto);
@@ -140,6 +147,8 @@ export default function Ticket() {
       const r = await llamarApi("/api/conductor/ticket", { method: "POST", body: {
         fecha: v.fecha.trim(), gasolinera: v.gasolinera, litros: num(v.litros), precio_litro: v.precio.trim() ? num(v.precio) : null,
         importe: num(v.importe), tipo_combustible: v.combustible, km: Number(v.km.trim()), foto_path: foto?.estado === "ok" ? foto.path : null,
+        hora: v.hora.trim() || null, nif_gasolinera: v.nif.trim() || null, numero_factura: v.factura.trim() || null,
+        base_imponible: v.base.trim() ? num(v.base) : null, iva_pct: v.ivaPct.trim() ? num(v.ivaPct) : null, iva_importe: v.ivaImporte.trim() ? num(v.ivaImporte) : null,
       } });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
       if (r.ok) { if (ultimoKm && Number(v.km.trim()) > ultimoKm.km) setUltimoKm({ ...ultimoKm, km: Number(v.km.trim()) }); setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); setDerivado(null); }
@@ -156,7 +165,7 @@ export default function Ticket() {
         <Text style={e.titulo}>Ticket de combustible</Text>
         <Boton texto="📷 Hacer foto" onPress={() => void elegir(true)} deshabilitado={subiendo} alto={72} />
         <Boton texto="Elegir de la galería" variante="secundario" onPress={() => void elegir(false)} deshabilitado={subiendo} />
-        {!foto && <Aviso texto="Haz la foto y se rellenan solos la fecha, la gasolinera, los litros, el precio, el importe y el combustible. Los kilómetros, a mano." />}
+        {!foto && <Aviso texto="Haz la foto y se rellenan solos todos los datos del ticket: fecha, hora, gasolinera y CIF, litros, precio, importe, combustible, nº de factura, base e IVA. Los kilómetros, a mano." />}
         {foto && (
           <Tarjeta>
             <Image source={{ uri: foto.uri }} style={e.miniatura} resizeMode="contain" accessibilityLabel="Foto del ticket" />
@@ -198,6 +207,17 @@ export default function Ticket() {
               <Text style={{ color: color.texto, fontSize: 15 }}>{c}</Text>
             </Pressable>
           ))}
+        </View>
+        <Text style={e.etiqueta}>Datos de factura (se rellenan del ticket)</Text>
+        <View style={e.fila}>
+          <Campo etiqueta="Hora" valor={v.hora} onChange={set("hora")} />
+          <Campo etiqueta="CIF gasolinera" valor={v.nif} onChange={set("nif")} />
+        </View>
+        <Campo etiqueta="Nº de factura / ticket" valor={v.factura} onChange={set("factura")} />
+        <View style={e.fila}>
+          <Campo etiqueta="Base imp. €" valor={v.base} onChange={set("base")} teclado="decimal-pad" />
+          <Campo etiqueta="IVA %" valor={v.ivaPct} onChange={set("ivaPct")} teclado="decimal-pad" />
+          <Campo etiqueta="Cuota IVA €" valor={v.ivaImporte} onChange={set("ivaImporte")} teclado="decimal-pad" />
         </View>
         <Campo etiqueta="Kilómetros del cuentakilómetros" valor={v.km} onChange={set("km")} teclado="number-pad" />
         {ultimoKm && <Text style={e.nota}>Último registrado de {ultimoKm.matricula}: {fmtKm(ultimoKm.km)} km</Text>}

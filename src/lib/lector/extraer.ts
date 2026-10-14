@@ -35,12 +35,79 @@ function tipo(texto: string): string | null {
   return null;
 }
 
+/** Hora del ticket: la de la línea de la fecha o la que va con «Hora»; si no, la primera HH:MM del ticket. */
+function hora(texto: string): string | null {
+  const conFecha = texto.match(/\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\D{0,12}?\b([01]?\d|2[0-3])[:.h]([0-5]\d)\b/);
+  const conEtiqueta = texto.match(/HORA\W{0,4}([01]?\d|2[0-3])[:.h]([0-5]\d)\b/i);
+  const cualquiera = texto.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  const m = conFecha ?? conEtiqueta ?? cualquiera;
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}` : null;
+}
+
+/** ¿CIF (letra + 7 cifras + control) o NIF (8 cifras + letra) con su dígito/letra de control correcto? */
+export function nifValido(c: string): boolean {
+  if (/^\d{8}[A-Z]$/.test(c)) return "TRWAGMYFPDXBNJZSQVHLCKE"[Number(c.slice(0, 8)) % 23] === c[8];
+  if (!/^[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]$/.test(c)) return false;
+  const d = c.slice(1, 8).split("").map(Number);
+  let suma = d[1] + d[3] + d[5];
+  for (const i of [0, 2, 4, 6]) { const x = d[i] * 2; suma += Math.floor(x / 10) + (x % 10); }
+  const k = (10 - (suma % 10)) % 10;
+  return c[8] === String(k) || c[8] === "JABCDEFGHI"[k];
+}
+/** Lo que el OCR suele leer en lugar de la letra inicial del CIF. */
+const LETRAS_OCR: Record<string, string[]> = { "8": ["B"], "0": ["D", "Q"], "6": ["G"], "4": ["A"], "5": ["S"], "1": ["J"] };
+/**
+ * CIF/NIF de la gasolinera (tras «CIF», «NIF»; tolera «C1F», «ElF»…). Solo se da por bueno si su dígito de control
+ * cuadra: así no se cuela un CIF mal leído. Prueba también las letras que el OCR confunde con números (8 → B…).
+ */
+export function nif(texto: string): string | null {
+  const re = /\b(?:[CE][\s.]?[I1lL][\s.]?F|N[\s.]?[I1l][\s.]?F)\b[^A-Z0-9\n]{0,6}([A-Z0-9][A-Z0-9 .-]{7,11})/gi;
+  for (const m of texto.matchAll(re)) {
+    const c = m[1].toUpperCase().replace(/[ .-]/g, "").slice(0, 9);
+    const candidatos = [c, ...(LETRAS_OCR[c[0]] ?? []).map((l) => l + c.slice(1))];
+    const bueno = candidatos.find(nifValido);
+    if (bueno) return bueno;
+  }
+  return null;
+}
+
+/** Línea de la gasolinera sin el ruido que a veces mete el OCR delante («O PLENERGY…», «— REPSOL»). */
+const limpiarLinea = (l: string) => l.replace(/^(?:[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+|[A-Za-z]{1,2}[)\].]?\s+)(?=[A-ZÁÉÍÓÚÑ]{3})/, "").trim();
+
+/** Nº de factura / factura simplificada / ticket. */
+function factura(texto: string): string | null {
+  const m = texto.match(/(?:FACTURA(?:\s+SIMPLIFICADA)?|FRA\.?|TICKET)\s*(?:N[º°O.]?\s*)?[:|\s\[({]*([A-Z0-9][A-Z0-9\/-]{4,30})/i);
+  return m && /\d{3}/.test(m[1]) ? m[1].toUpperCase() : null;
+}
+
+/** Base imponible, % de IVA y cuota de IVA; si faltan, se completan entre sí (base + cuota = importe). */
+function fiscal(t: string, importe: number | null): { base_imponible: number | null; iva_pct: number | null; iva_importe: number | null } {
+  let base = buscar(t, [new RegExp(String.raw`(?:BASE\s*IMPONIBLE|B\s*[.,]?\s*I(?:MP|NP|MR|NR)\w*\.?|BASE)` + SEP + NUM, "i")]);
+  let cuota = buscar(t, [new RegExp(String.raw`(?:IMP\w*\.?\s*(?:IVA|1VA|I\.V\.A\.)|CUOTA(?:\s+IVA)?|TOTAL\s+IVA)` + SEP + NUM, "i")]);
+  let pct = buscar(t, [/(?:IVA|1VA|I\.V\.A\.)[^0-9%\n]{0,8}(\d{1,2}(?:[.,]\d{1,2})?)\s*%/i, /(\d{1,2}(?:[.,]\d{1,2})?)\s*%\s*(?:IVA|1VA)/i]);
+  const TIPOS = [21, 10, 5, 4];
+  if (pct != null && !TIPOS.includes(pct)) pct = null;
+  if (base != null && importe != null && base > importe) base = null;
+  if (cuota != null && importe != null && cuota >= importe) cuota = null;
+  if (!base && !cuota && !pct) return { base_imponible: null, iva_pct: null, iva_importe: null };
+  if (importe != null) {
+    if (base != null && cuota == null) cuota = r2(importe - base);
+    if (cuota != null && base == null) base = r2(importe - cuota);
+    if (base == null && cuota == null && pct != null) { base = r2(importe / (1 + pct / 100)); cuota = r2(importe - base); }
+  }
+  if (pct == null && base && cuota) {
+    const calc = (cuota / base) * 100;
+    pct = TIPOS.find((x) => Math.abs(x - calc) < 0.6) ?? null;
+  }
+  return { base_imponible: base != null ? r2(base) : null, iva_pct: pct, iva_importe: cuota != null ? r2(cuota) : null };
+}
+
 /** Marcas de gasolinera habituales en España: si sale alguna, manda sobre «la primera línea en mayúsculas». */
 const MARCAS = ["REPSOL", "CEPSA", "MOEVE", "GALP", "SHELL", "PLENERGY", "BALLENOIL", "PETRONOR", "PETROPRIX", "ESCLAT", "BONAREA",
   "CARREFOUR", "ALCAMPO", "EROSKI", "AVIA", "DISA", "MEROIL", "PETROCAT", "VALCARCE", "Q8", "BP", "ESSO", "TAMOIL", "CAMPSA"];
 
 function gasolinera(texto: string): string | null {
-  const lineas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lineas = texto.split(/\r?\n/).map((l) => limpiarLinea(l.trim())).filter(Boolean);
   const conMarca = lineas.find((l) => MARCAS.some((m) => new RegExp(`\\b${m}\\b`, "i").test(l)) && l.length <= 60);
   if (conMarca) return conMarca;
   const linea = lineas.find((l) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9 .,&'-]{2,}$/.test(l) && /[A-Z]{3}/.test(l));
@@ -75,5 +142,6 @@ export function extraerDatosTicket(texto: string, rango?: RangoPrecio): DatosAju
     fecha: fecha(t), gasolinera: gasolinera(texto), litros, precio_litro: precio,
     importe: importe != null ? r2(importe) : null, tipo_combustible: tipo(t), confianza: "baja",
   };
-  return ajustarNumeros(datos, rango ?? rangoPorDefecto(datos.tipo_combustible));
+  const ajustados = ajustarNumeros(datos, rango ?? rangoPorDefecto(datos.tipo_combustible));
+  return { ...ajustados, hora: hora(t), nif: nif(t), factura: factura(t), ...fiscal(t, ajustados.importe) };
 }

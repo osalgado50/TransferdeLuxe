@@ -615,6 +615,17 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   iniciado la jornada… (hace 15 min)»: el texto se escribió a las 08:15 y no cambiaba. `textoAlDia` (en `actividad.ts`,
   puro con tests) suma a «(hace N min)» y a «N min después de su turno» lo que ha pasado desde que se creó la alerta
   («hace 4 h 50 min»); las tarjetas de aviso de la web y de la app se recalculan al cargar y cada 30 s.
+- **Todos los datos del ticket, también los de factura (14/10/2026)**. Con una foto real del iPhone el OCR leía «Litros»
+  como «Ele A» y «Precio» como «MECO “1 209»: solo salía el importe y el conductor tuvo que poner el €/L de hoy. Petición:
+  «todos los campos que se puedan sacar del ticket, al formulario, de forma automática». Medido con esa foto: pasar la
+  imagen a blanco y negro (gris, contraste estirado, umbral 140; `sharp` en el servidor, canvas en el navegador) hace que
+  se lean bien todas las líneas. Ahora hay varias pasadas (blanco y negro por bloque, por página y la foto tal cual) que
+  se paran en cuanto una lo trae todo, y `mejorLectura` se queda con la que cuadra (litros × €/L ≈ importe) y completa el
+  resto con las otras. Datos nuevos (migración `0031`, aditiva): hora, CIF de la gasolinera (solo si su dígito de
+  control cuadra, probando las letras que el OCR confunde: 8 → B…), nº de factura, base imponible, % y cuota de IVA
+  (se completan entre sí: base + cuota = importe). Salen en el formulario de la app y de la web («Datos de factura») y en
+  la tabla de Combustible de la central. Con la foto del iPhone: 25/04/2024 16:55 · PLENERGY · B93275394 ·
+  039R2400065003 · 15,52 L · 1,289 €/L · 20,00 € · base 16,53 + IVA 21 % 3,47.
 
 ## 6. Challenges y soluciones
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba

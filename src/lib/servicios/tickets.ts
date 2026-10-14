@@ -43,6 +43,8 @@ export async function guardarTicketConductor(
     conductor_id: yo.id, vehiculo_id: vehiculoId, fecha: d.fecha, gasolinera: d.gasolinera, litros: d.litros,
     precio_litro: d.precio_litro ?? null, importe: d.importe, tipo_combustible: d.tipo_combustible, km: d.km,
     foto_path: d.foto_path || null, datos_ia: ia, corregido,
+    hora: d.hora, nif_gasolinera: d.nif_gasolinera, numero_factura: d.numero_factura,
+    base_imponible: d.base_imponible, iva_pct: d.iva_pct, iva_importe: d.iva_importe,
   });
   if (error) return { ok: false, error: "No se pudo guardar el ticket" };
   await sb.from("vehiculos").update({ km_actuales: d.km }).eq("id", vehiculoId).lt("km_actuales", d.km);

@@ -34,7 +34,8 @@ const nextConfig: NextConfig = {
   // El despliegue solo sube los ficheros que el código requiere de forma estática: el motor wasm de tesseract (y los
   // módulos que se cargan en tiempo de ejecución) hay que declararlos para la ruta que lee los tickets.
   outputFileTracingIncludes: {
-    "/api/conductor/ticket/leer": ["./node_modules/tesseract.js-core/**/*", "./node_modules/tesseract.js/src/**/*", "./node_modules/node-fetch/**/*"],
+    "/api/conductor/ticket/leer": ["./node_modules/tesseract.js-core/**/*", "./node_modules/tesseract.js/src/**/*", "./node_modules/node-fetch/**/*",
+      "./node_modules/sharp/**/*", "./node_modules/@img/**/*"],
   },
   async headers() {
     return [{ source: "/:path*", headers: cabeceras }];

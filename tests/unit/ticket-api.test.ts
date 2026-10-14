@@ -32,6 +32,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 import { POST as ticket } from "@/app/api/conductor/ticket/route";
 import { POST as foto } from "@/app/api/conductor/ticket/foto/route";
 import { vaciarCacheBearer } from "@/lib/supabase/bearer"; // la verificación del token se cachea 60 s
+import { purgarCaducados } from "@/lib/limite";
 
 const body = { fecha: "2026-10-10", litros: "40,5", importe: "60", km: 1200, gasolinera: "Repsol" };
 const req = (b: unknown, auth = "Bearer bueno") =>
@@ -48,14 +49,17 @@ const reqFoto = async (tipo = "image/jpeg", size = 10, auth = "Bearer bueno", fi
 };
 
 beforeEach(() => {
+  purgarCaducados(Date.now() + 3_600_000); // límite de 10 tickets/min: cada prueba empieza de cero
   vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V }; st.inserts = []; st.kms = []; st.subidas = [];
   st.vehiculo = { matricula: "1234 TDL", km_actuales: 1000 }; st.previos = [];
 });
 
 test("ticket: 401 sin token, 403 no conductor, 400 datos inválidos", async () => {
   expect((await ticket(req(body, ""))).status).toBe(401);
+  purgarCaducados(Date.now() + 3_600_000); // límite de 10 tickets/min: cada prueba empieza de cero
   vaciarCacheBearer(); st.perfil = { id: U, rol: "operador" };
   expect((await ticket(req(body))).status).toBe(403);
+  purgarCaducados(Date.now() + 3_600_000); // límite de 10 tickets/min: cada prueba empieza de cero
   vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V };
   expect((await ticket(req({ ...body, litros: "" }))).status).toBe(400);
   expect((await ticket(req([1]))).status).toBe(400);
@@ -67,6 +71,7 @@ test("ticket: foto de otro conductor rechazada", async () => {
   expect(st.inserts).toHaveLength(0);
 });
 test("ticket: sin vehículo habitual → 400", async () => {
+  purgarCaducados(Date.now() + 3_600_000); // límite de 10 tickets/min: cada prueba empieza de cero
   vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: null };
   expect((await ticket(req(body))).status).toBe(400);
 });
@@ -109,4 +114,10 @@ test("km: un ticket atrasado se compara con el ticket más alto de ese día o an
 });
 test("foto .jpg (como la guarda la subida) se acepta al guardar", async () => {
   expect((await ticket(req({ ...body, foto_path: `${U}/${crypto.randomUUID()}.jpg` }))).status).toBe(200);
+});
+test("datos de factura: se guardan los que llegan (vacíos → null) y se rechaza una hora rara", async () => {
+  const r = await ticket(req({ ...body, hora: "16:55", nif_gasolinera: "b93275394", numero_factura: "039R2400065003", base_imponible: "16,53", iva_pct: 21, iva_importe: "" }));
+  expect(r.status).toBe(200);
+  expect(st.inserts[0]).toMatchObject({ hora: "16:55", nif_gasolinera: "B93275394", numero_factura: "039R2400065003", base_imponible: 16.53, iva_pct: 21, iva_importe: null });
+  expect((await ticket(req({ ...body, hora: "25:99" }))).status).toBe(400);
 });

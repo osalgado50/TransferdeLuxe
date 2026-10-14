@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { extraerDatosTicket } from "@/lib/lector/extraer";
-import { ajustarNumeros, estadisticas, rangoPorDefecto, type RangoPrecio } from "@/lib/lector/plausibles";
+import { ajustarNumeros, estadisticas, lecturaCompleta, mejorLectura, rangoPorDefecto, type RangoPrecio } from "@/lib/lector/plausibles";
 import type { DatosTicket } from "@/lib/lector/tipos";
 
 const base: DatosTicket = { fecha: "2024-04-25", gasolinera: "X", litros: null, precio_litro: null, importe: null, tipo_combustible: "Diésel", confianza: "baja" };
@@ -51,5 +51,20 @@ describe("estadísticas de precios", () => {
   test("mediana, mínimo y máximo; descarta ceros y absurdos", () => {
     expect(estadisticas([1.729, 1.459, 0, 1.52, 1.6, 99], "x")).toEqual({ min: 1.459, max: 1.729, medio: 1.56, fuente: "x" });
     expect(estadisticas([1.5], "x")).toBeNull();
+  });
+});
+
+describe("varias lecturas del mismo ticket", () => {
+  const normal = extraerDatosTicket("PLENERGY GRUPO, S.L.\nCIF + 893275394\nFecha:| 25/04/2024 | 16:55\nFactura simplificada: | 039R2400065003\nProducto : DIESEL\nEle A\nMECO “1 209\nImporte : 20,00\nTotal suminist. : (20,00 Eur");
+  const umbral = extraerDatosTicket("CIF + 893275394\nFecha:| 25/04/2024 | 16:55\nProducto : DIESEL\nLitros : 15,52\nPrecio : 1,289\nImporte : 20,00\nB. Imp. : 16,53\nImp. IVA : 3,47");
+  test("se queda con la que cuadra y completa la gasolinera con la otra (foto real del iPhone)", () => {
+    expect(normal.litros).toBeNull();
+    const d = mejorLectura([normal, umbral]);
+    expect(d).toMatchObject({ litros: 15.52, precio_litro: 1.289, importe: 20, gasolinera: "PLENERGY GRUPO, S.L.", factura: "039R2400065003", base_imponible: 16.53, iva_importe: 3.47 });
+    expect(mejorLectura([umbral, normal]).litros).toBe(15.52);
+  });
+  test("completa: cuadra, fecha, CIF y base imponible", () => {
+    expect(lecturaCompleta(umbral)).toBe(true);
+    expect(lecturaCompleta(normal)).toBe(false);
   });
 });

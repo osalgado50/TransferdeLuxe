@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import os from "node:os";
 import path from "node:path";
 import type { Worker } from "tesseract.js";
-import type { DatosAjustados, RangoPrecio } from "./plausibles";
+import { lecturaCompleta, mejorLectura, type DatosAjustados, type RangoPrecio } from "./plausibles";
 import { rangoDelDia } from "./preciosCarburante";
 import { extraerDatosTicket } from "./extraer";
 
@@ -134,7 +134,7 @@ function programarCierre() {
 }
 
 /** Texto del ticket; lanza con la fase («arranque» / «lectura») si falla o se pasa de tiempo. */
-export function leerTextoTicket(imagen: Buffer): Promise<string> {
+export function leerTextoTicket(imagen: Buffer, psm: "3" | "6" = "3"): Promise<string> {
   const tarea = cola.then(async () => {
     const t0 = Date.now();
     let w: Worker;
@@ -149,6 +149,7 @@ export function leerTextoTicket(imagen: Buffer): Promise<string> {
     const t1 = Date.now();
     const pasosArranque = pasos.join(" → ");
     try {
+      await w.setParameters({ tessedit_pageseg_mode: psm as never });
       const { data } = await conTiempo(w.recognize(imagen), LECTURA_MS, "lectura del ticket");
       console.log(`[ocr] arranque ${t1 - t0} ms · lectura ${Date.now() - t1} ms · ${pasosArranque}`);
       return data.text;
@@ -158,9 +159,37 @@ export function leerTextoTicket(imagen: Buffer): Promise<string> {
   return tarea.finally(programarCierre);
 }
 
-/** Lee el ticket y corrige los números con los precios del día del Ministerio (si responde). */
+/**
+ * La foto pasada a blanco y negro (umbral): con fotos de móvil (sombras, pantallas, papel térmico) el OCR lee mucho
+ * mejor las líneas de litros, precio e IVA. Endereza según el EXIF. Si sharp no está disponible, null (se lee tal cual).
+ */
+async function blancoYNegro(imagen: Buffer): Promise<Buffer | null> {
+  try {
+    const sharp = (await import("sharp")).default;
+    return await sharp(imagen).rotate().grayscale().normalise().threshold(140).png().toBuffer();
+  } catch (e) {
+    console.error("[ocr] sin preprocesado:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/**
+ * Lee el ticket: primero la imagen en blanco y negro; si no sale todo (que cuadre, fecha, CIF, base), también la foto
+ * tal cual, y se junta lo mejor de las dos. Los números se corrigen con los precios del día del Ministerio.
+ */
 export async function leerTicketServidor(imagen: Buffer): Promise<{ datos: DatosAjustados; referencia: RangoPrecio }> {
-  const texto = await leerTextoTicket(imagen);
-  const referencia = await rangoDelDia(extraerDatosTicket(texto).tipo_combustible);
-  return { datos: extraerDatosTicket(texto, referencia), referencia };
+  const bn = await blancoYNegro(imagen);
+  // Blanco y negro por bloque (mejor para las líneas «Litros : 15,52») y por página (mejor para la cabecera: CIF), y la
+  // foto tal cual. Se para en cuanto una lectura lo trae todo.
+  const pasadas: { img: Buffer; psm: "3" | "6" }[] = [...(bn ? [{ img: bn, psm: "6" as const }, { img: bn, psm: "3" as const }] : []), { img: imagen, psm: "3" }];
+  const lecturas: DatosAjustados[] = [];
+  let referencia: RangoPrecio | null = null;
+  for (const p of pasadas) {
+    const texto = await leerTextoTicket(p.img, p.psm);
+    referencia ??= await rangoDelDia(extraerDatosTicket(texto).tipo_combustible);
+    const d = extraerDatosTicket(texto, referencia);
+    lecturas.push(d);
+    if (lecturaCompleta(d)) break;
+  }
+  return { datos: mejorLectura(lecturas), referencia: referencia! };
 }

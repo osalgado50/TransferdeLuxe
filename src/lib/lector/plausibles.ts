@@ -92,3 +92,26 @@ export function ajustarNumeros(d: DatosTicket, rango: RangoPrecio = rangoPorDefe
   if (avisos.length) datos.avisos = avisos;
   return datos;
 }
+
+const SIN_NUMEROS = ["fecha", "gasolinera", "tipo_combustible", "hora", "nif", "factura", "base_imponible", "iva_pct", "iva_importe"] as const;
+/** Nota de una lectura: que cuadren litros × €/L ≈ importe pesa más que nada; luego, cuántos datos trae. */
+export function puntuarLectura(d: DatosAjustados): number {
+  const cuadra = d.litros != null && d.precio_litro != null && d.importe != null && Math.abs(d.litros * d.precio_litro - d.importe) <= Math.max(0.1, d.importe * 0.02);
+  return (cuadra ? 10 : 0) - (d.avisos?.length ?? 0)
+    + [d.litros, d.precio_litro, d.importe, d.fecha].filter((x) => x != null).length * 2
+    + SIN_NUMEROS.filter((k) => d[k] != null).length;
+}
+/**
+ * Junta varias lecturas del mismo ticket (imagen tal cual y pasada a blanco y negro): se queda con la mejor y completa
+ * los datos que le falten con las otras (litros / €/L / importe nunca se mezclan: van juntos de la misma lectura).
+ */
+export function mejorLectura(lecturas: DatosAjustados[]): DatosAjustados {
+  const orden = [...lecturas].sort((a, b) => puntuarLectura(b) - puntuarLectura(a));
+  const mejor: DatosAjustados = { ...orden[0] };
+  for (const k of SIN_NUMEROS) {
+    if (mejor[k] == null) (mejor as unknown as Record<string, unknown>)[k] = orden.find((x) => x[k] != null)?.[k] ?? null;
+  }
+  return mejor;
+}
+/** ¿Hace falta otra pasada? No si ya cuadra y trae fecha y datos de factura. */
+export const lecturaCompleta = (d: DatosAjustados) => puntuarLectura(d) >= 10 + 8 + 4 && d.base_imponible != null && d.nif != null;

@@ -125,6 +125,19 @@ export default function CapturaTicket({ demo }: { demo: boolean }) {
         <label className="block text-sm text-zinc-300">Importe €<input name="importe" inputMode="decimal" required value={valores.importe} onChange={(e) => cambiar("importe", e.target.value)} className={campo} /></label>
       </div>
       <label className="block text-sm text-zinc-300">Combustible<input name="tipo_combustible" defaultValue={datos?.tipo_combustible ?? ""} className={campo} /></label>
+      <fieldset className="space-y-2 rounded-lg border border-zinc-700 p-2">
+        <legend className="px-1 text-xs text-zinc-400">Datos de factura (se rellenan del ticket)</legend>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-sm text-zinc-300">Hora<input name="hora" placeholder="16:55" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" defaultValue={datos?.hora ?? ""} className={campo} /></label>
+          <label className="block text-sm text-zinc-300">CIF gasolinera<input name="nif_gasolinera" defaultValue={datos?.nif ?? ""} className={campo} /></label>
+        </div>
+        <label className="block text-sm text-zinc-300">Nº de factura / ticket<input name="numero_factura" defaultValue={datos?.factura ?? ""} className={campo} /></label>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="block text-sm text-zinc-300">Base imp. €<input name="base_imponible" inputMode="decimal" defaultValue={datos?.base_imponible != null ? String(datos.base_imponible) : ""} className={campo} /></label>
+          <label className="block text-sm text-zinc-300">IVA %<input name="iva_pct" inputMode="decimal" defaultValue={datos?.iva_pct != null ? String(datos.iva_pct) : ""} className={campo} /></label>
+          <label className="block text-sm text-zinc-300">Cuota IVA €<input name="iva_importe" inputMode="decimal" defaultValue={datos?.iva_importe != null ? String(datos.iva_importe) : ""} className={campo} /></label>
+        </div>
+      </fieldset>
       <label className="block text-sm text-zinc-300">Kilómetros del cuentakilómetros<input name="km" type="number" inputMode="numeric" min={0} required className={campo} /></label>
       {errorFoto && <p className="text-red-400 text-sm">{errorFoto}</p>}
       {estado.error && <p className="text-red-400 text-sm">{estado.error}</p>}
