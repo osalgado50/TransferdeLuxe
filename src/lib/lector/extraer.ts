@@ -76,8 +76,10 @@ const limpiarLinea = (l: string) => l.replace(/^(?:[^A-Za-z0-9ÁÉÍÓÚÑáéí
 
 /** Nº de factura / factura simplificada / ticket. */
 function factura(texto: string): string | null {
-  const m = texto.match(/(?:FACTURA(?:\s+SIMPLIFICADA)?|FRA\.?|TICKET)\s*(?:N[º°O.]?\s*)?[:|\s\[({]*([A-Z0-9][A-Z0-9\/-]{4,30})/i);
-  return m && /\d{3}/.test(m[1]) ? m[1].toUpperCase() : null;
+  // Todas las apariciones («Ticket ejemplo» no es un número de ticket): la primera que tenga cifras.
+  const re = /(?:FACTURA(?:\s+SIMPLIFICADA)?|FRA\.?|TICKET)\s*(?:N[º°O.]?\s*)?[:|\s\[({]*([A-Z0-9][A-Z0-9\/-]{4,30})/gi;
+  for (const m of texto.matchAll(re)) if (/\d{3}/.test(m[1])) return m[1].toUpperCase();
+  return null;
 }
 
 /** Base imponible, % de IVA y cuota de IVA; si faltan, se completan entre sí (base + cuota = importe). */

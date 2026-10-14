@@ -160,13 +160,16 @@ export function leerTextoTicket(imagen: Buffer, psm: "3" | "6" = "3"): Promise<s
 }
 
 /**
- * La foto pasada a blanco y negro (umbral): con fotos de móvil (sombras, pantallas, papel térmico) el OCR lee mucho
- * mejor las líneas de litros, precio e IVA. Endereza según el EXIF. Si sharp no está disponible, null (se lee tal cual).
+ * Preparación de la foto para el OCR (medido con 5 fotos reales de móvil del mismo ticket, 9 datos cada una: de 13/45
+ * aciertos con la foto tal cual a 45/45). Lo que más ayuda es desenfocar un poco (σ 1,5): quita el moaré de fotografiar
+ * una pantalla y el grano del papel térmico; luego gris y contraste estirado. Endereza según el EXIF.
  */
-async function blancoYNegro(imagen: Buffer): Promise<Buffer | null> {
+type Preparacion = "suave" | "medio" | "umbral";
+async function preparar(imagen: Buffer, p: Preparacion): Promise<Buffer | null> {
   try {
     const sharp = (await import("sharp")).default;
-    return await sharp(imagen).rotate().grayscale().normalise().threshold(140).png().toBuffer();
+    const base = sharp(imagen).rotate().grayscale().blur(p === "medio" ? 2 : 1.5).normalise();
+    return await (p === "umbral" ? base.threshold(120) : base).png().toBuffer();
   } catch (e) {
     console.error("[ocr] sin preprocesado:", e instanceof Error ? e.message : e);
     return null;
@@ -174,17 +177,19 @@ async function blancoYNegro(imagen: Buffer): Promise<Buffer | null> {
 }
 
 /**
- * Lee el ticket: primero la imagen en blanco y negro; si no sale todo (que cuadre, fecha, CIF, base), también la foto
- * tal cual, y se junta lo mejor de las dos. Los números se corrigen con los precios del día del Ministerio.
+ * Lee el ticket en varias pasadas (desenfoque suave, medio, blanco y negro, y la foto tal cual) y se para en cuanto
+ * una lo trae todo (cuadra, fecha, CIF, base); se junta lo mejor. Los números se corrigen con los precios del día.
  */
 export async function leerTicketServidor(imagen: Buffer): Promise<{ datos: DatosAjustados; referencia: RangoPrecio }> {
-  const bn = await blancoYNegro(imagen);
-  // Blanco y negro por bloque (mejor para las líneas «Litros : 15,52») y por página (mejor para la cabecera: CIF), y la
-  // foto tal cual. Se para en cuanto una lectura lo trae todo.
-  const pasadas: { img: Buffer; psm: "3" | "6" }[] = [...(bn ? [{ img: bn, psm: "6" as const }, { img: bn, psm: "3" as const }] : []), { img: imagen, psm: "3" }];
   const lecturas: DatosAjustados[] = [];
   let referencia: RangoPrecio | null = null;
-  for (const p of pasadas) {
+  const pasadas: (() => Promise<{ img: Buffer; psm: "3" | "6" } | null>)[] = [
+    ...(["suave", "medio", "umbral"] as const).map((p) => async () => { const img = await preparar(imagen, p); return img ? { img, psm: "6" as const } : null; }),
+    async () => ({ img: imagen, psm: "3" as const }),
+  ];
+  for (const siguiente of pasadas) {
+    const p = await siguiente();
+    if (!p) continue;
     const texto = await leerTextoTicket(p.img, p.psm);
     referencia ??= await rangoDelDia(extraerDatosTicket(texto).tipo_combustible);
     const d = extraerDatosTicket(texto, referencia);

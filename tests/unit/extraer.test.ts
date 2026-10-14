@@ -131,3 +131,7 @@ describe("CIF de la gasolinera con dígito de control", () => {
     expect(extraerDatosTicket("— REPSOL CAMBRILS\nTOTAL 20,00").gasolinera).toBe("REPSOL CAMBRILS");
   });
 });
+
+test("nº de factura: no se queda con «Ticket ejemplo» de la cabecera", () => {
+  expect(extraerDatosTicket("Ticket ejemplo\nPLENERGY GRUPO, S.L.\n2 Factura simplificada: | 039R2400065003\nTOTAL 20,00").factura).toBe("039R2400065003");
+});

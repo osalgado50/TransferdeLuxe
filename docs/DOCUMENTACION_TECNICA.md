@@ -626,6 +626,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   (se completan entre sí: base + cuota = importe). Salen en el formulario de la app y de la web («Datos de factura») y en
   la tabla de Combustible de la central. Con la foto del iPhone: 25/04/2024 16:55 · PLENERGY · B93275394 ·
   039R2400065003 · 15,52 L · 1,289 €/L · 20,00 € · base 16,53 + IVA 21 % 3,47.
+- **OCR medido con un banco de fotos reales (14/10/2026)**. El responsable avisa de que con su última foto la lectura
+  «duda» en el 1,289 y antes iba bien: el umbral fijo (140) de la pasada en blanco y negro fallaba con fotos que traen
+  bordes oscuros y el moaré de fotografiar una pantalla. Se montó un banco con sus 5 fotos de móvil del mismo ticket
+  (9 datos cada una) comparando preparaciones: foto tal cual 13/45, umbral 140 17/45, recorte + umbral 16/45, umbral
+  adaptativo 33/45 y **desenfoque gaussiano σ 1,5 + gris + contraste estirado 42/45** (σ 1 34/45, σ 2 40/45, σ 2,5
+  22/45). Las pasadas quedan: desenfoque suave → medio → blanco y negro (umbral 120) → tal cual, parando en cuanto una lo
+  trae todo; juntas dan **45/45** (casi siempre basta la primera, 2–3,6 s). Además el nº de factura se quedaba en
+  «Ticket ejemplo» (primera coincidencia de «ticket») en vez de buscar la que tiene cifras. Navegador: la misma
+  preparación con canvas (tres cajas de radio 1 ≈ gaussiana σ 1,4).
 
 ## 6. Challenges y soluciones
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba
