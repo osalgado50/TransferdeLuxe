@@ -111,3 +111,37 @@ test("devolver: no con pasajeros a bordo", async () => {
   expect((await ejecutarAccion(repo, { idAccion: "d3", servicioId: "s1", accion: "devolver", actor: c1, motivo: "Avería" })).ok).toBe(false);
   expect(db.s1.estado).toBe("recogido");
 });
+
+// ── Carreras central ↔ conductor (auditoría de estrés, 15/10/2026) ──
+test("reasignar de A a B mientras A pulsa «Aceptar» con la ficha ya leída: no queda aceptado a nombre de B", async () => {
+  db.s1 = { id: "s1", estado: "asignado", conductor_id: "c1" } as Servicio;
+  // Repo que compara también el conductor (como el RPC 0034) y que simula que la central reasignó justo después de leer.
+  let leido = false;
+  const carrera: RepoServicios = {
+    ...repo,
+    async obtener(id) { const s = { ...db[id] }; if (!leido) { leido = true; db[id] = { ...db[id], conductor_id: "c2" }; } return s; },
+    async actualizar(id, c, esperado, conductor) {
+      if (db[id].estado !== esperado || (conductor !== undefined && db[id].conductor_id !== conductor)) return false;
+      db[id] = { ...db[id], ...c }; return true;
+    },
+  };
+  const r = await ejecutarAccion(carrera, { idAccion: "x1", servicioId: "s1", accion: "aceptar", actor: c1 });
+  expect(r).toEqual({ ok: false, error: "El servicio cambió mientras tanto; recarga" });
+  expect(db.s1).toMatchObject({ estado: "asignado", conductor_id: "c2" });
+});
+
+test("estadoEsperado: la central no deshace la CARGA creyendo deshacer la salida", async () => {
+  db.s1 = { id: "s1", estado: "recogido", conductor_id: "c1" } as Servicio;
+  const r = await ejecutarAccion(repo, { idAccion: "x2", servicioId: "s1", accion: "deshacer", actor: { ...op, central: true }, estadoEsperado: "en_camino" });
+  expect(r.ok).toBe(false);
+  expect(db.s1.estado).toBe("recogido");
+});
+
+test("aceptar, cancelar y subcontratar limpian la alerta («Sin respuesta», rechazado…)", async () => {
+  db.s1 = { id: "s1", estado: "asignado", conductor_id: "c1", incidencia_vista: false, ultima_incidencia: "expirado" } as Servicio;
+  await ejecutarAccion(repo, { idAccion: "x3", servicioId: "s1", accion: "aceptar", actor: c1 });
+  expect(db.s1.incidencia_vista).toBe(true);
+  db.s2 = { id: "s2", estado: "pendiente", conductor_id: null, incidencia_vista: false, ultima_incidencia: "rechazado: lejos" } as Servicio;
+  await ejecutarAccion(repo, { idAccion: "x4", servicioId: "s2", accion: "cancelar", actor: op, motivo: "Cliente" });
+  expect(db.s2.incidencia_vista).toBe(true);
+});

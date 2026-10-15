@@ -4,11 +4,12 @@ import type { EstadoServicio, Rol, Servicio } from "@/lib/dominio/tipos";
 
 export interface RepoServicios {
   obtener(id: string): Promise<Servicio | null>;
-  actualizar(id: string, cambios: Partial<Servicio>, estadoEsperado: EstadoServicio): Promise<boolean>;
+  /** `conductorEsperado` (si se indica): el conductor leído también tiene que seguir siendo el mismo. */
+  actualizar(id: string, cambios: Partial<Servicio>, estadoEsperado: EstadoServicio, conductorEsperado?: string | null): Promise<boolean>;
   insertarEvento(e: { servicio_id: string; tipo: string; actor_id: string | null; motivo?: string | null }): Promise<void>;
   /** Cambio + evento en una sola transacción (si el repo lo soporta). false = el estado ya no era el esperado. */
   actualizarConEvento?(id: string, cambios: Partial<Servicio>, estadoEsperado: EstadoServicio,
-    e: { tipo: string; actor_id: string | null; motivo?: string | null }): Promise<boolean>;
+    e: { tipo: string; actor_id: string | null; motivo?: string | null }, conductorEsperado?: string | null): Promise<boolean>;
   /** Eventos del servicio (para «deshacer»: el último paso del conductor y si alguien actuó después). */
   eventosServicio?(id: string): Promise<EventoPaso[]>;
   registrarAccion(idAccion: string): Promise<boolean>;
@@ -20,12 +21,17 @@ export interface PeticionAccion {
   /** `central`: solo lo pone el servidor en las rutas de la central (nunca viene del cuerpo de la petición). */
   actor: { id: string; rol: Rol; conduce?: boolean; central?: boolean };
   motivo?: string; conductorId?: string; vehiculoId?: string;
+  /** Estado que vio quien pide la acción (la central): si ya no es ese, no se hace (p. ej. «deshacer la salida» cuando el conductor ya hizo CARGA). */
+  estadoEsperado?: EstadoServicio;
 }
 export type ResultadoAccion = { ok: true; estado: EstadoServicio; duplicada?: boolean } | { ok: false; error: string };
 
 export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Promise<ResultadoAccion> {
   const s = await repo.obtener(p.servicioId);
   if (!s) return { ok: false, error: "Servicio no encontrado" };
+  if (p.estadoEsperado && s.estado !== p.estadoEsperado) {
+    return { ok: false, error: `El servicio ha cambiado mientras tanto (ahora está «${s.estado.replace("_", " ")}»): revísalo antes de repetir la acción` };
+  }
   // Idempotencia primero: un reintento llega cuando el estado ya avanzó y la transición fallaría.
   if (await repo.yaProcesada(p.idAccion)) return { ok: true, estado: s.estado, duplicada: true };
 
@@ -55,6 +61,8 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
     // Se lo quitamos al conductor que no respondió: ya no debe verlo como servicio nuevo.
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, incidencia_vista: true });
   }
+  // Aceptado, cancelado o subcontratado: la alerta que tuviera («Sin respuesta», rechazado, devuelto…) ya no aplica.
+  if (p.accion === "aceptar" || p.accion === "cancelar" || p.accion === "subcontratar") cambios.incidencia_vista = true;
   if (p.accion === "rechazar") {
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
   }
@@ -71,8 +79,9 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   try {
     const evento = { tipo: t.evento, actor_id: p.actor.id, motivo };
     const hecho = repo.actualizarConEvento
-      ? await repo.actualizarConEvento(s.id, cambios, s.estado, evento)
-      : await repo.actualizar(s.id, cambios, s.estado);
+      // También el conductor leído: si la central reasignó mientras tanto (asignado → asignado), la acción no se aplica.
+      ? await repo.actualizarConEvento(s.id, cambios, s.estado, evento, s.conductor_id ?? null)
+      : await repo.actualizar(s.id, cambios, s.estado, s.conductor_id ?? null);
     if (!hecho) {
       await repo.liberarAccion(p.idAccion);
       return { ok: false, error: "El servicio cambió mientras tanto; recarga" };
@@ -92,14 +101,17 @@ export function repoSupabase(sb: import("@supabase/supabase-js").SupabaseClient)
       if (error && error.code !== "PGRST116") throw new Error(error.message);
       return (data as Servicio | null) ?? null;
     },
-    async actualizar(id, cambios, esperado) {
-      const { data, error } = await sb.from("servicios").update(cambios).eq("id", id).eq("estado", esperado).select("id");
+    async actualizar(id, cambios, esperado, conductorEsperado) {
+      let q = sb.from("servicios").update(cambios).eq("id", id).eq("estado", esperado);
+      if (conductorEsperado !== undefined) q = conductorEsperado === null ? q.is("conductor_id", null) : q.eq("conductor_id", conductorEsperado);
+      const { data, error } = await q.select("id");
       if (error) throw new Error(error.message);
       return (data?.length ?? 0) > 0;
     },
-    async actualizarConEvento(id, cambios, esperado, e) {
+    async actualizarConEvento(id, cambios, esperado, e, conductorEsperado) {
       const { data, error } = await sb.rpc("transicion_servicio", {
         p_id: id, p_esperado: esperado, p_cambios: cambios, p_tipo: e.tipo, p_actor: e.actor_id, p_motivo: e.motivo ?? null,
+        p_conductor_esperado: conductorEsperado ?? null, p_comprobar_conductor: conductorEsperado !== undefined,
       });
       if (error) throw new Error(error.message);
       return data === true;
