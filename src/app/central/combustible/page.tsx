@@ -1,53 +1,80 @@
+import Link from "next/link";
 import { exigirRol } from "@/lib/supabase/sesion";
 import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { clienteAdmin } from "@/lib/supabase/admin";
-import { consumoMedioL100, gastoPorMes, resumenCombustible, ticketsParaConsumo, type TicketCalculo } from "@/lib/dominio/combustible";
+import { consumoMedioL100, gastoPorMes, mesesEntre, resumenCombustible, type TicketCalculo } from "@/lib/dominio/combustible";
+import { diaMadrid } from "@/lib/dominio/geo";
 import { euros, litros2, fechaCorta, mesLegible } from "@/lib/dominio/formato";
+import { limitesMes, ticketsLigeros, ticketsParaConsumoDe } from "@/lib/combustible/consultas";
 import GraficoCombustible from "@/components/central/GraficoCombustible";
+import BotonAnularTicket from "@/components/central/BotonAnularTicket";
 
 type Q = Record<string, string | undefined>;
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
+const POR_PAGINA = 50;
+const MAX_FILAS = 1000;
+// Columnas de la tabla: sin el JSON del lector (solo si lo hubo) ni nada que no se pinte.
+const COLUMNAS_TABLA = "id,fecha,hora,conductor_id,vehiculo_id,gasolinera,nif_gasolinera,numero_factura,litros,importe,base_imponible,iva_pct,iva_importe,km,foto_path,corregido,ia:datos_ia->>confianza,anulado,anulado_motivo";
 
 export default async function Combustible({ searchParams }: { searchParams: Promise<Q> }) {
   await exigirRol("operador");
   const q = await searchParams;
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const f: Q = {
+  const f = {
     vehiculo: q.vehiculo && UUID.test(q.vehiculo) ? q.vehiculo : undefined,
     conductor: q.conductor && UUID.test(q.conductor) ? q.conductor : undefined,
     mes: q.mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(q.mes) ? q.mes : undefined,
+    anulados: q.anulados === "1",
   };
+  const mostrar = Math.min(MAX_FILAS, Math.max(POR_PAGINA, Math.ceil((Number(q.n) || POR_PAGINA) / POR_PAGINA) * POR_PAGINA));
+  const rango = f.mes ? limitesMes(f.mes) : null;
   const sb = clienteAdmin();
-  const [{ data: vehiculos, error: e1 }, { data: conductores, error: e2 }, { data: todos, error }] = await Promise.all([
+  // Tabla: solo la página visible (filtrada y paginada en SQL). Los anulados, solo si se piden.
+  let tabla = sb.from("tickets_combustible").select(COLUMNAS_TABLA, { count: "exact" });
+  if (!f.anulados) tabla = tabla.eq("anulado", false);
+  if (rango) tabla = tabla.gte("fecha", rango.inicio).lte("fecha", rango.fin);
+  if (f.vehiculo) tabla = tabla.eq("vehiculo_id", f.vehiculo);
+  if (f.conductor) tabla = tabla.eq("conductor_id", f.conductor);
+  const [{ data: vehiculos, error: e1 }, { data: conductores, error: e2 }, { data: filas, count, error }, { data: ligeros, error: e3 }, { data: primero }] = await Promise.all([
     sb.from("vehiculos").select("id,matricula,modelo").order("matricula"),
     sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre"),
-    sb.from("tickets_combustible").select("*").order("fecha", { ascending: false }).order("creado_en", { ascending: false }),
+    tabla.order("fecha", { ascending: false }).order("creado_en", { ascending: false }).range(0, mostrar - 1),
+    // Totales y gráfico: todos los tickets válidos del filtro, con lo justo.
+    ticketsLigeros(sb, { desde: rango?.inicio, hasta: rango?.fin, vehiculo: f.vehiculo, conductor: f.conductor }),
+    sb.from("tickets_combustible").select("fecha").eq("anulado", false).order("fecha").limit(1),
   ]);
-  const meses = [...new Set((todos ?? []).map((t) => t.fecha.slice(0, 7)))].sort().reverse();
-  const tickets = (todos ?? []).filter((t) =>
-    (!f.vehiculo || t.vehiculo_id === f.vehiculo) && (!f.conductor || t.conductor_id === f.conductor) && (!f.mes || t.fecha.startsWith(f.mes)));
-  const calc: TicketCalculo[] = tickets.map((t) => ({ vehiculoId: t.vehiculo_id, fecha: t.fecha, litros: Number(t.litros), importe: Number(t.importe), km: t.km }));
+  const mesActual = diaMadrid(new Date()).slice(0, 7);
+  const primerMes = ((primero ?? [])[0]?.fecha as string | undefined)?.slice(0, 7) ?? mesActual;
+  const meses = mesesEntre(primerMes < mesActual ? primerMes : mesActual, mesActual);
+  if (f.mes && !meses.includes(f.mes)) meses.push(f.mes);
+  const calc: TicketCalculo[] = ligeros.map((t) => ({ vehiculoId: t.vehiculo_id, fecha: t.fecha, litros: t.litros, importe: t.importe, km: t.km }));
   const res = resumenCombustible(calc);
   const porMes = gastoPorMes(calc);
-  const porVeh = new Map<string, TicketCalculo[]>();
-  for (const t of todos ?? []) {
-    if (f.vehiculo && t.vehiculo_id !== f.vehiculo) continue;
-    porVeh.set(t.vehiculo_id, [...(porVeh.get(t.vehiculo_id) ?? []), { vehiculoId: t.vehiculo_id, fecha: t.fecha, litros: Number(t.litros), importe: Number(t.importe), km: t.km }]);
-  }
   const nomVeh = new Map((vehiculos ?? []).map((v) => [v.id, v.matricula]));
   const nomCond = new Map((conductores ?? []).map((c) => [c.id, c.nombre]));
-  const vehFiltrados = new Set(calc.map((c) => c.vehiculoId));
-  const consumos = [...porVeh.entries()].filter(([id]) => vehFiltrados.has(id)).map(([id, ts]) => ({ id, matricula: nomVeh.get(id) ?? "—", l100: consumoMedioL100(ticketsParaConsumo(ts, { mes: f.mes })) }));
-  const urls = new Map<string, string>();
-  await Promise.all(tickets.filter((t) => t.foto_path).map(async (t) => {
-    const { data } = await sb.storage.from("tickets").createSignedUrl(t.foto_path!, 3600);
-    if (data?.signedUrl) urls.set(t.id, data.signedUrl);
-  }));
+  // Consumo por vehículo: tramos entre repostajes (de cualquier conductor) que acaban en un ticket del filtro.
+  const vehFiltrados = [...new Set(ligeros.map((t) => t.vehiculo_id))];
+  const historico = await ticketsParaConsumoDe(sb, vehFiltrados, f.mes);
+  const enFiltro = new Set(ligeros.map((t) => t.id));
+  const consumos = vehFiltrados.map((id) => ({ id, matricula: nomVeh.get(id) ?? "—", l100: consumoMedioL100(historico.get(id) ?? [], (h) => enFiltro.has(h.id)) }))
+    .sort((a, b) => a.matricula.localeCompare(b.matricula));
+  const tickets = filas ?? [];
+  // URLs firmadas en lote y solo de la página visible.
+  const rutas = tickets.flatMap((t) => (t.foto_path ? [t.foto_path as string] : []));
+  const { data: firmadas } = rutas.length ? await sb.storage.from("tickets").createSignedUrls(rutas, 3600) : { data: [] };
+  const urlDe = new Map<string, string>((firmadas ?? []).flatMap((x) => (x.path && x.signedUrl ? [[x.path, x.signedUrl] as [string, string]] : [])));
+  const total = count ?? tickets.length;
+  const enlace = (extra: Record<string, string | undefined>) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries({ vehiculo: f.vehiculo, conductor: f.conductor, mes: f.mes, anulados: f.anulados ? "1" : undefined, ...extra })) if (v) p.set(k, v);
+    const s = p.toString();
+    return `/central/combustible${s ? `?${s}` : ""}`;
+  };
   const kpi = "rounded-xl border border-slate-700 bg-slate-900 p-4";
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-marca-claro">Combustible</h1>
-      {(error ?? e1 ?? e2) && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">Error: {(error ?? e1 ?? e2)!.message}</p>}
+      {(error ?? e1 ?? e2 ?? e3) && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">Error: {(error ?? e1 ?? e2 ?? e3)!.message}</p>}
       <form className="flex flex-wrap items-end gap-3">
         <label className="text-sm text-slate-400">Vehículo<br />
           <select name="vehiculo" defaultValue={f.vehiculo ?? ""} className={campo}><option value="">Todos</option>
@@ -58,6 +85,8 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
         <label className="text-sm text-slate-400">Mes<br />
           <select name="mes" defaultValue={f.mes ?? ""} className={campo}><option value="">Todos</option>
             {meses.map((m) => <option key={m} value={m}>{mesLegible(m)}</option>)}</select></label>
+        <label className="inline-flex min-h-11 items-center gap-2 text-sm text-slate-400">
+          <input type="checkbox" name="anulados" value="1" defaultChecked={f.anulados} /> Ver anulados</label>
         <button className="rounded bg-marca px-3 py-1 text-sm font-medium text-white hover:bg-marca-oscuro">Filtrar</button>
         <a href="/central/combustible" className="inline-flex min-h-11 items-center px-2 text-sm text-slate-400 hover:text-marca-claro">Limpiar</a>
       </form>
@@ -85,10 +114,12 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
             {["Foto", "Fecha", "Conductor", "Vehículo", "Gasolinera", "Litros", "Importe", "Km", ""].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}
           </tr></thead>
           <tbody>{tickets.length === 0 && <tr><td colSpan={9} className="px-2 py-4 text-slate-400">Sin tickets con estos filtros.</td></tr>}
-            {tickets.map((t) => (
-              <tr key={t.id} className="border-t border-slate-700">
-                <td className="px-2 py-1">{urls.get(t.id)
-                  ? <a href={urls.get(t.id)} target="_blank" rel="noreferrer"><img src={urls.get(t.id)} alt="Foto del ticket" className="h-12 w-12 rounded object-cover" /></a>
+            {tickets.map((t) => {
+              const url = t.foto_path ? urlDe.get(t.foto_path) : undefined;
+              return (
+              <tr key={t.id} data-anulado={t.anulado ? "si" : undefined} className={`border-t border-slate-700 ${t.anulado ? "text-slate-500 opacity-60" : ""}`}>
+                <td className="px-2 py-1">{url
+                  ? <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Foto del ticket" className="h-12 w-12 rounded object-cover" /></a>
                   : <span className="text-slate-500">{t.foto_path ? "foto no disponible" : "—"}</span>}</td>
                 <td className="px-2">{fechaCorta(t.fecha)}{t.hora ? <span className="block text-xs text-slate-400">{t.hora}</span> : null}</td>
                 <td className="px-2">{nomCond.get(t.conductor_id) ?? "—"}</td>
@@ -100,12 +131,22 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
                   {t.base_imponible != null && <span className="block text-xs text-slate-400">base {euros(Number(t.base_imponible))}{t.iva_importe != null ? ` + IVA ${t.iva_pct != null ? `${Number(t.iva_pct)} % ` : ""}${euros(Number(t.iva_importe))}` : ""}</span>}</td>
                 <td className="px-2">{t.km}</td>
                 <td className="space-x-1 px-2">
-                  {t.datos_ia && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs">🔎 leído automáticamente</span>}
-                  {t.corregido && <span className="rounded bg-amber-900/50 px-1.5 py-0.5 text-xs text-amber-200">✏️ corregido</span>}
+                  {t.anulado
+                    ? <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-300" title={t.anulado_motivo ?? undefined}>Anulado{t.anulado_motivo ? `: ${t.anulado_motivo}` : ""}</span>
+                    : <>
+                      {t.ia && <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs">🔎 leído automáticamente</span>}
+                      {t.corregido && <span className="rounded bg-amber-900/50 px-1.5 py-0.5 text-xs text-amber-200">✏️ corregido</span>}
+                      <BotonAnularTicket id={t.id} resumen={`del ${fechaCorta(t.fecha)} (${euros(Number(t.importe))}, ${nomVeh.get(t.vehiculo_id) ?? "—"})`} />
+                    </>}
                 </td>
-              </tr>))}
+              </tr>);
+            })}
           </tbody>
         </table>
+        <p className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
+          <span>Mostrando {tickets.length} de {total}</span>
+          {total > tickets.length && tickets.length < MAX_FILAS && <Link href={enlace({ n: String(mostrar + POR_PAGINA) })} scroll={false} className="inline-flex min-h-11 items-center rounded border border-slate-600 px-3 text-slate-200 hover:bg-slate-800">Mostrar más</Link>}
+        </p>
       </section>
     </div>
   );

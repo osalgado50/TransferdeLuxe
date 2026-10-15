@@ -54,7 +54,7 @@ export default function Historial() {
     const [s, t] = await Promise.all([
       supabase.from("servicios").select(`id,estado,fecha_hora_recogida,origen_texto,destino_texto,recorrido:recorridos(${CAMPOS_RECORRIDO})`).eq("es_prueba", false)
         .eq("conductor_id", yo).gte("fecha_hora_recogida", r.desde).order("fecha_hora_recogida", { ascending: false }),
-      supabase.from("tickets_combustible").select("id,fecha,litros,importe").eq("conductor_id", yo).gte("fecha", r.desdeDia)
+      supabase.from("tickets_combustible").select("id,fecha,litros,importe").eq("conductor_id", yo).eq("anulado", false).gte("fecha", r.desdeDia)
         .order("fecha", { ascending: false }),
     ]);
     return { servicios: exigir(s) as unknown as Viaje[], tickets: exigir(t) as Ticket[] };

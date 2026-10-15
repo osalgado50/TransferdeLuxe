@@ -63,3 +63,15 @@ export function ticketsParaConsumo<T extends { fecha: string }>(todos: T[], { me
 export function previoAlMes<T extends { fecha: string; km: number }>(t: T[], mes: string): T | undefined {
   return t.filter((x) => x.fecha < `${mes}-01`).sort((a, b) => b.fecha.localeCompare(a.fecha) || b.km - a.km)[0];
 }
+
+/** Meses «YYYY-MM» de `hasta` hacia atrás hasta `desde` (ambos incluidos), para el selector de mes. */
+export function mesesEntre(desde: string, hasta: string): string[] {
+  const out: string[] = [];
+  let [y, m] = hasta.split("-").map(Number);
+  const [y0, m0] = desde.split("-").map(Number);
+  while ((y > y0 || (y === y0 && m >= m0)) && out.length < 600) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    if (--m === 0) { m = 12; y--; }
+  }
+  return out;
+}

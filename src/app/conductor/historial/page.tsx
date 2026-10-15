@@ -17,7 +17,7 @@ export default async function Historial() {
   const [s, t] = await Promise.all([
     sb.from("servicios").select(`id,estado,fecha_hora_recogida,origen_texto,destino_texto,recorrido:recorridos(${CAMPOS_RECORRIDO})`).eq("es_prueba", false)
       .eq("conductor_id", yo.id).gte("fecha_hora_recogida", madridAUtc(desdeDia, "00:00")).order("fecha_hora_recogida", { ascending: false }),
-    sb.from("tickets_combustible").select("id,fecha,litros,importe").eq("conductor_id", yo.id).gte("fecha", desdeDia).order("fecha", { ascending: false }),
+    sb.from("tickets_combustible").select("id,fecha,litros,importe").eq("conductor_id", yo.id).eq("anulado", false).gte("fecha", desdeDia).order("fecha", { ascending: false }),
   ]);
   // Solo cuenta como ruta si hay al menos 2 posiciones GPS (sin GPS no hay nada que dibujar).
   const servicios = ((s.data ?? []) as unknown as { id: string; estado: string; fecha_hora_recogida: string; origen_texto: string; destino_texto: string; recorrido: RecorridoGuardado | null }[])

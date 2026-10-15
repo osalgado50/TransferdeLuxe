@@ -60,3 +60,10 @@ test("previoAlMes: el último por fecha antes del mes, no el de más km", () => 
   expect(previoAlMes(ts, "2026-10")?.km).toBe(119500);
   expect(previoAlMes(ts, "2024-04")).toBeUndefined();
 });
+
+import { mesesEntre } from "@/lib/dominio/combustible";
+test("mesesEntre: del más reciente al más antiguo, cruzando el año", () => {
+  expect(mesesEntre("2025-11", "2026-02")).toEqual(["2026-02", "2026-01", "2025-12", "2025-11"]);
+  expect(mesesEntre("2026-10", "2026-10")).toEqual(["2026-10"]);
+  expect(mesesEntre("2026-11", "2026-10")).toEqual([]);
+});
