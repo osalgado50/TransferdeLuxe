@@ -414,6 +414,7 @@ describe("actividad de la central", () => {
       eventos: [{ id: 1, servicio_id: "s1", tipo: "asignado", motivo: motivoAsignadoFueraHorario("Fuera de horario (pausa 13:00–16:00)"), creado_en: "2026-10-19T08:00:00Z" }] });
     expect(r.movimientos[0].texto).toMatch(/ · fuera de su horario \(pausa 13:00–16:00\)$/);
     expect(r.movimientos[0].texto).not.toMatch(/Fuera de horario/);
+    expect(r.movimientos[0].gravedad).toBe("aviso");
   });
   test("textoFueraDeSuHorario: sin repetir «Fuera de horario» y con los otros motivos en minúscula", async () => {
     const { textoFueraDeSuHorario } = await import("@/lib/dominio/horarios");
@@ -421,7 +422,6 @@ describe("actividad de la central", () => {
     expect(textoFueraDeSuHorario("Fuera de horario (libre ese día · médico (mañana))")).toBe("fuera de su horario (libre ese día · médico (mañana))");
     expect(textoFueraDeSuHorario("No vuelve a la base antes de las 15:00")).toBe("fuera de su horario: no vuelve a la base antes de las 15:00");
     expect(textoFueraDeSuHorario("")).toBe("fuera de su horario");
-    expect(r.movimientos[0].gravedad).toBe("aviso");
   });
 });
 
