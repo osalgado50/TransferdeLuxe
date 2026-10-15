@@ -316,3 +316,21 @@ describe("métricas y semáforo", () => {
     expect(colorMargen(15, 15)).toBe("verde");
   });
 });
+
+describe("escala: tope de tiempo de la mejora (auditoría de estrés)", () => {
+  test("300 servicios y 100 conductores: termina en pocos segundos y la propuesta sigue siendo válida", () => {
+    const azar = lcg(42);
+    const servicios = Array.from({ length: 300 }, (_, i) => {
+      const h = 7 + Math.floor(azar() * 13), m = Math.floor(azar() * 4) * 15;
+      return sv(`s${i}`, `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, 30 + Math.floor(azar() * 40),
+        PUNTOS[Math.floor(azar() * PUNTOS.length)], PUNTOS[Math.floor(azar() * PUNTOS.length)]);
+    });
+    const conductores = Array.from({ length: 100 }, (_, i) => cond(`c${String(i).padStart(3, "0")}`));
+    const e = entrada(servicios, conductores);
+    const t = Date.now();
+    const p = proponerAsignacion(e);
+    expect(Date.now() - t).toBeLessThan(8000); // antes ~35 s con el servidor bloqueado
+    expect(auditarPropuesta(e, p)).toEqual([]);
+    expect(p.lineas.filter((l) => l.conductorId).length).toBeGreaterThan(250);
+  }, 30_000);
+});

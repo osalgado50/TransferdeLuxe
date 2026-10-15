@@ -246,13 +246,21 @@ function insertar(st: Estado, s: ServicioAuto): string | null {
   return null;
 }
 
-function mejorar(st: Estado, servicios: ServicioAuto[]) {
+/**
+ * Mejora por movimientos e intercambios. Con tope de tiempo: es O(n²) pares × O(n) por evaluación y corre en el hilo del
+ * servidor (medido: 100 servicios / 20 conductores 1,2 s; 300 / 100, 35 s con todo el servidor parado). Con el tope, la
+ * propuesta sale igual de válida (cada paso solo acepta cambios que cumplen) aunque algo menos afinada.
+ */
+export const LIMITE_MEJORA_MS = 300;
+function mejorar(st: Estado, servicios: ServicioAuto[], limiteMs = LIMITE_MEJORA_MS) {
+  const fin = Date.now() + limiteMs;
   const cs = st.cs;
   const byId = new Map(cs.map((c) => [c.id, c]));
   for (let pasada = 0; pasada < MAX_PASADAS; pasada++) {
     let hubo = false;
     // Mover un servicio a otro conductor.
     for (const s of servicios) {
+      if (Date.now() > fin) return;
       const desde = st.asign[s.id];
       if (!desde) continue;
       let actual = objetivo(st);
@@ -269,6 +277,7 @@ function mejorar(st: Estado, servicios: ServicioAuto[]) {
     }
     // Intercambiar dos servicios entre conductores.
     for (let i = 0; i < servicios.length; i++) {
+      if (Date.now() > fin) return;
       for (let j = i + 1; j < servicios.length; j++) {
         const a = servicios[i], b = servicios[j];
         const ca = st.asign[a.id], cb = st.asign[b.id];
