@@ -14,6 +14,8 @@ import PanelVuelo from "@/components/vuelos/PanelVuelo";
 import FichaRecorrido from "@/components/mapa/FichaRecorrido";
 import { CAMPOS_RECORRIDO, type RecorridoGuardado } from "@/lib/dominio/recorrido";
 
+export const metadata = { title: "Ficha del servicio · TransferdeLuxe" };
+
 const fmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" });
 const punto = (lat: number | null, lng: number | null) => (lat != null && lng != null ? { lat, lng } : null);
 
@@ -57,7 +59,7 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
           <p>Origen: {s.origen_pedido}</p></div>
         <div><h2 className="mb-1 font-semibold text-marca-claro">Asignación</h2>
           <p>Conductor: <span data-testid="conductor-asignado">{s.conductor?.nombre ?? "Sin asignar"}</span></p>
-          {s.vehiculo && <p>Vehículo: {s.vehiculo.modelo} ({s.vehiculo.matricula})</p>}</div>
+          {s.vehiculo && <p>Vehículo: {s.vehiculo.modelo} · {s.vehiculo.matricula}</p>}</div>
         {s.servicio_vuelta_id && <div><Link href={`/central/servicios/${s.servicio_vuelta_id}`} className="text-marca-claro hover:underline">Ver vuelta/ida</Link></div>}
       </section>
       {vuelos && <PanelVuelo servicioId={s.id} estado={s.estado} numeroVuelo={s.numero_vuelo} llegadaReal={s.hora_llegada_real ?? null}

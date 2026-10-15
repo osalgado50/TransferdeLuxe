@@ -179,7 +179,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
       )}
 
       <section className={seccion}>
-        <h2 className="text-lg font-semibold text-marca-claro">Tus datos</h2>
+        <h2 className="text-lg font-semibold text-marca-claro">{central ? "Datos del cliente" : "Tus datos"}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-medium">Nombre
             <input type="text" name="cliente_nombre" required className={cls} /><ErrorCampo e={estado.errores} k="cliente_nombre" /></label>
@@ -209,7 +209,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
       {estado.mensaje && <p role="alert" className="text-sm text-red-400">{estado.mensaje}</p>}
       <button type="submit" disabled={pendiente}
         className="w-full rounded-lg bg-marca px-6 py-3 font-semibold text-white hover:bg-marca-oscuro disabled:opacity-60">
-        {pendiente ? "Enviando…" : "Reservar"}
+        {pendiente ? "Enviando…" : central ? "Crear servicio" : "Reservar"}
       </button>
     </form>
   );

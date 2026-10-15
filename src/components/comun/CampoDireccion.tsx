@@ -165,7 +165,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
       <input type="hidden" name={`${name}_lng`} value={lng} />
       {mostrar && (
         <div onMouseDown={sinPerderFoco} className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
-          {todos.length > 0 && <ul id={idLista} role="listbox" aria-label={`Sugerencias: ${etiqueta}`} className="max-h-60 overflow-auto">
+          {todos.length > 0 && <ul id={idLista} role="listbox" aria-label="Sugerencias de dirección" className="max-h-60 overflow-auto">
             {todos.map((l, i) => (
               <li key={`${l.etiqueta}-${i}`} id={idOpcion(i)} role="option" aria-selected={i === activo}
                 onClick={() => elegir(l)} onMouseEnter={() => setActivo(i)}

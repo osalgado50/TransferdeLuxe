@@ -10,6 +10,16 @@ import DialogoAutoasignar from "@/components/central/DialogoAutoasignar";
 import { cargarHorarios } from "@/lib/central/disponibilidad";
 import { diaValido } from "@/lib/dominio/periodo";
 
+export const metadata = { title: "Hoja de ruta · TransferdeLuxe" };
+
+const fmtDia = new Intl.DateTimeFormat("es-ES", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
+const fmtDiaAnio = new Intl.DateTimeFormat("es-ES", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+/** «2026-10-15» → «miércoles 15 de octubre» (con el año si no es el actual). */
+function diaLegible(dia: string, hoy: string): string {
+  const f = dia.slice(0, 4) === hoy.slice(0, 4) ? fmtDia : fmtDiaAnio;
+  return f.format(new Date(`${dia}T12:00:00Z`)).replace(",", "");
+}
+
 function desplazar(dia: string, n: number): string {
   return new Date(Date.parse(`${dia}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
 }
@@ -48,7 +58,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold text-marca-claro">Hoja de ruta</h1>
         <Link href={`/central/ruta?dia=${desplazar(dia, -1)}`} className={enlace} aria-label="Día anterior">◀</Link>
-        <span className="font-medium">{dia}</span>
+        <span className="font-medium"><time dateTime={dia}>{diaLegible(dia, diaMadrid(new Date()))}</time></span>
         <Link href={`/central/ruta?dia=${desplazar(dia, 1)}`} className={enlace} aria-label="Día siguiente">▶</Link>
         <Link href="/central/ruta" className="inline-flex min-h-11 items-center px-2 text-sm text-marca-claro hover:underline">Hoy</Link>
         <div className="sm:ml-auto"><DialogoAutoasignar dia={dia} /></div>

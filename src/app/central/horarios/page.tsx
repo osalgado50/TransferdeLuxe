@@ -101,7 +101,7 @@ export default async function PaginaHorarios({ searchParams }: { searchParams: P
       <p className="text-sm">
         {base?.base_texto
           ? <>Base / depósito: <b>{base.base_texto}</b>{base.base_lat == null && <span className="text-amber-300"> (sin coordenadas: no se calcula el traslado)</span>} · </>
-          : <span className="text-amber-300">Sin base / depósito configurada: solo cuentan las horas, no el traslado desde/hasta la base. </span>}
+          : <span className="text-amber-300">Sin base o depósito configurado: solo cuentan las horas, no el traslado desde/hasta la base. </span>}
         <Link href="/central/flota#base" className="text-marca-claro hover:underline">Cambiar en Flota y ajustes</Link>
       </p>
 
@@ -178,7 +178,7 @@ export default async function PaginaHorarios({ searchParams }: { searchParams: P
       ) : (
         <section aria-label="Mes de la plantilla" className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold first-letter:uppercase">{nombreMes(mes)}</h2>
+            <h2 className="text-lg font-semibold">{((t) => t.charAt(0).toUpperCase() + t.slice(1))(nombreMes(mes))}</h2>
             <nav className="flex gap-2 text-sm">
               {[["‹ Anterior", mesAnterior(mes)], ["Este mes", hoy.slice(0, 7)], ["Siguiente ›", mesSiguiente(mes)]].map(([t, m]) => (
                 <Link key={t} href={enlace({ mes: m, semana: lunesDeSemana(`${m}-01`) < `${m}-01` ? sumarDias(lunesDeSemana(`${m}-01`), 7) : `${m}-01` })} className="rounded border border-slate-600 px-3 py-2">{t}</Link>

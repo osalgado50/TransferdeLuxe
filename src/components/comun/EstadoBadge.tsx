@@ -11,6 +11,9 @@ const MAPA: Record<EstadoServicio, [string, string]> = {
   subcontratado: ["Subcontratado", "bg-orange-500/20 text-orange-300"],
 };
 
+/** Nombre del estado para la interfaz («en_camino» → «En camino»). */
+export const etiquetaEstado = (estado: string) => MAPA[estado as EstadoServicio]?.[0] ?? estado;
+
 export default function EstadoBadge({ estado }: { estado: EstadoServicio }) {
   const [t, c] = MAPA[estado];
   return <span data-estado={estado} className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${c}`}>{t}</span>;

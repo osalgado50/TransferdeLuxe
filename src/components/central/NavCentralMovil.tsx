@@ -32,7 +32,7 @@ export default function NavCentralMovil({ nombre, salir, extra = [] }: { nombre:
   return (
     <div className="md:hidden">
       <header className="sticky top-0 z-[1900] flex h-14 items-center gap-3 border-b border-slate-800 bg-slate-900 px-3">
-        <button type="button" onClick={() => setAbierto(true)} aria-label="Abrir menú" aria-expanded={abierto} aria-controls="menu-central"
+        <button type="button" onClick={() => setAbierto((v) => !v)} aria-label={abierto ? "Cerrar menú" : "Abrir menú"} aria-expanded={abierto} aria-controls="menu-central"
           className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-200 hover:bg-slate-800">
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>

@@ -21,17 +21,20 @@ export default function EditorChecklist({ items }: { items: ItemChecklist[] }) {
       <h2 className="text-lg font-semibold">Ítems del checklist</h2>
       <ol className="space-y-2">
         {items.map((i, k) => (
-          <li key={i.id} className={`flex flex-wrap items-center gap-2 ${i.activo ? "" : "opacity-50"}`}>
-            <span className="w-6 text-right text-slate-500">{k + 1}.</span>
+          // Rejilla: en el móvil los botones van debajo del texto, siempre alineados en la misma columna.
+          <li key={i.id} className={`grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1 sm:grid-cols-[1.5rem_minmax(0,1fr)_auto] ${i.activo ? "" : "opacity-50"}`}>
+            <span className="text-right text-slate-500">{k + 1}.</span>
             {editando?.id === i.id
-              ? <input aria-label="Texto del ítem" value={editando.texto} maxLength={120} onChange={(e) => setEditando({ id: i.id, texto: e.target.value })} className={`${campo} flex-1`} />
-              : <span className="flex-1">{i.texto}{!i.activo && " (quitado)"}</span>}
+              ? <input aria-label="Texto del ítem" value={editando.texto} maxLength={120} onChange={(e) => setEditando({ id: i.id, texto: e.target.value })} className={`${campo} w-full min-w-0`} />
+              : <span className="min-w-0 break-words">{i.texto}{!i.activo && " (quitado)"}</span>}
+            <div className="col-start-2 flex flex-wrap gap-2 sm:col-start-3 sm:justify-end">
             <button type="button" disabled={pend || k === 0} onClick={() => correr(() => moverItemChecklist(i.id, -1))} className={btn} aria-label={`Subir ${i.texto}`}>↑</button>
             <button type="button" disabled={pend || k === items.length - 1} onClick={() => correr(() => moverItemChecklist(i.id, 1))} className={btn} aria-label={`Bajar ${i.texto}`}>↓</button>
             {editando?.id === i.id
               ? <button type="button" disabled={pend} onClick={() => correr(() => guardarItemChecklist(editando), () => setEditando(null))} className={btn}>Guardar</button>
               : <button type="button" disabled={pend} onClick={() => setEditando({ id: i.id, texto: i.texto })} className={btn}>Editar</button>}
             <button type="button" disabled={pend} onClick={() => correr(() => activarItemChecklist(i.id, !i.activo))} className={btn}>{i.activo ? "Quitar" : "Recuperar"}</button>
+            </div>
           </li>
         ))}
       </ol>

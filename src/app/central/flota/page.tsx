@@ -10,9 +10,13 @@ import CampoBase from "@/components/central/CampoBase";
 import { MODULOS, leerModulos } from "@/lib/dominio/modulos";
 import { CampoContrasena } from "@/components/comun/CampoContrasena";
 
+export const metadata = { title: "Flota y ajustes · TransferdeLuxe" };
+
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
-const rejilla = "grid grid-cols-[7rem_10rem_4rem_4rem_7rem_7rem_6rem] items-center gap-2";
-const rejillaMovil = "grid grid-cols-2 items-end gap-2 md:grid-cols-[7rem_10rem_4rem_4rem_7rem_7rem_6rem] md:items-center";
+// Columnas: el modelo se estira y el botón ocupa lo que necesita, así «Guardar» no queda cortado a 1000 px.
+const COLUMNAS = "grid-cols-[7rem_minmax(7rem,1fr)_4rem_4rem_7rem_6rem_auto]";
+const rejilla = `grid ${COLUMNAS} items-center gap-2`;
+const rejillaMovil = "grid grid-cols-2 items-end gap-2 md:grid-cols-[7rem_minmax(7rem,1fr)_4rem_4rem_7rem_6rem_auto] md:items-center";
 const boton = "rounded bg-marca px-3 py-2 md:py-1 text-sm font-medium text-white hover:bg-marca-oscuro";
 
 export default async function Flota({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -34,12 +38,17 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
       <h1 className="text-2xl font-semibold text-marca-claro">Flota y ajustes</h1>
       {f.error && <p role="alert" className="rounded bg-red-900/50 p-2 text-red-200">{f.error}</p>}
       {f.ok && <p role="status" className="rounded bg-emerald-900/50 p-2 text-emerald-200">Cambios guardados</p>}
-      <p className="rounded border border-slate-700 p-2 text-sm text-slate-400">Mantenimiento (aceite, neumáticos, ITV): próximamente</p>
+      <p className="rounded border border-slate-700 p-2 text-sm text-slate-400">
+        Mantenimiento (aceite, neumáticos, ITV):{" "}
+        {leerModulos(ajustes?.modulos).mantenimiento
+          ? <Link href="/central/mantenimiento" className="text-marca-claro hover:underline">ver y registrar en Mantenimiento</Link>
+          : <a href="#modulos" className="text-marca-claro hover:underline">activa el módulo «Mantenimiento» más abajo</a>}
+      </p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Vehículos</h2>
         <div className="md:overflow-x-auto">
-          <div className="md:min-w-[720px]">
+          <div className="md:min-w-[44rem]">
             <div className={`${rejilla} hidden text-sm text-slate-400 md:grid`}>
               <span>Matrícula</span><span>Modelo</span><span>Plazas</span><span>Maletas</span><span>Estado</span><span>Km</span><span />
             </div>
@@ -167,7 +176,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
         <AyudaSonidos />
       </section>
 
-      <section className="space-y-2">
+      <section id="modulos" className="space-y-2">
         <h2 className="text-lg font-semibold">Módulos</h2>
         <p className="text-sm text-slate-400">Activa o desactiva funciones. Un módulo desactivado desaparece de la central y de la app de los conductores.</p>
         <form action={guardarModulos} className="space-y-2">

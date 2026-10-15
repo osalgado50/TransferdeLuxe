@@ -4,11 +4,14 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { VISTAS, atajos, diaValido, rangoPeriodo, type Vista } from "@/lib/dominio/periodo";
 import CalendarioServicios from "@/components/central/CalendarioServicios";
+import { etiquetaEstado } from "@/components/comun/EstadoBadge";
 import { leerModulos } from "@/lib/dominio/modulos";
 import TablaServicios, { type FilaServicio } from "@/components/central/TablaServicios";
 import DialogoAutoasignar from "@/components/central/DialogoAutoasignar";
 import { indicadoresHoy } from "@/lib/central/puntualidad";
 import { FILTROS_GRUPO, contarPorGrupo, esFiltroGrupo, estadosDeGrupo, type FiltroGrupo } from "@/lib/dominio/centralMovil";
+
+export const metadata = { title: "Servicios · TransferdeLuxe" };
 
 const ESTADOS = ["pendiente", "asignado", "aceptado", "en_camino", "recogido", "completado", "cancelado", "subcontratado"];
 const POR_PAGINA = 100;
@@ -125,7 +128,7 @@ export default async function ListadoServicios({ searchParams }: { searchParams:
         {cal && <input type="hidden" name="modo" value="calendario" />}
         {grupo && <input type="hidden" name="grupo" value={grupo} />}
         <label className="min-w-0">Ir a<br /><input type="date" name="desde" defaultValue={desde} className={cls} /></label>
-        <label className="min-w-0">Estado<br /><select name="estado" defaultValue={estado} className={cls}><option value="">Todos</option>{ESTADOS.map((e) => <option key={e}>{e}</option>)}</select></label>
+        <label className="min-w-0">Estado<br /><select name="estado" defaultValue={estado} className={cls}><option value="">Todos</option>{ESTADOS.map((e) => <option key={e} value={e}>{etiquetaEstado(e)}</option>)}</select></label>
         <label className="min-w-0">Conductor<br /><select name="conductor" defaultValue={conductor} className={cls}><option value="">Todos</option>{(conductores ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select></label>
         <label className="min-w-0">Origen<br /><select name="origen" defaultValue={origen} className={cls}><option value="">Todos</option><option value="web">Web</option><option value="manual">Manual</option></select></label>
         <button className="rounded-lg border border-slate-600 px-3 py-1.5 hover:border-marca-claro">Filtrar</button>
