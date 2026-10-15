@@ -8,6 +8,7 @@ import { leerModulos } from "@/lib/dominio/modulos";
 import TableroRuta from "@/components/central/TableroRutaCliente";
 import DialogoAutoasignar from "@/components/central/DialogoAutoasignar";
 import { cargarHorarios } from "@/lib/central/disponibilidad";
+import { diaValido } from "@/lib/dominio/periodo";
 
 function desplazar(dia: string, n: number): string {
   return new Date(Date.parse(`${dia}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
@@ -15,7 +16,8 @@ function desplazar(dia: string, n: number): string {
 
 export default async function HojaDeRuta({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const f = await searchParams;
-  const dia = /^\d{4}-\d{2}-\d{2}$/.test(f.dia ?? "") ? f.dia! : diaMadrid(new Date());
+  // Fecha imposible en la URL (2026-13-45, 2026-02-31, 9999-12-31) → hoy, en vez de un error 500.
+  const dia = diaValido(f.dia) ? f.dia : diaMadrid(new Date());
   const desde = madridAUtc(dia, "00:00");
   const hasta = madridAUtc(desplazar(dia, 1), "00:00");
   // Margen para la viabilidad (no se pinta): de las 18:00 de la víspera a las 06:00 del día siguiente.

@@ -7,11 +7,11 @@ import {
   calendarioMes, diasDelMes, mesDe, sumarMeses, textoAusencia, COLOR_TIPO_AUSENCIA, NOMBRE_FRANJA, NOMBRE_TIPO_AUSENCIA, TIPOS_AUSENCIA, type Ausencia,
 } from "@/lib/dominio/ausencias";
 import { FormAusencia, ListaAusencias } from "@/components/central/GestionAusencias";
+import { mesValido } from "@/lib/dominio/periodo";
 
 export const metadata = { title: "Ausencias · TransferdeLuxe" };
 export const dynamic = "force-dynamic";
 
-const MES = /^\d{4}-\d{2}$/;
 const fmtMes = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" });
 const INICIAL = ["L", "M", "X", "J", "V", "S", "D"];
 
@@ -23,7 +23,7 @@ export default async function PaginaAusencias({ searchParams }: { searchParams: 
   await exigirRol("operador");
   const q = await searchParams;
   const hoy = diaMadrid(new Date());
-  const mes = q.mes && MES.test(q.mes) ? q.mes : mesDe(hoy);
+  const mes = mesValido(q.mes) ? q.mes : mesDe(hoy);
   const dias = diasDelMes(mes);
   const sb = clienteAdmin();
   const [{ data: gente }, { data: delMes }, { data: proximas }] = await Promise.all([

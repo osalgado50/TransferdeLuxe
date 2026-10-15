@@ -5,6 +5,7 @@ import { leerModulos, type EstadoModulos } from "@/lib/dominio/modulos";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc, sumarDias } from "@/lib/dominio/dias";
 import type { Jornada } from "@/lib/dominio/jornada";
+import { diaValido } from "@/lib/dominio/periodo";
 
 /** Estado de los módulos leído con la sesión del operador. */
 export async function modulosCentral(): Promise<EstadoModulos> {
@@ -13,12 +14,11 @@ export async function modulosCentral(): Promise<EstadoModulos> {
   return leerModulos(data?.modulos);
 }
 
-const DIA = /^\d{4}-\d{2}-\d{2}$/;
-/** Rango de días (Madrid) del filtro; por defecto los últimos 7 días. Máx. 93 días. */
+/** Rango de días (Madrid) del filtro; por defecto los últimos 7 días. Máx. 93 días. Fechas imposibles → por defecto. */
 export function rangoDias(q: { desde?: string; hasta?: string }) {
   const hoy = diaMadrid(new Date());
-  let hasta = q.hasta && DIA.test(q.hasta) ? q.hasta : hoy;
-  let desde = q.desde && DIA.test(q.desde) ? q.desde : sumarDias(hasta, -6);
+  let hasta = diaValido(q.hasta) ? q.hasta : hoy;
+  let desde = diaValido(q.desde) ? q.desde : sumarDias(hasta, -6);
   if (desde > hasta) [desde, hasta] = [hasta, desde];
   if (desde < sumarDias(hasta, -92)) desde = sumarDias(hasta, -92);
   return { desde, hasta };

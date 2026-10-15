@@ -5,11 +5,20 @@ export type Vista = "dia" | "semana" | "mes";
 export const VISTAS: Vista[] = ["dia", "semana", "mes"];
 export const RE_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Fecha YYYY-MM-DD válida de calendario (rechaza 2026-02-31). */
+/** Años que aceptan los filtros de fecha de la URL (fuera de ahí, 9999-12-31 + 1 día ya no es una fecha para Postgres). */
+export const ANIO_MIN = 2000, ANIO_MAX = 2100;
+const anioRazonable = (s: string) => { const a = Number(s.slice(0, 4)); return a >= ANIO_MIN && a <= ANIO_MAX; };
+
+/** Fecha YYYY-MM-DD válida de calendario (rechaza 2026-02-31, 2026-13-45 y años fuera de 2000–2100). */
 export function diaValido(s: string | undefined | null): s is string {
-  if (!s || !RE_DIA.test(s)) return false;
+  if (!s || !RE_DIA.test(s) || !anioRazonable(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
+/** Mes YYYY-MM válido (01–12, años 2000–2100). */
+export function mesValido(s: string | undefined | null): s is string {
+  return !!s && /^\d{4}-(0[1-9]|1[0-2])$/.test(s) && anioRazonable(s);
 }
 
 /** Suma días a un YYYY-MM-DD (calendario puro, sin zonas horarias). */

@@ -12,11 +12,11 @@ import { EditorSemana, GestionExcepciones, GestionPlantillas } from "@/component
 import PlanMes, { type CeldaMes } from "@/components/central/PlanMes";
 import { diasDelMes, esMes, mesAnterior, mesSiguiente, nombreMes, solapesVehiculoFechas } from "@/lib/dominio/planHorarios";
 import BarraTurno from "@/components/central/BarraTurno";
+import { diaValido, mesValido } from "@/lib/dominio/periodo";
 
 export const metadata = { title: "Horarios · TransferdeLuxe" };
 export const dynamic = "force-dynamic";
 
-const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Horarios de los conductores: semana tipo (continua o partida) con vehículo del turno, plantillas, planificación por
@@ -28,10 +28,10 @@ export default async function PaginaHorarios({ searchParams }: { searchParams: P
   const q = await searchParams;
   const hoy = diaMadrid(new Date());
   const vista = q.vista === "mes" ? "mes" : "semana";
-  const semanaQ = q.semana && DIA.test(q.semana) ? q.semana : null;
+  const semanaQ = diaValido(q.semana) ? q.semana : null;
   const lunes = lunesDeSemana(semanaQ ?? hoy);
   // Mes de la vista de mes: el pedido; si no, el de la semana que se estaba viendo (su jueves).
-  const mes = q.mes && esMes(q.mes) ? q.mes : sumarDias(lunes, 3).slice(0, 7);
+  const mes = q.mes && esMes(q.mes) && mesValido(q.mes) ? q.mes : sumarDias(lunes, 3).slice(0, 7);
   const editarTipo = q.editar === "tipo";
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i));
   const diasMes = diasDelMes(mes);

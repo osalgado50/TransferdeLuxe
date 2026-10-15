@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { rangoPeriodo, agruparPorDia, contar, diaValido, atajos } from "@/lib/dominio/periodo";
+import { rangoPeriodo, agruparPorDia, contar, diaValido, mesValido, atajos } from "@/lib/dominio/periodo";
 
 describe("rangoPeriodo", () => {
   test("día normal (CEST)", () => {
@@ -87,5 +87,16 @@ test("diaValido y atajos", () => {
   expect(diaValido("2026-02-31")).toBe(false);
   expect(diaValido("2026-10-13")).toBe(true);
   expect(diaValido("abc")).toBe(false);
+  // Fechas de la URL que tumbaban páginas: mes 13, día 45, año 9999 (al sumar un día ya no es fecha para Postgres).
+  expect(diaValido("2026-13-45")).toBe(false);
+  expect(diaValido("2026-99-99")).toBe(false);
+  expect(diaValido("9999-12-31")).toBe(false);
+  expect(diaValido("0001-01-01")).toBe(false);
+  expect(diaValido("2100-12-31")).toBe(true);
+  expect(diaValido(undefined)).toBe(false);
+  expect(mesValido("2026-10")).toBe(true);
+  expect(mesValido("2026-13")).toBe(false);
+  expect(mesValido("9999-12")).toBe(false);
+  expect(mesValido("2026-1")).toBe(false);
   expect(atajos("2026-10-31").pasado.desde).toBe("2026-11-02");
 });
