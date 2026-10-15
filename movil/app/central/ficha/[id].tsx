@@ -89,7 +89,7 @@ export default function Ficha() {
     if (!pregunta) return;
     const hacer = async () => {
       setDeshaciendo(true); setError(null); setHecho(null);
-      const e = await deshacerPaso(s.id);
+      const e = await deshacerPaso(s.id, s.estado);
       setDeshaciendo(false);
       if (e) { setError(e); return; }
       setHecho("Paso deshecho");

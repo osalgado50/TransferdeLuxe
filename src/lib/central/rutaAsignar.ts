@@ -18,8 +18,13 @@ export function rutaAsignar(accion: "asignar" | "reasignar") {
     if (!permitir(`central-accion:${a.yo.id}`, 30, 60_000)) return demasiadas();
     const b = cuerpo.safeParse(await leerJson(req));
     if (!b.success) return datosNoValidos();
-    const { r, avisar } = await ejecutarAccionOperador(a.yo.id, { ...b.data, vehiculoId: b.data.vehiculoId ?? undefined, accion });
-    after(avisar);
-    return Response.json(r, { status: r.ok ? 200 : 409 });
+    try {
+      const { r, avisar } = await ejecutarAccionOperador(a.yo.id, { ...b.data, vehiculoId: b.data.vehiculoId ?? undefined, accion });
+      after(avisar);
+      return Response.json(r, { status: r.ok ? 200 : 409 });
+    } catch (e) {
+      console.error(`[central] ${accion}`, e instanceof Error ? e.message : e);
+      return Response.json({ ok: false, error: "No se pudo completar ahora. Inténtalo de nuevo." }, { status: 503 });
+    }
   };
 }

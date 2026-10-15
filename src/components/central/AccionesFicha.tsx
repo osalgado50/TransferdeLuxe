@@ -36,9 +36,10 @@ export default function AccionesFicha({ servicioId, estado }: { servicioId: stri
     const texto = accion === "cancelar" ? "¿Cancelar el servicio?" : accion === "subcontratar" ? "¿Marcar como subcontratado?" : pregunta;
     if (!texto || !confirm(texto)) return;
     ini(async () => {
-      const r = await accionCentral({ idAccion: crypto.randomUUID(), servicioId, accion });
+      // Con el estado que ve el operador: si el conductor ha avanzado mientras tanto, el servidor no lo hace.
+      const r = await accionCentral({ idAccion: crypto.randomUUID(), servicioId, accion, estadoEsperado: estado as EstadoServicio });
       setMsg(r.ok ? null : r.error ?? "No se pudo completar la acción");
-      if (r.ok) router.refresh();
+      router.refresh();
     });
   };
   if (!activo && !pregunta) return null;

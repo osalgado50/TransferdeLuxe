@@ -52,9 +52,10 @@ export async function asignarServicio(tipo: "asignar" | "reasignar", servicioId:
 }
 
 /** Deshace el último paso del conductor (salida, carga o descarga), sin límite de tiempo. null = bien; si no, el motivo. */
-export async function deshacerPaso(servicioId: string): Promise<string | null> {
+export async function deshacerPaso(servicioId: string, estadoEsperado?: string): Promise<string | null> {
   try {
-    const r = await llamarApi("/api/central/deshacer", { method: "POST", body: { idAccion: nuevoId(), servicioId } });
+    // estadoEsperado: el que ve el operador; si el conductor avanzó mientras tanto, el servidor no deshace otra cosa.
+    const r = await llamarApi("/api/central/deshacer", { method: "POST", body: { idAccion: nuevoId(), servicioId, ...(estadoEsperado ? { estadoEsperado } : {}) } });
     const d = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
     return r.ok && d?.ok !== false ? null : (d?.error ?? `No se pudo deshacer (error ${r.status})`);
   } catch {

@@ -14,12 +14,15 @@ import { ausenciaEn, motivoAsignadoAusente } from "@/lib/dominio/ausencias";
 import { diaMadrid } from "@/lib/dominio/geo";
 import { cabeServicio, motivoAsignadoFueraHorario, vehiculoDelTurno } from "@/lib/dominio/horarios";
 import { aPlan, aTramo } from "@/lib/dominio/planificacion";
+import type { EstadoServicio } from "@/lib/dominio/tipos";
 
 /** Lógica de la central compartida por las Server Actions (web) y las rutas /api/central/* (app nativa). */
 export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar" | "deshacer" | "desasignar";
 export interface PeticionOperador { idAccion: string; servicioId: string; accion: AccionOperador; conductorId?: string; vehiculoId?: string;
   /** Solo «desasignar»: por qué se le quita (p. ej. «Ausencia: vacaciones»). */
-  motivo?: string }
+  motivo?: string;
+  /** Estado que veía el operador: si el servicio ya no está así, no se hace (el conductor avanzó mientras tanto). */
+  estadoEsperado?: EstadoServicio }
 
 /** Ejecuta la acción como operador. Devuelve además si hay que avisar por push al conductor asignado. */
 export async function ejecutarAccionOperador(operadorId: string, p: PeticionOperador): Promise<{ r: ResultadoAccion; avisar: () => Promise<void> }> {
@@ -30,16 +33,21 @@ export async function ejecutarAccionOperador(operadorId: string, p: PeticionOper
   const motivo = asigna ? (await motivoSiAusente(p.servicioId, p.conductorId!)) ?? hz.motivo : undefined;
   // Sin vehículo indicado: el del turno de ese día (el coche que coge en la base), si lo hay.
   if (asigna && !p.vehiculoId && hz.vehiculoId) p = { ...p, vehiculoId: hz.vehiculoId };
-  // Desasignar: a quién se le quita (para avisarle), leído antes de cambiar.
-  const antes = p.accion === "desasignar"
+  // A quién se le quita (para avisarle), leído antes de cambiar: desasignar, reasignar a otro, subcontratar o cancelar.
+  const quita = p.accion === "desasignar" || p.accion === "reasignar" || p.accion === "subcontratar" || p.accion === "cancelar";
+  const antes = quita
     ? (await clienteAdmin().from("servicios").select("conductor_id,fecha_hora_recogida,origen_texto").eq("id", p.servicioId).maybeSingle()).data
     : null;
   const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...p, ...(motivo ? { motivo } : {}), actor: { id: operadorId, rol: "operador", central: true } });
   const toca = r.ok && !r.duplicada && (p.accion === "asignar" || p.accion === "reasignar");
-  if (r.ok && !r.duplicada && p.accion === "desasignar" && antes?.conductor_id) {
-    const cid = antes.conductor_id as string;
+  // El conductor que lo pierde se entera al momento (si no, con la ficha abierta podía salir hacia la recogida).
+  const pierde = antes?.conductor_id && !(p.accion === "reasignar" && p.conductorId === antes.conductor_id) ? (antes.conductor_id as string) : null;
+  if (r.ok && !r.duplicada && pierde && antes) {
     const hora = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(antes.fecha_hora_recogida));
-    return { r, avisar: () => notificarAConductor(cid, "Servicio retirado", `La central te ha quitado el servicio de las ${hora} (${antes.origen_texto})`, { tipo: "servicio_retirado", servicioId: p.servicioId }) };
+    const porque = p.accion === "cancelar" ? "ha cancelado" : p.accion === "subcontratar" ? "ha subcontratado" : p.accion === "reasignar" ? "ha pasado a otro conductor" : "te ha quitado";
+    const titulo = p.accion === "cancelar" ? "Servicio cancelado" : "Servicio retirado";
+    const avisoRetirado = () => notificarAConductor(pierde, titulo, `La central ${porque} el servicio de las ${hora} (${antes.origen_texto})`, { tipo: "servicio_retirado", servicioId: p.servicioId });
+    return { r, avisar: async () => { await avisoRetirado(); if (toca) await notificarServicioNuevo(p.servicioId); } };
   }
   return { r, avisar: toca ? () => notificarServicioNuevo(p.servicioId) : async () => {} };
 }
@@ -194,7 +202,7 @@ async function actividadCentral(sb: ReturnType<typeof clienteAdmin>, ahora: Date
       sb.from("vehiculos").select("id,matricula"),
       sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en,visto")
         .or(`creado_en.gte.${d},and(gravedad.eq.grave,visto.is.false)`).order("creado_en", { ascending: false }).limit(60),
-      sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,texto,creado_en").gte("creado_en", d).order("creado_en", { ascending: false }).limit(60),
+      sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,texto,creado_en,resuelta_en").gte("creado_en", d).order("creado_en", { ascending: false }).limit(60),
     ]);
     const f = [ev, inc, rev, jor, veh, cie].find((x) => x.error);
     if (f?.error) throw new Error(f.error.message);
