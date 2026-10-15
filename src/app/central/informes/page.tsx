@@ -5,6 +5,8 @@ import { euros, litros2, mesLegible } from "@/lib/dominio/formato";
 import type { FilaInforme } from "@/lib/dominio/informes";
 import GraficoServicios from "@/components/central/GraficoServicios";
 
+export const metadata = { title: "Informes · TransferdeLuxe" };
+
 export const dynamic = "force-dynamic";
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
 const kpi = "rounded-xl border border-slate-700 bg-slate-900 p-4";

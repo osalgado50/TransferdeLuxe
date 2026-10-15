@@ -5,12 +5,13 @@ import { leerModulos } from "@/lib/dominio/modulos";
 import { consumoMedioL100 } from "@/lib/dominio/combustible";
 import { limitesMes, previosAlMes, ticketsLigeros } from "@/lib/combustible/consultas";
 import { agrupar, filtrar, mesMadrid, serviciosPorDia, totales, type FiltroInforme, type ServicioInforme } from "@/lib/dominio/informes";
+import { mesValido } from "@/lib/dominio/periodo";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function leerFiltro(q: Record<string, string | undefined | null>): FiltroInforme {
   return {
-    mes: q.mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(q.mes) ? q.mes : mesMadrid(new Date().toISOString()),
+    mes: mesValido(q.mes) ? q.mes : mesMadrid(new Date().toISOString()),
     conductor: q.conductor && UUID.test(q.conductor) ? q.conductor : undefined,
     vehiculo: q.vehiculo && UUID.test(q.vehiculo) ? q.vehiculo : undefined,
   };

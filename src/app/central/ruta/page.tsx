@@ -63,7 +63,7 @@ export default async function HojaDeRuta({ searchParams }: { searchParams: Promi
         <Link href="/central/ruta" className="inline-flex min-h-11 items-center px-2 text-sm text-marca-claro hover:underline">Hoy</Link>
         <div className="sm:ml-auto"><DialogoAutoasignar dia={dia} /></div>
       </div>
-      {error || errC ? <p className="text-red-400">Error al cargar: {(error ?? errC)!.message}</p>
+      {error || errC ? <p role="alert" className="text-red-400">No se pudo cargar la hoja de ruta (sin conexión con la base de datos). Recarga la página en unos segundos.</p>
         : <TableroRuta servicios={delDia} contexto={contexto} conductores={conductores ?? []} vehiculos={vehiculos ?? []}
           margenMinimo={aj?.margen_minimo_min ?? 15} posiciones={esHoy ? posiciones ?? [] : null} umbralMin={aj?.umbral_sin_senal_min ?? 5}
           dia={dia} horarios={Object.fromEntries(horarios)} base={base} />}

@@ -8,6 +8,9 @@ import { euros, litros2, fechaCorta, mesLegible } from "@/lib/dominio/formato";
 import { limitesMes, ticketsLigeros, ticketsParaConsumoDe } from "@/lib/combustible/consultas";
 import GraficoCombustible from "@/components/central/GraficoCombustible";
 import BotonAnularTicket from "@/components/central/BotonAnularTicket";
+import { mesValido } from "@/lib/dominio/periodo";
+
+export const metadata = { title: "Combustible · TransferdeLuxe" };
 
 type Q = Record<string, string | undefined>;
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";
@@ -23,7 +26,7 @@ export default async function Combustible({ searchParams }: { searchParams: Prom
   const f = {
     vehiculo: q.vehiculo && UUID.test(q.vehiculo) ? q.vehiculo : undefined,
     conductor: q.conductor && UUID.test(q.conductor) ? q.conductor : undefined,
-    mes: q.mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(q.mes) ? q.mes : undefined,
+    mes: mesValido(q.mes) ? q.mes : undefined,
     anulados: q.anulados === "1",
   };
   const mostrar = Math.min(MAX_FILAS, Math.max(POR_PAGINA, Math.ceil((Number(q.n) || POR_PAGINA) / POR_PAGINA) * POR_PAGINA));

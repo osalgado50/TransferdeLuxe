@@ -5,6 +5,8 @@ import { jornadasEnRango, modulosCentral, rangoDias } from "@/lib/central/modulo
 import { formatoDuracion, registroPorDia } from "@/lib/dominio/jornada";
 import { detallePorDia, HORAS_JORNADA_LARGA, salidaConDia } from "@/lib/dominio/jornadaLarga";
 
+export const metadata = { title: "Jornadas · TransferdeLuxe" };
+
 export const dynamic = "force-dynamic";
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
