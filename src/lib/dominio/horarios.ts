@@ -313,6 +313,17 @@ export function fueraDeTurno(ts: readonly Tramo[]): Tramo[] {
 export const PREFIJO_FUERA_HORARIO = "fuera_horario";
 export const motivoAsignadoFueraHorario = (motivo: string) => `${PREFIJO_FUERA_HORARIO}: ${motivo}`;
 export const preguntaAsignarFueraHorario = (motivo: string) => `${motivo}. ¿Asignar igualmente?`;
+/**
+ * «fuera de su horario (pausa 13:00–16:00)» a partir del motivo de `cabeServicio` sin repetir «Fuera de horario»;
+ * otros motivos: «fuera de su horario: no vuelve a la base antes de las 15:00».
+ */
+export function textoFueraDeSuHorario(motivo: string | null | undefined): string {
+  const t = (motivo ?? "").trim();
+  if (!t) return "fuera de su horario";
+  const m = t.match(/^fuera de horario\s*\((.*)\)$/i);
+  if (m) return `fuera de su horario (${m[1].trim()})`;
+  return `fuera de su horario: ${t.charAt(0).toLowerCase()}${t.slice(1)}`;
+}
 
 // ── Alertas a la central (vigilante) ──
 export type TipoAlertaHorario = "fuera_horario" | "sin_jornada" | "fin_turno";
@@ -323,7 +334,7 @@ export function alertaFueraHorario(nombre: string, s: ServicioHorario & { id: st
   h: HorarioConductor | null | undefined, o: { base?: Punto | null; agenda?: readonly { id?: string; inicio: number; fin: number }[] } = {}): AlertaHorario | null {
   const r = cabeServicio(h, s, o);
   if (r.cabe) return null;
-  return { tipo: "fuera_horario", clave: s.id, servicioId: s.id, texto: `⚠️ Servicio de las ${hhmm(instante(s.inicio))} asignado a ${nombre} fuera de su horario · ${r.motivo}` };
+  return { tipo: "fuera_horario", clave: s.id, servicioId: s.id, texto: `⚠️ Servicio de las ${hhmm(instante(s.inicio))} asignado a ${nombre} ${textoFueraDeSuHorario(r.motivo)}` };
 }
 
 /** Sin iniciar jornada 15 min después del inicio de su tramo (hasta 2 h después y antes del fin del tramo). */

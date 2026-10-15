@@ -284,7 +284,7 @@ describe("alertas a la central", () => {
   const h = semana();
   test("servicio asignado fuera de horario: una por servicio", () => {
     const a = alertaFueraHorario("Marc", { id: "s1", inicio: verano(LUN, "14:00"), duracionMin: 30, origen: salou, destino: reus }, h);
-    expect(a).toEqual({ tipo: "fuera_horario", clave: "s1", servicioId: "s1", texto: "⚠️ Servicio de las 14:00 asignado a Marc fuera de su horario · Fuera de horario (pausa 13:00–16:00)" });
+    expect(a).toEqual({ tipo: "fuera_horario", clave: "s1", servicioId: "s1", texto: "⚠️ Servicio de las 14:00 asignado a Marc fuera de su horario (pausa 13:00–16:00)" });
     expect(alertaFueraHorario("Marc", { id: "s2", inicio: verano(LUN, "10:00"), duracionMin: 30, origen: salou, destino: reus }, h)).toBeNull();
     expect(alertaFueraHorario("Marc", { id: "s3", inicio: verano(LUN, "03:00"), duracionMin: 30, origen: salou, destino: reus }, null)).toBeNull();
   });
@@ -412,7 +412,15 @@ describe("actividad de la central", () => {
     const s = { id: "s1", cliente_nombre: "Ana", origen_texto: "Salou", destino_texto: "Aeropuerto de Reus", fecha_hora_recogida: "2026-10-19T12:00:00Z", conductor_id: "c1" };
     const r = construirActividad({ servicios: [s], conductores: [{ id: "c1", nombre: "Marc" }],
       eventos: [{ id: 1, servicio_id: "s1", tipo: "asignado", motivo: motivoAsignadoFueraHorario("Fuera de horario (pausa 13:00–16:00)"), creado_en: "2026-10-19T08:00:00Z" }] });
-    expect(r.movimientos[0].texto).toMatch(/fuera de su horario \(Fuera de horario \(pausa 13:00–16:00\)\)$/);
+    expect(r.movimientos[0].texto).toMatch(/ · fuera de su horario \(pausa 13:00–16:00\)$/);
+    expect(r.movimientos[0].texto).not.toMatch(/Fuera de horario/);
+  });
+  test("textoFueraDeSuHorario: sin repetir «Fuera de horario» y con los otros motivos en minúscula", async () => {
+    const { textoFueraDeSuHorario } = await import("@/lib/dominio/horarios");
+    expect(textoFueraDeSuHorario("Fuera de horario (turno 08:00–15:00)")).toBe("fuera de su horario (turno 08:00–15:00)");
+    expect(textoFueraDeSuHorario("Fuera de horario (libre ese día · médico (mañana))")).toBe("fuera de su horario (libre ese día · médico (mañana))");
+    expect(textoFueraDeSuHorario("No vuelve a la base antes de las 15:00")).toBe("fuera de su horario: no vuelve a la base antes de las 15:00");
+    expect(textoFueraDeSuHorario("")).toBe("fuera de su horario");
     expect(r.movimientos[0].gravedad).toBe("aviso");
   });
 });

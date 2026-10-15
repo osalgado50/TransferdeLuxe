@@ -35,7 +35,7 @@ function textoAlerta(s: Servicio, eventos: EventoAlerta[], nombreConductor: (id:
     return ["Devuelto", textoDevuelto(s, ev?.actor_id ? nombreConductor(ev.actor_id) : null)] as const;
   }
   if (inc.startsWith("desasignado")) return ["Reasignar", textoDesasignado(s)] as const;
-  if (inc === "expirado") return ["Sin respuesta", "Sin respuesta · aún puede aceptarlo o reasígnalo"] as const;
+  if (inc === "expirado") return ["Sin respuesta", "Sin respuesta · aún puede aceptarlo; si no, reasígnalo"] as const;
   if (inc === "nuevo") return ["Reserva nueva", "Reserva nueva"] as const;
   return ["Aviso", inc || "Incidencia"] as const;
 }

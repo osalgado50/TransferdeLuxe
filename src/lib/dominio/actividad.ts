@@ -8,7 +8,7 @@ import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type
 import { agruparFinJornada, textoDevueltosFinJornada, textoJornadaConPendientes } from "./finJornada";
 import { leerMotivoAnomalia, textoAnomalia } from "./anomalias";
 import { PREFIJO_ASIGNADO_AUSENTE } from "./ausencias";
-import { PREFIJO_FUERA_HORARIO } from "./horarios";
+import { PREFIJO_FUERA_HORARIO, textoFueraDeSuHorario } from "./horarios";
 
 /**
  * «Actividad en vivo» de la central (lógica pura, compartida por la web y por /api/central/resumen de la app):
@@ -196,7 +196,7 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
         // Asignado igualmente a un conductor ausente (vacaciones, baja…): queda registrado.
         if (ev.motivo?.startsWith(`${PREFIJO_ASIGNADO_AUSENTE}:`)) { texto += ` · aunque estaba de ${ev.motivo.slice(PREFIJO_ASIGNADO_AUSENTE.length + 1).trim()}`; m.gravedad = "aviso"; }
         // Asignado igualmente fuera de su horario (pausa, fuera de turno, sin tiempo de volver a la base).
-        else if (ev.motivo?.startsWith(`${PREFIJO_FUERA_HORARIO}:`)) { texto += ` · fuera de su horario (${ev.motivo.slice(PREFIJO_FUERA_HORARIO.length + 1).trim()})`; m.gravedad = "aviso"; }
+        else if (ev.motivo?.startsWith(`${PREFIJO_FUERA_HORARIO}:`)) { texto += ` · ${textoFueraDeSuHorario(ev.motivo.slice(PREFIJO_FUERA_HORARIO.length + 1))}`; m.gravedad = "aviso"; }
         break;
       }
       case "desasignado": {
