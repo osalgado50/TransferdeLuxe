@@ -8,6 +8,8 @@ import { diaValido } from "@/lib/dominio/periodo";
 import { CAMPOS_RECORRIDO, textoDuracion, textoKm, type RecorridoGuardado } from "@/lib/dominio/recorrido";
 import MiniRecorrido from "@/components/mapa/MiniRecorrido";
 
+export const metadata = { title: "Historial de viajes · TransferdeLuxe" };
+
 export const dynamic = "force-dynamic";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LIMITE = 200;

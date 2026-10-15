@@ -10,6 +10,8 @@ import { SEMAFORO_CIERRE, etiquetaCombustible, etiquetaZona, problemasCierre, ul
 import DiagramaVehiculo from "@/components/comun/DiagramaVehiculo";
 import BotonCierreVisto from "@/components/central/BotonCierreVisto";
 
+export const metadata = { title: "Mantenimiento · TransferdeLuxe" };
+
 export const dynamic = "force-dynamic";
 
 const campo = "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm";

@@ -7,6 +7,8 @@ import { fallos, type ItemChecklist, type Respuestas } from "@/lib/dominio/check
 import EditorChecklist from "@/components/central/EditorChecklist";
 import { BotonRevisionVista } from "@/components/central/BotonResolver";
 
+export const metadata = { title: "Checklist · TransferdeLuxe" };
+
 export const dynamic = "force-dynamic";
 
 interface Rev { id: string; conductor_id: string; vehiculo_id: string; fecha: string; respuestas: Respuestas; observaciones: string; con_fallos: boolean; revisada: boolean }

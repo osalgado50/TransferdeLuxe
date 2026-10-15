@@ -9,6 +9,8 @@ import { etiquetaZona, normalizarZonas } from "@/lib/dominio/cierre";
 import DiagramaVehiculo from "@/components/comun/DiagramaVehiculo";
 import { BotonResolver } from "@/components/central/BotonResolver";
 
+export const metadata = { title: "Incidencias · TransferdeLuxe" };
+
 export const dynamic = "force-dynamic";
 
 export default async function Incidencias({ searchParams }: { searchParams: Promise<{ ver?: string }> }) {

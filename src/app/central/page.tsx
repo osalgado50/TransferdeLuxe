@@ -12,6 +12,8 @@ import EstadoTurnos from "@/components/central/EstadoTurnos";
 import { agruparHorarios } from "@/lib/dominio/horarios";
 import { sumarDias } from "@/lib/dominio/dias";
 
+export const metadata = { title: "Panel en vivo · TransferdeLuxe" };
+
 export const dynamic = "force-dynamic";
 
 export default async function PanelCentral() {
