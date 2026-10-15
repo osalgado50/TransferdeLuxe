@@ -8,15 +8,24 @@ import { crearFreno } from "@/lib/dominio/reintento";
 // socket que «parpadea», piden como mucho UN router.refresh cada 10 s (cada refresh re-renderiza la página en el servidor).
 const frenoRefresh = crearFreno(10_000);
 
+export interface OpcionesTiempoReal<T> {
+  /** Filas que se ignoran (p. ej. pruebas automáticas); si una fila ya cargada deja de valer, se quita. */
+  acepta?: (fila: T) => boolean;
+  /** Acota la lista tras cada cambio (paneles abiertos días): devuelve la misma referencia si no quita nada. */
+  acotar?: (filas: T[]) => T[];
+}
+
 export function useTiempoReal<T extends object>(
   tabla: "servicios" | "posicion_actual" | "eventos_servicio" | "incidencias" | "checklist_revisiones" | "jornadas" | "cierres_jornada" | "alertas_horario", iniciales: T[], clave: keyof T,
-  onEstado?: (conectado: boolean) => void,
+  onEstado?: (conectado: boolean) => void, opciones?: OpcionesTiempoReal<T>,
 ): T[] {
   const router = useRouter();
-  const [filas, setFilas] = useState(iniciales);
+  const op = useRef(opciones);
+  useEffect(() => { op.current = opciones; });
+  const [filas, setFilas] = useState(() => (opciones?.acepta ? iniciales.filter(opciones.acepta) : iniciales));
   const cb = useRef(onEstado);
   useEffect(() => { cb.current = onEstado; });
-  useEffect(() => setFilas(iniciales), [iniciales]);
+  useEffect(() => setFilas(op.current?.acepta ? iniciales.filter(op.current.acepta) : iniciales), [iniciales]);
   useEffect(() => {
     const sb = clienteNavegador();
     let conectadoAntes = false;
@@ -34,7 +43,9 @@ export function useTiempoReal<T extends object>(
           if (p.eventType === "DELETE") return act.filter((f) => f[clave] !== (p.old as T)[clave]);
           const nueva = p.new as T;
           const i = act.findIndex((f) => f[clave] === nueva[clave]);
-          return i === -1 ? [...act, nueva] : act.map((f, j) => (j === i ? nueva : f));
+          if (op.current?.acepta && !op.current.acepta(nueva)) return i === -1 ? act : act.filter((_, j) => j !== i);
+          const sig = i === -1 ? [...act, nueva] : act.map((f, j) => (j === i ? nueva : f));
+          return op.current?.acotar ? op.current.acotar(sig) : sig;
         });
       }).subscribe((estado) => {
         if (!activo) return;

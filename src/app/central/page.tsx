@@ -40,7 +40,7 @@ export default async function PanelCentral() {
     sb.from("cierres_jornada").select("id,conductor_id,vehiculo_id,zonas,tecnico,combustible,comentario,gravedad,creado_en,visto")
       .or(`creado_en.gte.${hace12h},and(gravedad.eq.grave,visto.is.false)`).order("creado_en", { ascending: false }).limit(100),
     // Horarios: alertas de las últimas 12 h y turnos de hoy (si las tablas fallan, el panel sigue sin ellos).
-    sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,texto,creado_en").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(100),
+    sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,texto,creado_en,resuelta_en").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(100),
     sb.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").limit(2000),
     sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").gte("fecha", sumarDias(hoy, -1)).lte("fecha", sumarDias(hoy, 1)).limit(1000),
   ]);
@@ -77,6 +77,7 @@ export default async function PanelCentral() {
         servicios={[...porId.values()]} posiciones={pos.data ?? []} eventos={eventosVisibles}
         incidencias={incidenciasVisibles} revisiones={revs.data ?? []} alertasHorario={(alh.data ?? []) as AlertaHorarioAct[]} jornadas={jors.data ?? []} cierres={(cies.data ?? []) as CierreAct[]}
         serviciosExtra={(extra ?? []).filter((x) => !x.es_prueba) as ServicioAct[]}
+        ocultos={[...ocultos]}
         conductores={perfiles.data ?? []} vehiculos={vehiculos.data ?? []} umbralMin={ajustes.data?.umbral_sin_senal_min ?? 5}
       />
     </div>

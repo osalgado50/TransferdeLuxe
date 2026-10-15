@@ -30,13 +30,21 @@ export function useActividadCentral(o: {
 }) {
   const { eventos, incidencias, revisiones, jornadas, cierres, servicios, serviciosExtra, conductores, posiciones, vehiculos, pedir, alertasHorario } = o;
   const [ahora, setAhora] = useState(() => Date.now());
-  useEffect(() => { const t = setInterval(() => setAhora(Date.now()), 60_000); return () => clearInterval(t); }, []);
+  // GPS: cada posición nueva repinta solo el mapa; la actividad (zona de retrasos, incidencias y alertas) usa una foto
+  // de las posiciones que se renueva cada minuto, a la vez que el reloj (un solo render).
+  const ultimasPos = useRef(posiciones);
+  useEffect(() => { ultimasPos.current = posiciones; }, [posiciones]);
+  const [fotoPos, setFotoPos] = useState(posiciones);
+  useEffect(() => {
+    const t = setInterval(() => { setAhora(Date.now()); setFotoPos(ultimasPos.current); }, 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   const { movimientos, graves, avisos } = useMemo(() => construirActividad({
-    eventos, incidencias, revisiones, jornadas, cierres, conductores, posiciones, vehiculos, alertasHorario,
+    eventos, incidencias, revisiones, jornadas, cierres, conductores, posiciones: fotoPos, vehiculos, alertasHorario,
     servicios: [...serviciosExtra, ...servicios], // los del panel (en vivo) pisan a los extra
     desde: new Date(ahora - HORAS_ACTIVIDAD * 3600e3),
-  }), [eventos, incidencias, revisiones, jornadas, cierres, servicios, serviciosExtra, conductores, posiciones, vehiculos, alertasHorario, ahora]);
+  }), [eventos, incidencias, revisiones, jornadas, cierres, servicios, serviciosExtra, conductores, fotoPos, vehiculos, alertasHorario, ahora]);
 
   // null hasta leer el navegador (evita que la alarma suene por graves ya vistas antes de cargarlas).
   const [vistos, setVistos] = useState<Set<string> | null>(null);
