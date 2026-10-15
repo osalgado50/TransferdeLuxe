@@ -23,7 +23,7 @@ export async function guardarRecorrido(sb: Admin, servicioId: string): Promise<b
   // Paginado: PostgREST devuelve como mucho 1000 filas por petición (un viaje largo con GPS cada 5 s tiene más).
   const posiciones: PosicionGps[] = [];
   for (let desde = 0; conductor && desde < MAX_POSICIONES; desde += PAGINA) {
-    const { data, error } = await sb.from("posiciones").select("lat,lng,precision_m,registrado_en").eq("conductor_id", conductor)
+    const { data, error } = await sb.from("posiciones").select("lat,lng,precision_m,registrado_en").eq("conductor_id", conductor).eq("simulada", false)
       .gte("registrado_en", v.inicio).lte("registrado_en", v.fin).order("registrado_en").range(desde, desde + PAGINA - 1);
     if (error) throw new Error(`posiciones ${servicioId}: ${error.message}`);
     posiciones.push(...((data ?? []) as PosicionGps[]));

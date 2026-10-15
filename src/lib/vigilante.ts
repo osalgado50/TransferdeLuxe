@@ -116,7 +116,7 @@ async function pasadaAnomalias(sb: ReturnType<typeof clienteAdmin>, eventos: (Ev
     for (const e of objetivo) {
       const t = Date.parse(e.creado_en);
       const [{ data: pos }, { data: act }] = await Promise.all([
-        sb.from("posiciones").select("lat,lng,registrado_en").eq("conductor_id", e.actor_id!)
+        sb.from("posiciones").select("lat,lng,registrado_en").eq("conductor_id", e.actor_id!).eq("simulada", false)
           .gte("registrado_en", new Date(t - VENTANA_POSICION_MS).toISOString()).lte("registrado_en", new Date(t + VENTANA_POSICION_MS).toISOString())
           .order("registrado_en", { ascending: false }).limit(60),
         sb.from("posicion_actual").select("lat,lng,registrado_en").eq("conductor_id", e.actor_id!).maybeSingle(),

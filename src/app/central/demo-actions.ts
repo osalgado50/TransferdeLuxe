@@ -8,7 +8,8 @@ async function exigirDemo() {
   await exigirRol("operador");
 }
 
-const GPS_REAL_MS = 5 * 60_000;
+// Un conductor con GPS real en las últimas 24 h no se simula nunca (antes bastaba con 5 min sin señal).
+const GPS_REAL_MS = 24 * 3600_000;
 
 /**
  * Inserta una posición por conductor demo siguiendo su ruta, salvo a los que tienen GPS real reciente
@@ -20,14 +21,14 @@ export async function simularPaso(): Promise<void> {
   const ahora = Date.now(), ts = new Date(ahora).toISOString();
   const [conductores, reales] = await Promise.all([
     sb.from("perfiles").select("id,nombre").eq("rol", "conductor"),
-    sb.from("posiciones").select("conductor_id").not("precision_m", "is", null).gte("registrado_en", new Date(ahora - GPS_REAL_MS).toISOString()),
+    sb.from("posiciones").select("conductor_id").eq("simulada", false).gte("registrado_en", new Date(ahora - GPS_REAL_MS).toISOString()),
   ]);
   if (conductores.error) throw new Error(conductores.error.message);
   if (reales.error) throw new Error(reales.error.message);
   const conGpsReal = new Set((reales.data ?? []).map((r) => r.conductor_id));
   const filas = (conductores.data ?? [])
     .filter((c) => RUTAS_DEMO[c.nombre] && !conGpsReal.has(c.id))
-    .map((c) => { const p = posicionSimulada(RUTAS_DEMO[c.nombre], ahora); return { conductor_id: c.id, lat: p.lat, lng: p.lng, velocidad: 40, registrado_en: ts }; });
+    .map((c) => { const p = posicionSimulada(RUTAS_DEMO[c.nombre], ahora); return { conductor_id: c.id, lat: p.lat, lng: p.lng, velocidad: 40, registrado_en: ts, simulada: true }; });
   if (!filas.length) return;
   const { error } = await sb.from("posiciones").insert(filas); // el trigger actualiza posicion_actual
   if (error) throw new Error(error.message);
