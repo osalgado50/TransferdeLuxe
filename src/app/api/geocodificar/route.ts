@@ -18,7 +18,7 @@ async function frecuentesDe(q: string): Promise<LugarSugerido[]> {
   try {
     // Son pocos (tabla de lectura pública): se traen todos cada 10 min y se filtran sin acentos ni mayúsculas.
     if (!frecuentesCache || frecuentesCache.hasta < Date.now()) {
-      const sb = createClient(url, anon, { auth: { persistSession: false } });
+      const sb = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } }); // sin temporizador: no fuga
       const { data, error } = await sb.from("lugares_frecuentes").select("nombre, lat, lng").limit(500);
       if (error) return [];
       frecuentesCache = { hasta: Date.now() + 600_000, datos: data ?? [] };

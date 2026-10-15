@@ -14,5 +14,8 @@ export async function GET(req: Request) {
   const cabeceras = { "Cache-Control": "no-store" };
   if (!l.ok) return Response.json({ ok: false, error: "Demasiadas peticiones." }, { status: 429, headers: { ...cabeceras, "Retry-After": String(l.reintentarEnS) } });
   const bd = await estadoBd();
-  return Response.json({ ok: true, servidor: "ok", bd: bd.estado, comprobadaHaceS: bd.haceS, hora: new Date().toISOString() }, { headers: cabeceras });
+  // Memoria del proceso (MB) y minutos encendido: para vigilar fugas durante la evaluación sin acceso al servidor.
+  const m = process.memoryUsage();
+  const memoria = { rssMb: Math.round(m.rss / 1048576), heapMb: Math.round(m.heapUsed / 1048576), encendidoMin: Math.round(process.uptime() / 60) };
+  return Response.json({ ok: true, servidor: "ok", bd: bd.estado, comprobadaHaceS: bd.haceS, hora: new Date().toISOString(), memoria }, { headers: cabeceras });
 }

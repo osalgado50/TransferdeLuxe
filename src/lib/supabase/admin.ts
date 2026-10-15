@@ -13,9 +13,15 @@ export const fetchConTiempo: typeof fetch = (url, init = {}) => {
   return fetch(url, { ...init, signal: ctrl.signal }).finally(() => { clearTimeout(t); externa?.removeEventListener("abort", propagar); });
 };
 
+/**
+ * Cliente con la clave de servicio (solo servidor). `autoRefreshToken: false` es imprescindible: por defecto, fuera del
+ * navegador, auth-js arranca un temporizador de refresco de sesión que nunca se para; como se crea un cliente por
+ * petición (y por cada pasada del vigilante), cada uno dejaba su temporizador vivo reteniendo el cliente y la petición
+ * entera → fuga de memoria (medida: OOM a las ~1 200 páginas con 512 MB).
+ */
 export function clienteAdmin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { persistSession: false },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { fetch: fetchConTiempo },
   });
 }

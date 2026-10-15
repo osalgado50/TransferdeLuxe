@@ -13,7 +13,10 @@ export async function middleware(req: NextRequest) {
       },
     },
   });
-  const { data: { user } } = await sb.auth.getUser();
+  // getClaims verifica el JWT en local cuando el proyecto firma con claves asimétricas (si no, consulta a Auth como
+  // getUser). Solo decide si redirigir al login: la autorización de verdad la hace cada página con perfilActual().
+  const { data } = await sb.auth.getClaims();
+  const user = data?.claims?.sub ?? null;
   if (!user && /^\/(central|conductor)/.test(req.nextUrl.pathname)) {
     return NextResponse.redirect(new URL(`/login?destino=${req.nextUrl.pathname}`, req.url));
   }

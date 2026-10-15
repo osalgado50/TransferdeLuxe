@@ -1,15 +1,20 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { clienteServidor } from "./servidor";
 import { puedeConducir, type Perfil, type Rol } from "@/lib/dominio/tipos";
 
-export async function perfilActual(): Promise<Perfil | null> {
+/**
+ * Perfil del usuario de la sesión. `cache` de React: el layout y la página lo piden en el mismo render y antes eran dos
+ * `getUser` + dos selects de perfiles por cada vista (~100 ms de más en todas las páginas).
+ */
+export const perfilActual = cache(async (): Promise<Perfil | null> => {
   const sb = await clienteServidor();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data } = await sb.from("perfiles").select("*").eq("id", user.id).single();
   return data as Perfil | null;
-}
+});
 export async function exigirRol(rol: Rol): Promise<Perfil> {
   const p = await perfilActual();
   if (!p || p.rol !== rol) redirect(`/login?destino=/${rol === "operador" ? "central" : "conductor"}`);
