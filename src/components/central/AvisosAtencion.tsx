@@ -19,7 +19,7 @@ export default function AvisosAtencion({ avisos, alVisto, alCentrar }: {
     <div className="space-y-3" role="status" aria-live="polite">
       {avisos.map((a) => (
         <article key={a.id} data-alerta={a.tipo} className="rounded-xl border-2 border-amber-500 bg-amber-950/60 p-3">
-          <p className="text-base font-semibold text-amber-100">{ahora ? textoAlDia(a.texto, a.en, ahora) : a.texto}</p>
+          <p className="text-base font-semibold text-amber-100">{ahora ? textoAlDia(a.texto, a.en, ahora, a.resueltaEn) : a.texto}</p>
           <p className="mt-0.5 text-xs text-amber-200/80">{a.hora}{a.detalle ? ` · ${a.detalle}` : ""}{a.tipo === "jornada_pendientes" ? " · reasigna esos servicios o llama al conductor" : " · quizá hay que llamarlo"}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {a.lat != null && a.lng != null && (

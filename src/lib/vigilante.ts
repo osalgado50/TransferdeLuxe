@@ -1,6 +1,7 @@
 import "server-only";
 import { clienteAdmin } from "@/lib/supabase/admin";
-import { notificarCentral } from "@/lib/push";
+import { enviarACentral } from "@/lib/push";
+import type { MensajeCentral } from "@/lib/dominio/lotePush";
 import { esperaBackoff } from "@/lib/dominio/reintento";
 import { actualizarRecorridos } from "@/lib/servicios/recorridos";
 import { construirAvisos, type CierreAviso, type EventoAviso, type IncidenciaAviso, type RevisionAviso, type ServicioAviso } from "@/lib/dominio/avisosCentral";
@@ -9,7 +10,8 @@ import { ESTADOS_PENDIENTE_HOY, horaCorta, pendientesHoy } from "@/lib/dominio/f
 import { diaMadrid } from "@/lib/dominio/geo";
 import { madridAUtc, sumarDias } from "@/lib/dominio/dias";
 import { cargarHorarios } from "@/lib/central/disponibilidad";
-import { alertaFinTurno, alertaFueraHorario, alertaSinJornada, type AlertaHorario } from "@/lib/dominio/horarios";
+import { alertaFinTurno, alertaFueraHorario, alertaHorarioVigente, alertaSinJornada, type AlertaHorario, type ServicioEnCurso } from "@/lib/dominio/horarios";
+import { alertaJornadaLarga, HORAS_JORNADA_LARGA } from "@/lib/dominio/jornadaLarga";
 import { ausenciaEn, type Ausencia } from "@/lib/dominio/ausencias";
 import { aPlan, finDe, type FilaPlan } from "@/lib/dominio/planificacion";
 import { lugarCorto } from "@/lib/dominio/avisosCentral";
@@ -31,7 +33,9 @@ export async function vigilarUnaVez(): Promise<number> {
   const det = await sb.rpc("detectar_retrasos_recogida");
   if (det.error) console.error("[vigilante] retrasos:", det.error.message);
   await pasadaRecorridos(sb);
-  await pasadaHorarios(sb);
+  // Avisos de horario de esta pasada: salen junto con los demás, en un solo envío (tokens leídos una vez).
+  const deHorario: MensajeCentral[] = [];
+  await pasadaHorarios(sb, Date.now(), false, deHorario);
   const jornadasPendientes = await pasadaJornadasCerradas(sb);
   const [{ data: ev }, { data: inc }, { data: rev }, { data: cie }] = await Promise.all([
     sb.from("eventos_servicio").select("id,servicio_id,tipo,actor_id,motivo,creado_en").gt("id", c.ultimo_evento_id).order("id").limit(LIMITE),
@@ -45,7 +49,10 @@ export async function vigilarUnaVez(): Promise<number> {
   const incidencias = (inc ?? []) as (IncidenciaAviso & { creado_en: string })[];
   const revisiones = (rev ?? []) as (RevisionAviso & { con_fallos: boolean; creado_en: string })[];
   const cierres = (cie ?? []) as (CierreAviso & { creado_en: string })[];
-  if (!eventos.length && !incidencias.length && !revisiones.length && !cierres.length && !jornadasPendientes.length) return 0;
+  if (!eventos.length && !incidencias.length && !revisiones.length && !cierres.length && !jornadasPendientes.length) {
+    await enviarACentral(deHorario, { sb });
+    return 0;
+  }
 
   const idsServ = [...new Set([...eventos.map((e) => e.servicio_id), ...incidencias.map((i) => i.servicio_id).filter((x): x is string => !!x)])];
   const { data: servs } = idsServ.length
@@ -78,15 +85,20 @@ export async function vigilarUnaVez(): Promise<number> {
     posiciones: new Map(((poss ?? []) as { conductor_id: string; lat: number; lng: number }[]).map((p) => [p.conductor_id, p])),
     jornadasPendientes,
   });
-  // El cursor avanza antes de enviar: ante un fallo se pierde un aviso, nunca se duplica.
-  await sb.from("vigilante_push").update({
+  // El cursor avanza antes de enviar: ante un fallo se pierde un aviso, nunca se duplica. Si el cursor NO se guarda,
+  // no se envían (la pasada siguiente los volverá a leer y entonces sí); los de horario sí, porque no dependen del cursor.
+  const { error: errCursor } = await sb.from("vigilante_push").update({
     ultimo_evento_id: eventos.at(-1)?.id ?? c.ultimo_evento_id,
     ultima_incidencia_en: incidencias.at(-1)?.creado_en ?? c.ultima_incidencia_en,
     ultima_revision_en: revisiones.at(-1)?.creado_en ?? c.ultima_revision_en,
     ...(c.ultimo_cierre_en ? { ultimo_cierre_en: cierres.at(-1)?.creado_en ?? c.ultimo_cierre_en } : {}),
     actualizado_en: new Date().toISOString(),
   }).eq("id", 1);
-  for (const a of avisos) await notificarCentral(a.titulo, a.cuerpo, a.data);
+  if (errCursor) {
+    await enviarACentral(deHorario, { sb });
+    throw new Error(`cursor no guardado (${avisos.length} aviso(s) sin enviar): ${errCursor.message}`);
+  }
+  await enviarACentral([...deHorario, ...avisos.map((a) => ({ titulo: a.titulo, cuerpo: a.cuerpo, data: a.data }))], { sb });
   return avisos.length;
 }
 
@@ -165,16 +177,19 @@ type FilaHorario = FilaPlan & { conductor_id: string; estado: string; es_prueba:
  * su tramo y en servicio > 30 min pasado el fin de su turno sin tiempo de volver a la base. Solo conductores con
  * horario. Las pruebas automáticas se registran pero sin push. Nunca rompe la pasada de avisos.
  */
-export async function pasadaHorarios(sb: ReturnType<typeof clienteAdmin>, ahora = Date.now(), forzar = false): Promise<AlertaHorario[]> {
+export async function pasadaHorarios(sb: ReturnType<typeof clienteAdmin>, ahora = Date.now(), forzar = false, salida?: MensajeCentral[]): Promise<AlertaHorario[]> {
   const g = globalThis as { __horariosUltima?: number };
   if (!forzar && g.__horariosUltima && ahora - g.__horariosUltima < HORARIOS_CADA_MS) return [];
   g.__horariosUltima = ahora;
   const nuevas: AlertaHorario[] = [];
+  // Push de esta pasada: a `salida` (las envía quien llama, en lote) o, si no la hay, al terminar.
+  const pend: MensajeCentral[] = salida ?? [];
   try {
+    await pasadaJornadasLargas(sb, ahora, pend);
     const hoy = diaMadrid(new Date(ahora));
     const { horarios, base } = await cargarHorarios(sb, sumarDias(hoy, -1), sumarDias(hoy, 3));
     const ids = [...horarios.keys()];
-    if (!ids.length) return nuevas;
+    if (!ids.length) { await resolverAlertasHorario(sb, ahora, () => false); return nuevas; }
     const [{ data: pers }, { data: abiertas }, { data: aus }, { data: servs, error }, { data: aj }] = await Promise.all([
       sb.from("perfiles").select("id,nombre").in("id", ids),
       sb.from("jornadas").select("conductor_id").is("fin", null).in("conductor_id", ids),
@@ -193,6 +208,7 @@ export async function pasadaHorarios(sb: ReturnType<typeof clienteAdmin>, ahora 
     const prueba = new Set(filas.filter((x) => (x.notas ?? "").startsWith(PREFIJO_PRUEBA)).map((x) => x.id));
     const porId = new Map(filas.map((x) => [x.id, x]));
     const candidatas: (AlertaHorario & { conductorId: string })[] = [];
+    const enCurso = new Map<string, ServicioEnCurso[]>();
     for (const cid of ids) {
       const h = horarios.get(cid)!;
       const n = nombre.get(cid) ?? "Un conductor";
@@ -207,7 +223,9 @@ export async function pasadaHorarios(sb: ReturnType<typeof clienteAdmin>, ahora 
       const ausente = !!ausenciaEn((aus ?? []) as Ausencia[], cid, new Date(ahora));
       const sj = conJornada ? alertaSinJornada(n, h, ahora, { jornadaAbierta: abierta.has(cid), ausente }) : null;
       if (sj) candidatas.push({ ...sj, conductorId: cid });
-      const ft = alertaFinTurno(n, h, ahora, { base, servicios: planes.map(({ fila, plan }) => ({ id: plan.id, estado: fila.estado, inicio: plan.inicio.getTime(), duracionMin: plan.duracionMin, destino: plan.destino })) });
+      const servicios = planes.map(({ fila, plan }) => ({ id: plan.id, estado: fila.estado, inicio: plan.inicio.getTime(), duracionMin: plan.duracionMin, destino: plan.destino }));
+      enCurso.set(cid, servicios);
+      const ft = alertaFinTurno(n, h, ahora, { base, servicios });
       if (ft) candidatas.push({ ...ft, conductorId: cid });
     }
     for (const a of candidatas) {
@@ -223,12 +241,77 @@ export async function pasadaHorarios(sb: ReturnType<typeof clienteAdmin>, ahora 
       if (a.servicioId && prueba.has(a.servicioId)) continue; // prueba automática: sin push
       const s = a.servicioId ? porId.get(a.servicioId) : undefined;
       const cuerpo = s ? `${lugarCorto(s.origen_texto)} → ${lugarCorto(s.destino_texto)} · Revisa la asignación` : "Llama al conductor";
-      await notificarCentral(a.texto, cuerpo, { tipo: "horario", ...(a.servicioId ? { servicioId: a.servicioId } : {}) });
+      pend.push({ titulo: a.texto, cuerpo, data: { tipo: "horario", ...(a.servicioId ? { servicioId: a.servicioId } : {}) } });
     }
+    // Las que ya no se cumplen (inició la jornada, acabó el tramo, quedó libre, cerró la jornada…) se marcan resueltas:
+    // dejan de salir como aviso en la central y de contar minutos.
+    await resolverAlertasHorario(sb, ahora, (a) => alertaHorarioVigente({ tipo: a.tipo, clave: a.clave, servicioId: a.servicio_id }, horarios.get(a.conductor_id), ahora, {
+      jornadaAbierta: abierta.has(a.conductor_id), conJornada, servicios: enCurso.get(a.conductor_id) ?? [],
+      ausente: !!ausenciaEn((aus ?? []) as Ausencia[], a.conductor_id, new Date(ahora)),
+    }));
   } catch (err) {
     console.error("[vigilante] horarios:", err instanceof Error ? err.message : err);
+  } finally {
+    if (!salida) await enviarACentral(pend, { sb });
   }
   return nuevas;
+}
+
+type AlertaAbierta = { id: string; tipo: string; conductor_id: string; servicio_id: string | null; clave: string; creado_en: string };
+/** Más de 24 h abierta: se da por resuelta igualmente (ya no es «en vivo»). */
+const TOPE_ALERTA_MS = 24 * 3600e3;
+
+/** Marca `resuelta_en` en las alertas de horario abiertas (salvo «jornada_larga», que va aparte) que ya no siguen vigentes. */
+async function resolverAlertasHorario(sb: ReturnType<typeof clienteAdmin>, ahora: number, vigente: (a: AlertaAbierta) => boolean): Promise<void> {
+  const { data, error } = await sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,clave,creado_en")
+    .is("resuelta_en", null).in("tipo", ["fuera_horario", "sin_jornada", "fin_turno"]).order("creado_en").limit(300);
+  if (error) { console.error("[vigilante] alertas abiertas:", error.message); return; }
+  const cerrar = ((data ?? []) as AlertaAbierta[]).filter((a) => ahora - Date.parse(a.creado_en) > TOPE_ALERTA_MS || !vigente(a)).map((a) => a.id);
+  if (!cerrar.length) return;
+  const { error: e } = await sb.from("alertas_horario").update({ resuelta_en: new Date(ahora).toISOString() }).in("id", cerrar).is("resuelta_en", null);
+  if (e) console.error("[vigilante] resolver alertas:", e.message);
+  else console.log(`[vigilante] ${cerrar.length} alerta(s) de horario resuelta(s)`);
+}
+
+/**
+ * Jornadas abiertas más de 14 h (¿se olvidó de cerrarla?): UNA alerta a la central por jornada (clave = id de la
+ * jornada, índice único) y se resuelve sola al cerrarla. Para todos los conductores, tengan horario o no.
+ */
+async function pasadaJornadasLargas(sb: ReturnType<typeof clienteAdmin>, ahora: number, pend: MensajeCentral[]): Promise<void> {
+  try {
+    const [{ data: js, error }, { data: abiertasAl, error: e2 }] = await Promise.all([
+      sb.from("jornadas").select("id,conductor_id,inicio,fin").is("fin", null)
+        .lte("inicio", new Date(ahora - HORAS_JORNADA_LARGA * 3600e3).toISOString()).order("inicio").limit(100),
+      sb.from("alertas_horario").select("id,clave").eq("tipo", "jornada_larga").is("resuelta_en", null).limit(200),
+    ]);
+    if (error || e2) { console.error("[vigilante] jornadas largas:", (error ?? e2)!.message); return; }
+    const largas = (js ?? []) as { id: string; conductor_id: string; inicio: string; fin: string | null }[];
+    const abiertas = new Set(largas.map((j) => j.id));
+    const cerrar = ((abiertasAl ?? []) as { id: string; clave: string }[]).filter((a) => !abiertas.has(a.clave)).map((a) => a.id);
+    if (cerrar.length) {
+      const { error: e } = await sb.from("alertas_horario").update({ resuelta_en: new Date(ahora).toISOString() }).in("id", cerrar).is("resuelta_en", null);
+      if (e) console.error("[vigilante] resolver jornadas largas:", e.message);
+    }
+    const yaAvisadas = new Set(((abiertasAl ?? []) as { clave: string }[]).map((a) => a.clave));
+    const nuevas = largas.filter((j) => !yaAvisadas.has(j.id));
+    if (!nuevas.length) return;
+    const { data: pers } = await sb.from("perfiles").select("id,nombre").in("id", [...new Set(nuevas.map((j) => j.conductor_id))]);
+    const nombre = new Map(((pers ?? []) as { id: string; nombre: string }[]).map((p) => [p.id, p.nombre]));
+    for (const j of nuevas) {
+      const a = alertaJornadaLarga(nombre.get(j.conductor_id) ?? "Un conductor", j, ahora);
+      if (!a) continue;
+      const { data, error: e } = await sb.from("alertas_horario")
+        .upsert({ tipo: a.tipo, conductor_id: j.conductor_id, servicio_id: null, clave: a.clave, texto: a.texto.slice(0, 300) },
+          { onConflict: "tipo,conductor_id,clave", ignoreDuplicates: true })
+        .select("id");
+      if (e) { console.error("[vigilante] jornada larga:", e.message); continue; }
+      if (!data?.length) continue; // ya avisada (y quizá resuelta) antes
+      console.log(`[vigilante] jornada larga · ${j.id}`);
+      pend.push({ titulo: a.texto, cuerpo: "Llama al conductor o revisa su jornada", data: { tipo: "horario" } });
+    }
+  } catch (err) {
+    console.error("[vigilante] jornadas largas:", err instanceof Error ? err.message : err);
+  }
 }
 
 /**

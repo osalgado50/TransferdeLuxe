@@ -1,6 +1,7 @@
 import "server-only";
 import { camposSonidoPush } from "@/lib/dominio/sonidoPush";
 import { clienteAdmin } from "@/lib/supabase/admin";
+import { mensajesCentral, type MensajeCentral } from "@/lib/dominio/lotePush";
 
 const URL_EXPO = "https://exp.host/--/api/v2/push/send";
 const URL_RECIBOS = "https://exp.host/--/api/v2/push/getReceipts";
@@ -109,18 +110,34 @@ export async function notificarAConductor(conductorId: string, titulo: string, c
   }
 }
 
+/** Tokens de los dispositivos de los usuarios de la central (operadores). */
+export async function tokensCentral(sb: Sb = clienteAdmin()): Promise<string[]> {
+  const { data: ops, error } = await sb.from("perfiles").select("id").eq("rol", "operador");
+  if (error) throw new Error(`operadores: ${error.message}`);
+  const ids = (ops ?? []).map((o: { id: string }) => o.id);
+  if (!ids.length) return [];
+  const { data: disp, error: e2 } = await sb.from("dispositivos_push").select("token").in("conductor_id", ids);
+  if (e2) throw new Error(`dispositivos: ${e2.message}`);
+  return (disp ?? []).map((d: { token: string }) => d.token);
+}
+
+/**
+ * Varios avisos a la central de una vez: los tokens se leen UNA vez (o se pasan ya leídos) y todos los mensajes salen en
+ * lotes de ≤ 100 por petición. Nunca lanza.
+ */
+export async function enviarACentral(avisos: readonly MensajeCentral[], o: { sb?: Sb; tokens?: string[] } = {}): Promise<void> {
+  if (!avisos.length) return;
+  try {
+    const sb = o.sb ?? clienteAdmin();
+    const tokens = o.tokens ?? (await tokensCentral(sb));
+    const mensajes = mensajesCentral(tokens, avisos);
+    if (mensajes.length) await enviarExpo(sb, mensajes);
+  } catch (e) {
+    console.error("[push] enviarACentral falló:", e instanceof Error ? e.message : e);
+  }
+}
+
 /** Aviso a todos los dispositivos de los usuarios de la central (operadores). Nunca lanza. */
 export async function notificarCentral(titulo: string, cuerpo: string, data: Record<string, unknown>): Promise<void> {
-  try {
-    const sb = clienteAdmin();
-    const { data: ops } = await sb.from("perfiles").select("id").eq("rol", "operador");
-    const ids = (ops ?? []).map((o: { id: string }) => o.id);
-    if (!ids.length) return;
-    const { data: disp } = await sb.from("dispositivos_push").select("token").in("conductor_id", ids);
-    const tokens = (disp ?? []).map((d: { token: string }) => d.token);
-    if (!tokens.length) return;
-    await enviarExpo(sb, tokens.map((to) => ({ to, title: titulo, body: cuerpo, data, priority: "high", ...camposSonidoPush(data as { tipo?: string; grave?: boolean }) })));
-  } catch (e) {
-    console.error("[push] notificarCentral falló:", e instanceof Error ? e.message : e);
-  }
+  await enviarACentral([{ titulo, cuerpo, data }]);
 }

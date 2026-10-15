@@ -326,7 +326,7 @@ export function textoFueraDeSuHorario(motivo: string | null | undefined): string
 }
 
 // ── Alertas a la central (vigilante) ──
-export type TipoAlertaHorario = "fuera_horario" | "sin_jornada" | "fin_turno";
+export type TipoAlertaHorario = "fuera_horario" | "sin_jornada" | "fin_turno" | "jornada_larga";
 export interface AlertaHorario { tipo: TipoAlertaHorario; clave: string; texto: string; servicioId?: string | null }
 
 /** Servicio asignado fuera del horario del conductor. null si cabe o no tiene horario. */
@@ -377,6 +377,51 @@ export function alertaFinTurno(nombre: string, h: HorarioConductor | null | unde
   const pasado = Math.floor((ahora - iv.fin) / MIN);
   return { tipo: "fin_turno", clave: `${iv.fecha}|${iv.tramo.fin}`, servicioId: activos[0].id,
     texto: `🕒 ${nombre} sigue en servicio ${pasado} min después de su turno (fin ${iv.tramo.fin}) · vuelta a la base ≈ ${hhmm(vuelta)}` };
+}
+
+export interface ContextoVigencia {
+  /** Tiene una jornada abierta ahora. */
+  jornadaAbierta: boolean;
+  /** El módulo de jornada está activo (sin él nadie abre jornada y «cerró la jornada» no significa nada). */
+  conJornada: boolean;
+  ausente?: boolean;
+  /** Sus servicios activos (asignado/aceptado/en camino/recogido) de la ventana del vigilante. */
+  servicios: readonly ServicioEnCurso[];
+  /** Ids de jornadas abiertas ahora (para «jornada_larga», cuya clave es el id de la jornada). */
+  jornadasAbiertas?: ReadonlySet<string>;
+}
+/**
+ * ¿Sigue vigente una alerta de horario ya creada? Si no, el vigilante la marca resuelta (deja de salir como aviso y de
+ * contar minutos). Sin horario o con un tramo que ya no existe → resuelta.
+ * - sin_jornada: hasta que inicia la jornada, una ausencia lo cubre o termina el tramo.
+ * - fin_turno: mientras siga con servicios en curso (o por hacer en la próxima hora) del turno, sin haber cerrado la
+ *   jornada y sin haber entrado en otro tramo.
+ * - fuera_horario: mientras el servicio siga asignado a ese conductor y activo.
+ * - jornada_larga: mientras esa jornada siga abierta.
+ */
+export function alertaHorarioVigente(a: { tipo: string; clave: string; servicioId?: string | null }, h: HorarioConductor | null | undefined,
+  ahora: number, o: ContextoVigencia): boolean {
+  if (a.tipo === "jornada_larga") return !!o.jornadasAbiertas?.has(a.clave);
+  if (a.tipo === "fuera_horario") {
+    const id = a.servicioId ?? a.clave;
+    return o.servicios.some((s) => s.id === id && (POR_HACER.has(s.estado) || EN_CURSO.has(s.estado)));
+  }
+  const [fecha, hora] = a.clave.split("|");
+  if (!fecha || !hora) return false;
+  if (a.tipo === "sin_jornada") {
+    if (o.jornadaAbierta || o.ausente) return false;
+    const iv = intervalosDelDia(h, fecha)?.find((i) => i.fecha === fecha && i.tramo.inicio === hora);
+    return !!iv && ahora < iv.fin;
+  }
+  if (a.tipo === "fin_turno") {
+    if (o.conJornada && !o.jornadaAbierta) return false; // cerró la jornada
+    const hoy = intervalosDelDia(h, diaMadrid(new Date(ahora)));
+    if (!hoy || hoy.some((i) => i.inicio <= ahora && ahora < i.fin)) return false; // sin horario o ya en otro tramo
+    const iv = intervalosDelDia(h, fecha)?.find((i) => i.fecha === fecha && i.tramo.fin === hora);
+    if (!iv) return false;
+    return o.servicios.some((s) => EN_CURSO.has(s.estado) || (POR_HACER.has(s.estado) && s.inicio <= ahora + 60 * MIN && s.inicio >= iv.inicio));
+  }
+  return true;
 }
 
 /** Recordatorios del conductor (app nativa): 5 min antes de cada tramo de hoy que aún no ha empezado. */

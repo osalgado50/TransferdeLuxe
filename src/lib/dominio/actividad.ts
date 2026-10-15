@@ -46,6 +46,8 @@ export interface Movimiento {
   matricula?: string | null;
   /** Aviso que pide atención (CARGA/DESCARGA lejos, jornada cerrada con pendientes): tarjeta con «Ver en el mapa» y «Llamar». */
   alerta?: boolean;
+  /** Alerta de horario ya resuelta (el vigilante vio que la situación terminó): sin tarjeta y sin seguir contando. */
+  resueltaEn?: string | null;
 }
 
 export interface EventoAct { id: number; servicio_id: string; tipo: string; motivo: string | null; creado_en: string; actor_id?: string | null }
@@ -67,8 +69,11 @@ export interface ServicioAct {
   id: string; cliente_nombre: string; origen_texto: string; destino_texto: string; fecha_hora_recogida: string;
   conductor_id: string | null; origen_pedido?: string | null;
 }
-/** Alerta de horario (tabla alertas_horario, la escribe el vigilante): fuera de horario, sin iniciar jornada, fin de turno. */
-export interface AlertaHorarioAct { id: string; tipo: string; conductor_id: string; servicio_id: string | null; texto: string; creado_en: string }
+/**
+ * Alerta de horario (tabla alertas_horario, la escribe el vigilante): fuera de horario, sin iniciar jornada, fin de turno,
+ * jornada abierta > 14 h. `resuelta_en`: cuándo terminó la situación (null/ausente = sigue).
+ */
+export interface AlertaHorarioAct { id: string; tipo: string; conductor_id: string; servicio_id: string | null; texto: string; creado_en: string; resuelta_en?: string | null }
 export interface EntradaActividad {
   alertasHorario?: AlertaHorarioAct[];
   eventos?: EventoAct[]; incidencias?: IncidenciaAct[]; revisiones?: RevisionAct[]; jornadas?: JornadaAct[]; cierres?: CierreAct[];
@@ -306,14 +311,18 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     } else if (j.fin) out.push({ ...base(`jor-${j.id}-f`, j.fin, j.conductor_id, undefined), tipo: "jornada_fin", icono: "⏹️", texto: `${nombre(j.conductor_id)} ha terminado la jornada` });
   }
 
-  // Alertas de horario (una por caso): tarjeta ámbar con «Ver en el mapa» y «Llamar».
+  // Alertas de horario (una por caso): tarjeta ámbar con «Ver en el mapa» y «Llamar» mientras sigan sin resolver. Ya
+  // resueltas: solo una línea en la actividad, con los minutos contados hasta que se resolvieron.
   for (const a of e.alertasHorario ?? []) {
     if (a.servicio_id && ocultos.has(a.servicio_id)) continue;
     const s = a.servicio_id ? servicios.get(a.servicio_id) : undefined;
     const m = base(`ah-${a.id}`, a.creado_en, a.conductor_id, s);
     const p = pos.get(a.conductor_id);
-    out.push({ ...m, tipo: `horario_${a.tipo}`, icono: a.tipo === "sin_jornada" ? "⏰" : a.tipo === "fin_turno" ? "🕒" : "⚠️", gravedad: "aviso", alerta: true,
-      texto: a.texto, lat: p?.lat ?? null, lng: p?.lng ?? null, zona: p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null });
+    const icono = a.tipo === "sin_jornada" ? "⏰" : a.tipo === "fin_turno" ? "🕒" : a.tipo === "jornada_larga" ? "⏳" : "⚠️";
+    const resuelta = a.resuelta_en && Number.isFinite(Date.parse(a.resuelta_en)) ? a.resuelta_en : null;
+    out.push({ ...m, tipo: `horario_${a.tipo}`, icono, gravedad: resuelta ? "info" : "aviso", alerta: !resuelta, resueltaEn: resuelta,
+      texto: resuelta ? `${textoAlDia(a.texto, a.creado_en, Date.parse(resuelta))} · ✓ resuelto a las ${horaMadrid(resuelta)}` : a.texto,
+      lat: p?.lat ?? null, lng: p?.lng ?? null, zona: p ? zonaCercana(p.lat, p.lng)?.texto ?? null : null });
   }
 
   // Hoja de cierre: grave (daños, testigo, avería) → tarjeta roja fija hasta «Visto»; mantenimiento → aviso; ok → info verde.
@@ -360,10 +369,13 @@ export function duracionMin(min: number): string {
 }
 /**
  * Texto de una alerta con los minutos al día: «(hace 15 min)» o «sigue en servicio 35 min después de su turno» se
- * escribieron al crear la alerta (`en`); al mostrarla se les suma lo que ha pasado desde entonces.
+ * escribieron al crear la alerta (`en`); al mostrarla se les suma lo que ha pasado desde entonces. Si la alerta ya se
+ * resolvió (`resueltaEn`), se deja de contar en ese instante.
  */
-export function textoAlDia(texto: string, en: string, ahora: number): string {
-  const pasado = Math.max(0, Math.floor((ahora - Date.parse(en)) / 60_000));
+export function textoAlDia(texto: string, en: string, ahora: number, resueltaEn?: string | null): string {
+  const fin = resueltaEn ? Date.parse(resueltaEn) : NaN;
+  const hasta = Number.isFinite(fin) ? Math.min(ahora, fin) : ahora;
+  const pasado = Math.max(0, Math.floor((hasta - Date.parse(en)) / 60_000));
   if (!Number.isFinite(pasado) || !pasado) return texto;
   return texto
     .replace(/\(hace (\d+) min\)/g, (_, n: string) => `(hace ${duracionMin(Number(n) + pasado)})`)
