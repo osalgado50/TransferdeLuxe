@@ -35,7 +35,7 @@ function Bloques({ filas }: { filas: FilaCal[] }) {
   return (
     <>
       {mad.length > 0 && (
-        <div className="mb-1 space-y-0.5 rounded border border-slate-800 bg-slate-900/60 p-1" aria-label="Madrugada">
+        <div className="mb-1 min-w-0 space-y-0.5 overflow-hidden rounded border border-slate-800 bg-slate-900/60 p-1" aria-label="Madrugada">
           <div className="text-[10px] uppercase text-slate-500">Madrugada</div>
           {mad.map((b) => (
             <Link key={b.servicio.id} href={`/central/servicios/${b.servicio.id}`} className={`block truncate rounded border-l-4 px-1 text-xs ${COLOR[b.servicio.estado]}`}>
@@ -71,15 +71,16 @@ function Rejilla({ dias, filas, hoy }: { dias: string[]; filas: FilaCal[]; hoy: 
         <div className="flex border-b border-slate-800 bg-slate-900 text-sm">
           <div className="w-12 shrink-0" />
           {dias.map((d) => (
-            <div key={d} className={`flex-1 px-2 py-1.5 text-center font-medium ${d === hoy ? "bg-marca/30 text-white" : "text-slate-300"}`}>{cab(d)}</div>
+            <div key={d} className={`min-w-0 flex-1 truncate px-2 py-1.5 text-center font-medium ${d === hoy ? "bg-marca/30 text-white" : "text-slate-300"}`}>{cab(d)}</div>
           ))}
         </div>
         <div className="flex">
           <div className="w-12 shrink-0 text-right text-[11px] text-slate-500">
             {horas.map((h) => <div key={h} style={{ height: 60 * PX_MIN }} className="pr-1">{String(h).padStart(2, "0")}:00</div>)}
           </div>
+          {/* min-w-0: sin él, una dirección larga (truncate) fija el ancho mínimo de su columna y descuadra la semana */}
           {dias.map((d) => (
-            <div key={d} className={`flex-1 border-l border-slate-800 p-0.5 ${d === hoy ? "bg-marca/10" : ""}`}>
+            <div key={d} className={`min-w-0 flex-1 overflow-hidden border-l border-slate-800 p-0.5 ${d === hoy ? "bg-marca/10" : ""}`}>
               <Bloques filas={por.get(d) ?? []} />
             </div>
           ))}
