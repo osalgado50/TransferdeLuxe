@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { filtrarDirecciones, type Favorito } from "@/lib/dominio/favoritos";
 import { filtrarLugaresEmpresa, sugerenciaEmpresa, type LugarEmpresa } from "@/lib/dominio/lugaresEmpresa";
 import { atribucion, combinarSugerencias, normalizarBusqueda, type LugarSugerido } from "@/lib/dominio/geocodificacion";
 import { crearCacheTemporal } from "@/lib/cacheTemporal";
+import { moverActivo } from "@/lib/listaTeclado";
 
 type Lugar = LugarSugerido;
 /** Búsquedas ya respondidas (compartidas por todos los campos de la página): volver a escribirlas es instantáneo. */
@@ -37,6 +38,13 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   /** Hay una búsqueda en marcha (se enseña el indicador «Buscando…»). */
   const [buscando, setBuscando] = useState(false);
   const elegido = useRef<string | null>(null);
+  /** El usuario cerró la lista con Escape: no se reabre hasta que vuelva a escribir, entrar o pulsar una flecha. */
+  const [oculto, setOculto] = useState(false);
+  /** Opción resaltada con las flechas (-1 = ninguna). */
+  const [activo, setActivo] = useState(-1);
+  const salida = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idLista = useId();
+  const idOpcion = (i: number) => `${idLista}-op-${i}`;
 
   useEffect(() => {
     if (!rellenar) return;
@@ -57,6 +65,17 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   const pie = atribucion(todos);
   // Sin sugerencias tras ≥ 6 letras: se ofrece usar el texto tal cual para no bloquear la reserva.
   const talCual = libre && foco && !buscando && todos.length === 0 && texto.trim().length >= 6 && buscado === texto.trim();
+  // La lista solo se ve con el campo enfocado: al salir del campo (clic fuera, Tab) o con Escape se cierra.
+  const mostrar = foco && !oculto && ((todos.length > 0 && (abierto || locales.length > 0)) || buscando);
+  const hayActiva = mostrar && activo >= 0 && activo < todos.length;
+
+  // Cada vez que cambian las sugerencias se quita el resaltado (los índices ya no significan lo mismo).
+  const firma = todos.map((l) => l.etiqueta).join("|");
+  useEffect(() => { setActivo(-1); }, [firma]);
+  useEffect(() => {
+    if (hayActiva) document.getElementById(idOpcion(activo))?.scrollIntoView({ block: "nearest" });
+  }, [activo, hayActiva]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { if (salida.current) clearTimeout(salida.current); }, []);
 
   useEffect(() => {
     const q = texto.trim();
@@ -91,7 +110,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   function elegir(l: Lugar) {
     elegido.current = l.etiqueta;
     setTexto(l.etiqueta); setLat(l.lat == null ? "" : String(l.lat)); setLng(l.lng == null ? "" : String(l.lng));
-    setLugares([]); setAbierto(false);
+    setLugares([]); setAbierto(false); setActivo(-1);
     // Sugerencia de Google: las coordenadas se piden al elegirla (Place Details).
     if (l.placeId && l.lat == null) {
       fetch(`/api/geocodificar?lugar=${encodeURIComponent(l.placeId)}`).then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -101,6 +120,24 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
     }
   }
 
+  function teclas(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Escape") {
+      if (mostrar || talCual) { e.preventDefault(); e.stopPropagation(); setOculto(true); setAbierto(false); setActivo(-1); }
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (!todos.length) return;
+      e.preventDefault();
+      if (!mostrar) { setOculto(false); setAbierto(true); }
+      setActivo((a) => moverActivo(a, todos.length, e.key as "ArrowDown" | "ArrowUp"));
+      return;
+    }
+    if (e.key === "Enter" && hayActiva) { e.preventDefault(); elegir(todos[activo]); }
+  }
+
+  // Al pulsar una opción con el ratón el campo no pierde el foco (preventDefault), así el clic llega a la opción.
+  const sinPerderFoco = (e: { preventDefault: () => void }) => e.preventDefault();
+
   return (
     <div className="relative">
       {extra && <div className="absolute right-0 top-0">{extra}</div>}
@@ -109,9 +146,15 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
         <span className="relative mt-1 block">
           <input
             type="text" name={`${name}_texto`} value={texto} required={requerido} autoComplete="off" aria-busy={buscando}
-            onChange={(e) => { setTexto(e.target.value); setLat(""); setLng(""); elegido.current = null; }}
-            onFocus={() => { setFoco(true); if (todos.length) setAbierto(true); }}
-            onBlur={() => setTimeout(() => setFoco(false), 150)}
+            role="combobox" aria-autocomplete="list" aria-expanded={mostrar} aria-controls={idLista}
+            aria-activedescendant={hayActiva ? idOpcion(activo) : undefined}
+            onChange={(e) => { setTexto(e.target.value); setLat(""); setLng(""); elegido.current = null; setOculto(false); }}
+            onFocus={() => { if (salida.current) clearTimeout(salida.current); setFoco(true); setOculto(false); if (todos.length) setAbierto(true); }}
+            onBlur={() => {
+              // Pequeña pausa por si el toque en móvil quita el foco antes de que llegue el clic a la opción.
+              salida.current = setTimeout(() => { setFoco(false); setAbierto(false); setActivo(-1); }, 150);
+            }}
+            onKeyDown={teclas}
             className="w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-3 pr-9 text-slate-100 focus:border-marca-claro focus:outline-none"
           />
           {buscando && <Girando className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-marca-claro" />}
@@ -120,15 +163,15 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
       <span role="status" className="sr-only">{buscando ? "Buscando direcciones…" : ""}</span>
       <input type="hidden" name={`${name}_lat`} value={lat} />
       <input type="hidden" name={`${name}_lng`} value={lng} />
-      {(((abierto || (foco && locales.length > 0)) && todos.length > 0) || (foco && buscando)) && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
-          {todos.length > 0 && <ul className="max-h-60 overflow-auto">
+      {mostrar && (
+        <div onMouseDown={sinPerderFoco} className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
+          {todos.length > 0 && <ul id={idLista} role="listbox" aria-label={`Sugerencias: ${etiqueta}`} className="max-h-60 overflow-auto">
             {todos.map((l, i) => (
-              <li key={`${l.etiqueta}-${i}`}>
-                <button type="button" onClick={() => elegir(l)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
-                  {ICONO[l.fuente ?? (l.frecuente ? "frecuente" : "photon")] ?? ""}
-                  {l.fuente === "favorito" && l.nombre ? `${l.nombre} — ${l.etiqueta}` : l.etiqueta}
-                </button>
+              <li key={`${l.etiqueta}-${i}`} id={idOpcion(i)} role="option" aria-selected={i === activo}
+                onClick={() => elegir(l)} onMouseEnter={() => setActivo(i)}
+                className={`w-full cursor-pointer px-3 py-2 text-left text-sm text-slate-200 ${i === activo ? "bg-slate-800" : ""}`}>
+                {ICONO[l.fuente ?? (l.frecuente ? "frecuente" : "photon")] ?? ""}
+                {l.fuente === "favorito" && l.nombre ? `${l.nombre} — ${l.etiqueta}` : l.etiqueta}
               </li>
             ))}
           </ul>}
@@ -140,8 +183,8 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
           {pie && <p className="border-t border-slate-800 px-3 py-1 text-right text-[11px] text-slate-500">{pie}</p>}
         </div>
       )}
-      {talCual && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
+      {talCual && !oculto && (
+        <div onMouseDown={sinPerderFoco} className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
           <button type="button" onClick={usarTalCual} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
             Usar “{texto.trim()}” tal cual <span className="text-slate-500">(sin punto en el mapa)</span>
           </button>
