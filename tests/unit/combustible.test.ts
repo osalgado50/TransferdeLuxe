@@ -26,3 +26,37 @@ test("ticketsParaConsumo: sin mes devuelve todos; con mes corta al final de ese 
   expect(ticketsParaConsumo(ts)).toHaveLength(3);
   expect(ticketsParaConsumo(ts, { mes: "2026-09" }).map((x) => x.km)).toEqual([1, 2]);
 });
+
+import { previoAlMes, tramosConsumo } from "@/lib/dominio/combustible";
+
+test("consumo absurdo: un ticket atrasado o mal leído (más km y fecha vieja) no hunde la media", () => {
+  // Caso real del informe: 2 tickets de 2024 con 125.800 km y los buenos de 2026 entre 119.000 y 120.150.
+  const ts = [t("2024-04-25", 10.59, 20, 125800), t("2024-04-25", 15.52, 20, 125800),
+    t("2026-09-05", 45, 65.21, 119000), t("2026-09-24", 33, 48.15, 119500), t("2026-10-08", 42.15, 61.5, 120150)];
+  // Antes (ordenado por km): (33 + 42,15 + 10,59 + 15,52) / 6.800 km = 1,5 L/100 km.
+  // Ahora por fecha: 2024→2026 baja los km (descartado); 119.000→119.500: 6,6; 119.500→120.150: 6,5.
+  expect(tramosConsumo(ts).map((x) => Math.round(x.l100 * 10) / 10)).toEqual([6.6, 6.5]);
+  expect(consumoMedioL100(ts)).toBe(6.5);
+});
+test("consumo: se descartan tramos imposibles (< 3 o > 30 L/100 km)", () => {
+  // 1000 → 50000 km (cuentakilómetros mal escrito): 40 L / 49.000 km = 0,08 → fuera; 50000 → 50500: negativo no, 500 km 35 L = 7.
+  const ts = [t("2026-10-01", 50, 75, 1000), t("2026-10-05", 40, 60, 50000), t("2026-10-09", 35, 52, 50500)];
+  expect(consumoMedioL100(ts)).toBe(7);
+  // 5 L en 10 km = 50 L/100 km → fuera: sin tramos válidos.
+  expect(consumoMedioL100([t("2026-10-01", 50, 75, 1000), t("2026-10-02", 5, 7, 1010)])).toBeNull();
+});
+test("consumo: el anterior es el de fecha anterior (mismo día, por km)", () => {
+  const ts = [t("2026-10-02", 30, 45, 1400), t("2026-10-01", 50, 75, 1000), t("2026-10-02", 20, 30, 1200)];
+  // 1000 → 1200 (20 L): 10; 1200 → 1400 (30 L): 15 → 50 L / 400 km = 12,5
+  expect(consumoMedioL100(ts)).toBe(12.5);
+});
+test("consumo con filtro: solo los tramos que acaban en el mes, partiendo del ticket anterior", () => {
+  const ts = [t("2026-08-20", 40, 60, 1000), t("2026-09-10", 35, 52, 1500), t("2026-09-25", 40, 60, 2000), t("2026-10-05", 30, 45, 2500)];
+  expect(consumoMedioL100(ts, (x) => x.fecha.startsWith("2026-09"))).toBe(7.5);
+  expect(consumoMedioL100(ts, (x) => x.fecha.startsWith("2026-10"))).toBe(6);
+});
+test("previoAlMes: el último por fecha antes del mes, no el de más km", () => {
+  const ts = [t("2024-04-25", 1, 1, 125800), t("2026-09-24", 1, 1, 119500), t("2026-09-05", 1, 1, 119000), t("2026-10-08", 1, 1, 120150)];
+  expect(previoAlMes(ts, "2026-10")?.km).toBe(119500);
+  expect(previoAlMes(ts, "2024-04")).toBeUndefined();
+});
