@@ -33,7 +33,8 @@ export default async function Mantenimiento({ searchParams }: { searchParams: Pr
     sb.from("vehiculos_mantenimiento").select("*"),
     sb.from("mantenimientos").select("*").order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(100),
     // Hojas de cierre de los últimos 60 días: la última de cada vehículo (estado para el día siguiente).
-    sb.from("cierres_jornada").select("*").gte("creado_en", new Date(Date.now() - 60 * 86400e3).toISOString()).order("creado_en", { ascending: false }).limit(500),
+    // Sin las hojas de las pruebas automáticas (comentario «PRUEBA AUTOMÁTICA…»).
+    sb.from("cierres_jornada").select("*").not("comentario", "like", "PRUEBA AUTOMÁTICA%").gte("creado_en", new Date(Date.now() - 60 * 86400e3).toISOString()).order("creado_en", { ascending: false }).limit(500),
     sb.from("perfiles").select("id,nombre"),
   ]);
   const ultimoCierre = ultimoCierrePorVehiculo((cierres ?? []) as CierreJornada[]);

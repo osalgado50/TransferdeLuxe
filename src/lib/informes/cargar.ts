@@ -3,6 +3,7 @@ import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { leerModulos } from "@/lib/dominio/modulos";
 import { consumoMedioL100 } from "@/lib/dominio/combustible";
+import { limitesMes, previosAlMes, ticketsLigeros } from "@/lib/combustible/consultas";
 import { agrupar, filtrar, mesMadrid, serviciosPorDia, totales, type FiltroInforme, type ServicioInforme } from "@/lib/dominio/informes";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -29,34 +30,42 @@ function rango(mes: string) {
 export async function cargarInforme(f: FiltroInforme) {
   const sb = clienteAdmin();
   const { desde, hasta } = rango(f.mes);
-  const [y, m] = f.mes.split("-").map(Number);
-  const finMes = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  const { inicio, fin } = limitesMes(f.mes);
+  const PRUEBA = "PRUEBA AUTOMÁTICA";
   const [vs, cs, ss, ts, ev, inc] = await Promise.all([
     sb.from("vehiculos").select("id,matricula").order("matricula"),
     sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN).order("nombre"),
     sb.from("servicios").select("id,estado,pasajeros,conductor_id,vehiculo_id,fecha_hora_recogida,origen_lat,origen_lng,destino_lat,destino_lng").eq("es_prueba", false)
       .gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
-    // Todos los tickets hasta fin de mes: el consumo necesita el repostaje anterior como referencia.
-    sb.from("tickets_combustible").select("vehiculo_id,conductor_id,fecha,litros,importe,km").lte("fecha", finMes),
-    sb.from("eventos_servicio").select("tipo,actor_id,creado_en").eq("tipo", "rechazado").gte("creado_en", desde).lt("creado_en", hasta),
-    sb.from("incidencias").select("conductor_id,servicio_id,creado_en").gte("creado_en", desde).lt("creado_en", hasta),
+    // Tickets válidos del mes (de todos los conductores: el consumo los necesita), leídos por páginas. El repostaje
+    // anterior de cada vehículo se pide aparte, solo para los vehículos con tickets en el mes.
+    ticketsLigeros(sb, { desde: inicio, hasta: fin, vehiculo: f.vehiculo }),
+    // Sin servicios de pruebas automáticas (es_prueba o notas «PRUEBA AUTOMÁTICA…»).
+    sb.from("eventos_servicio").select("tipo,actor_id,creado_en,servicios!inner(es_prueba,notas)").eq("tipo", "rechazado").gte("creado_en", desde).lt("creado_en", hasta)
+      .eq("servicios.es_prueba", false).or(`notas.is.null,notas.not.like.${PRUEBA}*`, { referencedTable: "servicios" }),
+    // Ídem; las incidencias sin servicio cuentan, salvo las de descripción «PRUEBA AUTOMÁTICA…».
+    sb.from("incidencias").select("conductor_id,servicio_id,creado_en,servicios(es_prueba,notas)").gte("creado_en", desde).lt("creado_en", hasta)
+      .not("descripcion", "like", `${PRUEBA}%`)
+      .eq("servicios.es_prueba", false).or(`notas.is.null,notas.not.like.${PRUEBA}*`, { referencedTable: "servicios" })
+      .or("servicio_id.is.null,servicios.not.is.null"),
   ]);
   const error = [vs, cs, ss, ts, ev].find((r) => r.error)?.error ?? null; // incidencias es opcional (módulo aparte)
   const servicios = filtrar((ss.data ?? []) as ServicioInforme[], f, (x) => x.fecha_hora_recogida);
   const vehDeServicio = new Map((ss.data ?? []).map((s) => [s.id as string, s.vehiculo_id as string | null]));
-  const todosTickets = (ts.data ?? []).map((t) => ({ vehiculoId: t.vehiculo_id as string, vehiculo_id: t.vehiculo_id as string, conductor_id: t.conductor_id as string,
-    fecha: t.fecha as string, litros: Number(t.litros), importe: Number(t.importe), km: t.km as number }));
+  const todosTickets = ts.data.map((t) => ({ ...t, vehiculoId: t.vehiculo_id }));
   const tickets = filtrar(todosTickets, f, (x) => x.fecha);
   const rechazos = filtrar((ev.data ?? []).map((e) => ({ conductor_id: e.actor_id as string | null, creado_en: e.creado_en as string })), { ...f, vehiculo: undefined }, (x) => x.creado_en);
   const incidencias = inc.error ? [] : filtrar((inc.data ?? []).map((i) => ({ conductor_id: i.conductor_id as string, vehiculo_id: i.servicio_id ? vehDeServicio.get(i.servicio_id) ?? null : null, creado_en: i.creado_en as string })), f, (x) => x.creado_en);
   const porVehiculo = agrupar({ servicios, tickets, rechazos: [], incidencias }, "vehiculo");
-  // Consumo por vehículo con el histórico hasta fin de mes (los tickets previos dan el km de partida).
+  // Consumo por vehículo: tramos que acaban en un ticket del mes (y del conductor, si se filtra); el de partida es el
+  // último ticket por fecha anterior al mes, no el de más km.
+  const conTickets = [...new Set(tickets.map((t) => t.vehiculo_id))];
+  const previos = await previosAlMes(sb, conTickets, f.mes);
   for (const fila of porVehiculo) {
-    const ts2 = todosTickets.filter((t) => t.vehiculoId === fila.id && (!f.conductor || t.conductor_id === f.conductor));
-    const delMes = ts2.filter((t) => mesMadrid(t.fecha) === f.mes);
-    if (delMes.length === 0) { fila.l100 = null; continue; }
-    const previo = ts2.filter((t) => t.fecha < `${f.mes}-01`).sort((a, b) => b.km - a.km)[0];
-    fila.l100 = consumoMedioL100(previo ? [previo, ...delMes] : delMes);
+    const delVeh = todosTickets.filter((t) => t.vehiculo_id === fila.id);
+    if (!tickets.some((t) => t.vehiculo_id === fila.id)) { fila.l100 = null; continue; }
+    fila.l100 = consumoMedioL100([...previos.filter((p) => p.vehiculo_id === fila.id), ...delVeh],
+      (h) => h.fecha.slice(0, 7) === f.mes && (!f.conductor || h.conductor_id === f.conductor));
   }
   const porConductor = agrupar({ servicios, tickets, rechazos, incidencias }, "conductor");
   return {

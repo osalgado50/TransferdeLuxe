@@ -12,13 +12,20 @@ import { BotonResolver } from "@/components/central/BotonResolver";
 export const metadata = { title: "Incidencias · TransferdeLuxe" };
 
 export const dynamic = "force-dynamic";
+const PRUEBA = "PRUEBA AUTOMÁTICA";
 
 export default async function Incidencias({ searchParams }: { searchParams: Promise<{ ver?: string }> }) {
   await exigirRol("operador");
   if (!(await modulosCentral()).incidencias) notFound();
   const todas = (await searchParams).ver === "todas";
   const sb = clienteAdmin();
-  let q = sb.from("incidencias").select("*").order("creado_en", { ascending: false }).limit(200);
+  // Sin datos de pruebas automáticas: ni servicios de prueba (es_prueba o notas «PRUEBA AUTOMÁTICA…») ni incidencias
+  // con esa descripción. Las incidencias sin servicio se siguen viendo.
+  let q = sb.from("incidencias").select("*,servicios(es_prueba,notas)")
+    .not("descripcion", "like", `${PRUEBA}%`)
+    .eq("servicios.es_prueba", false).or(`notas.is.null,notas.not.like.${PRUEBA}*`, { referencedTable: "servicios" })
+    .or("servicio_id.is.null,servicios.not.is.null")
+    .order("creado_en", { ascending: false }).limit(200);
   if (!todas) q = q.eq("resuelta", false);
   const [{ data, error }, { data: perfiles }] = await Promise.all([q, sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN)]);
   if (error) throw new Error(`Incidencias: ${error.message}`);
