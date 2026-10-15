@@ -36,6 +36,9 @@ export const esquemaReserva = z.object({
   };
   if (!valida(r.fecha, "00:00")) ctx.addIssue({ code: "custom", path: ["fecha"], message: "Fecha no válida" });
   if (!valida("2000-01-01", r.hora)) ctx.addIssue({ code: "custom", path: ["hora"], message: "Hora no válida" });
+  // Nada en el pasado (margen de 1 h para que la central registre un servicio que acaba de entrar por teléfono).
+  const ida = valida(r.fecha, r.hora) ? Date.parse(madridAUtc(r.fecha, r.hora)) : null;
+  if (ida != null && ida < Date.now() - MARGEN_PASADO_MS) ctx.addIssue({ code: "custom", path: ["fecha"], message: "La recogida no puede ser en el pasado" });
   const av = avisoCapacidad(r.tipo_vehiculo_pedido, r.pasajeros, r.maletas);
   if (av) ctx.addIssue({ code: "custom", path: ["tipo_vehiculo_pedido"], message: av.mensaje });
   if (!r.con_vuelta) return;
@@ -43,7 +46,10 @@ export const esquemaReserva = z.object({
   if (r.vuelta_hora && !valida("2000-01-01", r.vuelta_hora)) ctx.addIssue({ code: "custom", path: ["vuelta_hora"], message: "Hora no válida" });
   for (const k of ["vuelta_origen_texto", "vuelta_destino_texto", "vuelta_fecha", "vuelta_hora"] as const)
     if (!r[k]) ctx.addIssue({ code: "custom", path: [k], message: "Obligatorio si hay vuelta" });
+  if (ida != null && valida(r.vuelta_fecha, r.vuelta_hora) && Date.parse(madridAUtc(r.vuelta_fecha!, r.vuelta_hora!)) <= ida)
+    ctx.addIssue({ code: "custom", path: ["vuelta_fecha"], message: "La vuelta tiene que ser después de la ida" });
 });
+const MARGEN_PASADO_MS = 60 * 60_000;
 export type Reserva = z.infer<typeof esquemaReserva>;
 export type NuevoServicio = Omit<Servicio, "id" | "estado" | "creado_en" | "servicio_vuelta_id" | "conductor_id" | "vehiculo_id" |
   "asignado_en" | "ultima_incidencia" | "incidencia_vista" | "plazo_respuesta_min">;

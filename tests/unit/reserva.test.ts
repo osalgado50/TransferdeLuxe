@@ -1,6 +1,10 @@
-import { expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import { motivoSubcontratar, leerMotivoSubcontratar } from "@/lib/dominio/capacidad";
 import { esquemaReserva, serviciosDesdeReserva, crearServicios } from "@/lib/reserva/esquema";
+
+// Reloj fijo: las fechas de los ejemplos (20/10/2026…) no pueden «caducar» con la regla de «nada en el pasado».
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-10T10:00:00Z")); });
+afterAll(() => { vi.useRealTimers(); });
 
 const base = {
   origen_texto: "Aeropuerto de Reus", origen_lat: "41.1474", origen_lng: "1.1672",
@@ -141,4 +145,14 @@ test("nº de vuelo: normaliza, rechaza inválidos y acepta vacío", () => {
   expect(esquemaReserva.safeParse({ ...base, numero_vuelo: "hola" }).success).toBe(false);
   const v = esquemaReserva.safeParse({ ...base, numero_vuelo: "" });
   expect(v.success && v.data.numero_vuelo).toBeNull();
+});
+
+test("no se aceptan recogidas en el pasado (margen de 1 h) ni vueltas antes de la ida", () => {
+  const campos = (x: object) => { const r = esquemaReserva.safeParse({ ...base, ...x }); return r.success ? [] : Object.keys(r.error.flatten().fieldErrors); };
+  expect(campos({ fecha: "2026-10-09", hora: "10:30" })).toContain("fecha");
+  expect(campos({ fecha: "2026-10-10", hora: "11:30" })).toEqual([]); // 11:30 de Madrid = 09:30Z: 30 min atrás, dentro del margen
+  expect(campos({ fecha: "2026-10-10", hora: "10:30" })).toContain("fecha"); // 08:30Z: 1 h 30 min atrás
+  const vuelta = { con_vuelta: "on", vuelta_origen_texto: "Salou", vuelta_destino_texto: "Reus", vuelta_fecha: "2026-10-20", vuelta_hora: "09:00" };
+  expect(campos(vuelta)).toContain("vuelta_fecha");
+  expect(campos({ ...vuelta, vuelta_hora: "18:00" })).toEqual([]);
 });
