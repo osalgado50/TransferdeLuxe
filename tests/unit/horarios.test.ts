@@ -510,3 +510,26 @@ describe("turno de noche (22:00–06:00, termina al día siguiente)", () => {
     expect(solapeVehiculo([a, manana("05:00")])).toMatchObject([{ diaSemana: 2, a: "a", b: "b", tramoA: NOCHE[0] }]);
   });
 });
+
+describe("madridAUtc en los días de cambio de hora", () => {
+  const madrid = (iso: string) => new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", day: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+  test("otoño (25/10/2026): 00:30, 01:30, 02:30 (la primera) y 03:30", async () => {
+    const { madridAUtc } = await import("@/lib/dominio/dias");
+    expect(madridAUtc("2026-10-25", "00:30")).toBe("2026-10-24T22:30:00.000Z");
+    expect(madridAUtc("2026-10-25", "01:30")).toBe("2026-10-24T23:30:00.000Z"); // antes salía 00:30Z = 02:30 en Madrid
+    expect(madrid(madridAUtc("2026-10-25", "01:30"))).toBe("25, 01:30");
+    expect(madridAUtc("2026-10-25", "02:30")).toBe("2026-10-25T00:30:00.000Z"); // 02:30 de verano (la primera)
+    expect(madridAUtc("2026-10-25", "03:30")).toBe("2026-10-25T02:30:00.000Z");
+  });
+  test("primavera (28/03/2027): 01:30, 03:30 y la hora que no existe (02:30)", async () => {
+    const { madridAUtc } = await import("@/lib/dominio/dias");
+    expect(madridAUtc("2027-03-28", "01:30")).toBe("2027-03-28T00:30:00.000Z"); // antes salía 23:30Z del 27 = 00:30 en Madrid
+    expect(madridAUtc("2027-03-28", "03:30")).toBe("2027-03-28T01:30:00.000Z");
+    expect(madrid(madridAUtc("2027-03-28", "02:30"))).toMatch(/^28, 0[13]:30$/); // no existe: cae en una hora válida
+  });
+  test("días normales sin cambios", async () => {
+    const { madridAUtc } = await import("@/lib/dominio/dias");
+    expect(madridAUtc("2026-10-15", "08:00")).toBe("2026-10-15T06:00:00.000Z");
+    expect(madridAUtc("2026-12-15", "08:00")).toBe("2026-12-15T07:00:00.000Z");
+  });
+});
