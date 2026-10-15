@@ -658,6 +658,11 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   consumo por tramos, combustible paginado, aviso al conductor que pierde el servicio y textos. 812 tests.
 
 ## 6. Challenges y soluciones
+- **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
+  protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
+  endureció lo disponible en Authentication → Email: longitud mínima 10, minúsculas + mayúsculas + números y cambio de
+  contraseña solo con sesión reciente (24 h). Las reglas se aplican al crear o cambiar contraseña, no al iniciar sesión,
+  así que las cuentas de demo siguen funcionando.
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba
   siempre el tiempo, sin ningún error. Se añadió un diagnóstico que devuelve los pasos del arranque y se fue acotando
   despliegue a despliegue: no era la memoria (WebAssembly sí reservaba memoria) ni los hilos; el último paso visible era

@@ -77,7 +77,8 @@ panel, calendario, hoja de ruta, jornadas, combustible y nuevo servicio. Decisio
 - **Tickets de prueba de 2024**: anulados (no borrados) y 0001-TDL vuelve a 125 600 km (el valor de su hoja de cierre).
 - **Limpieza de fotos huérfanas**: la ruta `/api/cron/limpiar-fotos` existe (con `?simular=1`), pero **no se ha
   programado** porque borra ficheros de forma definitiva; se activa añadiéndola al workflow cuando el responsable quiera.
-- **Pendiente para el responsable** (ajustes de Supabase, no de código): activar la protección de contraseñas
-  filtradas. Se dejan como están, por bajo impacto y riesgo de romper accesos antes de la evaluación: las 23 políticas
+- **Contraseñas (ajustes de Supabase)**: la protección de contraseñas filtradas (HaveIBeenPwned) solo existe en el plan
+  Pro; con el gratuito se compensa con longitud mínima 10, mayúsculas + minúsculas + números y «Secure password
+  change» activado (cambiado por el responsable el 15/10/2026). El aviso del advisor queda conocido y justificado. Se dejan como están, por bajo impacto y riesgo de romper accesos antes de la evaluación: las 23 políticas
   RLS con `auth.uid()` sin `(select …)`, `es_operador()` ejecutable por anon (devuelve false) y la lectura pública de
   `lugares_frecuentes` (es intencionada: nombres de lugares públicos para el buscador de /reservar).
