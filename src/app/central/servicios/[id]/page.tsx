@@ -33,12 +33,16 @@ export default async function FichaServicio({ params }: { params: Promise<{ id: 
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      {sinVer && <MarcarVista servicioId={s.id} />}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-marca-claro">Servicio · {fmt.format(new Date(s.fecha_hora_recogida))}</h1>
         <EstadoBadge estado={s.estado} />
       </div>
-      {s.ultima_incidencia && <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">Incidencia: {s.ultima_incidencia}</p>}
+      {s.ultima_incidencia && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          <p>Incidencia: {s.ultima_incidencia}{!sinVer && <span className="ml-2 text-xs text-slate-400">(vista)</span>}</p>
+          {sinVer && <MarcarVista servicioId={s.id} />}
+        </div>
+      )}
       <AccionesFicha servicioId={s.id} estado={s.estado} />
       <div className="max-w-md"><AvisoCliente servicioId={s.id} estado={s.estado} recogida={s.fecha_hora_recogida} telefono={s.cliente_telefono} cliente={s.cliente_nombre}
         tipos={avisosCentral(s.estado, s.ultima_incidencia)} modo="central" /></div>

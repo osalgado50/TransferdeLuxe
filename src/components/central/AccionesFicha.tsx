@@ -1,15 +1,28 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import DialogoAsignar from "./DialogoAsignar";
 import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
 import { preguntaDeshacer } from "@/lib/dominio/deshacer";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 
+// Abrir la ficha ya no marca la incidencia como vista para todos: lo decide el operador con este botón.
 export function MarcarVista({ servicioId }: { servicioId: string }) {
   const router = useRouter();
-  useEffect(() => { marcarIncidenciaVista(servicioId).then(() => router.refresh()).catch(() => {}); }, [servicioId, router]);
-  return null;
+  const [pend, ini] = useTransition();
+  const [error, setError] = useState(false);
+  const marcar = () => ini(async () => {
+    try { await marcarIncidenciaVista(servicioId); setError(false); router.refresh(); } catch { setError(true); }
+  });
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button type="button" data-accion="marcar-vista" disabled={pend} onClick={marcar}
+        className="rounded-md border border-red-400/60 px-2 py-1 text-xs text-red-200 hover:bg-red-500/20 disabled:opacity-50">
+        {pend ? "Marcando…" : "Marcar como vista"}
+      </button>
+      {error && <span role="alert" className="text-xs text-red-400">No se pudo marcar</span>}
+    </span>
+  );
 }
 
 export default function AccionesFicha({ servicioId, estado }: { servicioId: string; estado: string }) {
