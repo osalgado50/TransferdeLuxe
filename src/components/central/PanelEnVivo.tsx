@@ -31,13 +31,15 @@ const acotarIncidencias = acotar<IncidenciaAct>((i) => i.creado_en, (i) => !i.re
 const acotarAlertas = acotar<AlertaHorarioAct>((a) => a.creado_en, (a) => !a.resuelta_en);
 const acotarRevisiones = acotar<RevisionAct>((r) => r.creado_en);
 
-export default function PanelEnVivo({ servicios, posiciones, eventos, conductores, vehiculos, umbralMin, incidencias, revisiones, jornadas, cierres, serviciosExtra, alertasHorario = SIN_ALERTAS, ocultos = SIN_OCULTOS }: {
+export default function PanelEnVivo({ servicios, posiciones, eventos, conductores, vehiculos, umbralMin, incidencias, revisiones, jornadas, cierres, serviciosExtra, alertasHorario = SIN_ALERTAS, ocultos = SIN_OCULTOS, atrasados }: {
   servicios: Servicio[]; posiciones: PosicionActual[]; eventos: EventoAlerta[];
   conductores: (Pick<Perfil, "id" | "nombre" | "vehiculo_habitual_id"> & { telefono?: string | null })[]; vehiculos: Pick<Vehiculo, "id" | "matricula">[]; umbralMin: number;
   incidencias: IncidenciaAct[]; revisiones: RevisionAct[]; jornadas: JornadaAct[]; cierres: CierreAct[]; serviciosExtra: ServicioAct[];
   alertasHorario?: AlertaHorarioAct[];
   /** Servicios de pruebas automáticas ya conocidos al cargar: sus eventos, incidencias y alertas no entran. */
   ocultos?: string[];
+  /** Servicios de días anteriores sin terminar (contador «Atrasados»). */
+  atrasados?: Servicio[];
 }) {
   const [ok, setOk] = useState(true);
   // Pruebas automáticas (es_prueba o notas «PRUEBA AUTOMÁTICA…»): fuera del panel también lo que llega por Realtime.
@@ -83,7 +85,7 @@ export default function PanelEnVivo({ servicios, posiciones, eventos, conductore
       {!ok && <p role="status" className="text-xs text-amber-300">Reconectando…</p>}
       {/* En pantallas estrechas lo grave va arriba del todo (antes del mapa); en escritorio, arriba de la columna de alertas. */}
       {hayArriba && <div className="space-y-3 lg:hidden">{tarjetasGraves}</div>}
-      <Contadores servicios={sv} conductores={conductores} posiciones={ps} umbralMin={umbralMin} />
+      <Contadores servicios={sv} conductores={conductores} posiciones={ps} umbralMin={umbralMin} atrasados={atrasados} />
       {/* Mapa grande (ocupa casi toda la altura) y alertas al lado con su propio scroll, sin salirse por la derecha. */}
       <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4">
         <div ref={mapa} className="min-w-0 lg:col-span-2 xl:col-span-3"><MapaFlota posiciones={ps} servicios={sv} conductores={conductores} vehiculos={vehiculos} umbralMin={umbralMin} eventos={ev} centrar={centrar} /></div>

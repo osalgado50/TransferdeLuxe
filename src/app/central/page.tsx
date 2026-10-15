@@ -10,7 +10,7 @@ import { diaMadrid } from "@/lib/dominio/geo";
 import { HORAS_ACTIVIDAD, TIPOS_GRAVES, type AlertaHorarioAct, type CierreAct, type ServicioAct } from "@/lib/dominio/actividad";
 import EstadoTurnos from "@/components/central/EstadoTurnos";
 import { agruparHorarios } from "@/lib/dominio/horarios";
-import { sumarDias } from "@/lib/dominio/dias";
+import { madridAUtc, sumarDias } from "@/lib/dominio/dias";
 
 export const metadata = { title: "Panel en vivo · TransferdeLuxe" };
 
@@ -22,7 +22,7 @@ export default async function PanelCentral() {
   const hasta = new Date(Date.now() + 48 * 3600e3).toISOString();
   const hace12h = new Date(Date.now() - HORAS_ACTIVIDAD * 3600e3).toISOString();
   const hoy = diaMadrid(new Date());
-  const [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors, cies, alh, hor, exc] = await Promise.all([
+  const [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors, cies, alh, hor, exc, atr] = await Promise.all([
     sb.from("servicios").select("*").eq("es_prueba", false).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
     sb.from("servicios").select("*").eq("es_prueba", false).eq("incidencia_vista", false),
     sb.from("posicion_actual").select("*"),
@@ -43,6 +43,9 @@ export default async function PanelCentral() {
     sb.from("alertas_horario").select("id,tipo,conductor_id,servicio_id,texto,creado_en,resuelta_en").gte("creado_en", hace12h).order("creado_en", { ascending: false }).limit(100),
     sb.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id").limit(2000),
     sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").gte("fecha", sumarDias(hoy, -1)).lte("fecha", sumarDias(hoy, 1)).limit(1000),
+    // Contador «Atrasados»: servicios de días anteriores que siguen sin terminar.
+    sb.from("servicios").select("*").eq("es_prueba", false).in("estado", ["pendiente", "asignado", "aceptado", "en_camino", "recogido"])
+      .lt("fecha_hora_recogida", madridAUtc(hoy, "00:00")).order("fecha_hora_recogida").limit(200),
   ]);
   const fallo = [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors, cies].find((r) => r.error);
   const horarios = Object.fromEntries(agruparHorarios(hor.data ?? [], exc.data ?? []));
@@ -77,7 +80,7 @@ export default async function PanelCentral() {
         servicios={[...porId.values()]} posiciones={pos.data ?? []} eventos={eventosVisibles}
         incidencias={incidenciasVisibles} revisiones={revs.data ?? []} alertasHorario={(alh.data ?? []) as AlertaHorarioAct[]} jornadas={jors.data ?? []} cierres={(cies.data ?? []) as CierreAct[]}
         serviciosExtra={(extra ?? []).filter((x) => !x.es_prueba) as ServicioAct[]}
-        ocultos={[...ocultos]}
+        ocultos={[...ocultos]} atrasados={(atr.data ?? []) as Servicio[]}
         conductores={perfiles.data ?? []} vehiculos={vehiculos.data ?? []} umbralMin={ajustes.data?.umbral_sin_senal_min ?? 5}
       />
     </div>
