@@ -68,9 +68,11 @@ export async function moverRecogidaPorVuelo(servicioId: string, esperada: string
   if (!p) return { ok: false, mensaje: "No hay nada que reajustar" };
   if (p.toISOString() !== esperada) return { ok: false, mensaje: "Los datos han cambiado; vuelve a revisar la propuesta" };
   const antes = horaMadrid(c.s.fecha_hora_recogida);
-  const { error } = await c.sb.from("servicios").update({ fecha_hora_recogida: p.toISOString() }).eq("id", servicioId)
-    .not("estado", "in", "(recogido,completado,cancelado,subcontratado)");
+  const { data: movidos, error } = await c.sb.from("servicios").update({ fecha_hora_recogida: p.toISOString() }).eq("id", servicioId)
+    .not("estado", "in", "(recogido,completado,cancelado,subcontratado)").select("id");
   if (error) return { ok: false, mensaje: "No se pudo mover la recogida" };
+  // 0 filas: el conductor ya recogió (o se cerró) mientras tanto → ni evento, ni push, ni «Recogida movida».
+  if (!movidos?.length) return { ok: false, mensaje: "No se ha movido: el servicio ya está recogido o cerrado" };
   await c.sb.from("eventos_servicio").insert({ servicio_id: servicioId, tipo: "recogida_reajustada", actor_id: c.yo.id, motivo: `${antes} → ${horaMadrid(p)}` });
   after(() => notificarConductor(servicioId, "Recogida reajustada", `Nueva hora de recogida: ${horaMadrid(p)} (antes ${antes})`, "recogida_reajustada"));
   revalidatePath("/central", "layout");
