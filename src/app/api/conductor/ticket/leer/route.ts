@@ -1,7 +1,7 @@
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { datosNoValidos, demasiadas, exigirConductorBearer, leerJson } from "@/lib/supabase/bearer";
 import { permitir } from "@/lib/limite";
-import { leerTicketServidor } from "@/lib/lector/ocrServidor";
+import { leerTicketServidor, OcrOcupado } from "@/lib/lector/ocrServidor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     const { datos, referencia } = await leerTicketServidor(Buffer.from(await data.arrayBuffer()));
     return Response.json({ datos, referencia });
   } catch (e) {
+    if (e instanceof OcrOcupado) return Response.json({ error: "Hay otros tickets leyéndose: vuelve a intentarlo en unos segundos." }, { status: 429, headers: { "Retry-After": "5" } });
     const detalle = (e instanceof Error ? e.message : String(e)).slice(-700);
     console.error("[ticket/leer]", detalle);
     // `detalle`: en qué fase falló (arranque / lectura), sin datos personales: ayuda a diagnosticar en producción.

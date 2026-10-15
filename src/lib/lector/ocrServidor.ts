@@ -180,7 +180,19 @@ async function preparar(imagen: Buffer, p: Preparacion): Promise<Buffer | null> 
  * Lee el ticket en varias pasadas (desenfoque suave, medio, blanco y negro, y la foto tal cual) y se para en cuanto
  * una lo trae todo (cuadra, fecha, CIF, base); se junta lo mejor. Los números se corrigen con los precios del día.
  */
+/** El OCR corre en el hilo principal (bloquea ~1 s por pasada): como mucho 2 tickets a la vez; el resto, «ocupado». */
+const MAX_TICKETS_A_LA_VEZ = 2;
+let ticketsEnCurso = 0;
+export class OcrOcupado extends Error { constructor() { super("Hay otros tickets leyéndose ahora mismo"); } }
+const respirar = () => new Promise<void>((r) => setImmediate(r));
+
 export async function leerTicketServidor(imagen: Buffer): Promise<{ datos: DatosAjustados; referencia: RangoPrecio }> {
+  if (ticketsEnCurso >= MAX_TICKETS_A_LA_VEZ) throw new OcrOcupado();
+  ticketsEnCurso++;
+  try { return await leerTicketServidorSinCola(imagen); } finally { ticketsEnCurso--; }
+}
+
+async function leerTicketServidorSinCola(imagen: Buffer): Promise<{ datos: DatosAjustados; referencia: RangoPrecio }> {
   const lecturas: DatosAjustados[] = [];
   let referencia: RangoPrecio | null = null;
   const pasadas: (() => Promise<{ img: Buffer; psm: "3" | "6" } | null>)[] = [
@@ -190,6 +202,7 @@ export async function leerTicketServidor(imagen: Buffer): Promise<{ datos: Datos
   for (const siguiente of pasadas) {
     const p = await siguiente();
     if (!p) continue;
+    await respirar(); // entre pasada y pasada, que el servidor atienda lo que tenga en cola (panel, apps…)
     const texto = await leerTextoTicket(p.img, p.psm);
     referencia ??= await rangoDelDia(extraerDatosTicket(texto).tipo_combustible);
     const d = extraerDatosTicket(texto, referencia);

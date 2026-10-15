@@ -73,7 +73,10 @@ export default function Ticket() {
   async function leerTicket(path: string) {
     setLectura({ estado: "leyendo" });
     try {
-      const r = await llamarApi("/api/conductor/ticket/leer", { method: "POST", body: { fotoPath: path }, tiempoMs: 65_000 });
+      const pedir = () => llamarApi("/api/conductor/ticket/leer", { method: "POST", body: { fotoPath: path }, tiempoMs: 65_000 });
+      let r = await pedir();
+      // 429 = el servidor está leyendo otros tickets: un reintento a los 5 s.
+      if (r.status === 429) { await new Promise((ok) => setTimeout(ok, 5000)); r = await pedir(); }
       const j = (await r.json().catch(() => ({}))) as { datos?: DatosLeidos; referencia?: Referencia };
       const d = r.ok ? j.datos : undefined;
       if (r.ok && j.referencia) setReferencia(j.referencia);
