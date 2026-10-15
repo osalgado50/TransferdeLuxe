@@ -7,6 +7,7 @@ import { agruparHorarios, DIAS_SEMANA, NOMBRE_DIA, validarTramos, type HorarioCo
 import { diaMadrid } from "@/lib/dominio/geo";
 import { sumarDias } from "@/lib/dominio/dias";
 import { diasDelMes, esMes, nombreMes, planCopiarMeses, planRepetirSemanas, type DiaPlan } from "@/lib/dominio/planHorarios";
+import { leerTodasLasPaginas } from "@/lib/dominio/paginar";
 
 /** Horarios de los conductores: semana tipo, plantillas y excepciones de un día (solo la central). */
 export type Resultado = { ok: true; mensaje: string } | { ok: false; error: string };
@@ -117,12 +118,15 @@ async function conductoresValidos(ids: unknown): Promise<string[]> {
 /** Horarios (semana tipo + días con fecha del rango) de esos conductores. */
 async function horariosDe(ids: string[], desde: string, hasta: string): Promise<Map<string, HorarioConductor>> {
   const sb = clienteAdmin();
+  // Excepciones paginadas (PostgREST corta en 1000 filas): si no, «copiar mes»/«repetir semanas» con un año planificado
+  // no vería todos los cambios puntuales y podría pisarlos.
   const [h, e] = await Promise.all([
     sb.from("horarios_conductor").select("conductor_id,dia_semana,tramos,vehiculo_id,plantilla_id").in("conductor_id", ids),
-    sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").in("conductor_id", ids).gte("fecha", desde).lte("fecha", hasta).limit(50000),
+    leerTodasLasPaginas((a, b) => sb.from("excepciones_horario").select("conductor_id,fecha,tramos,nota,vehiculo_id,tipo").in("conductor_id", ids)
+      .gte("fecha", desde).lte("fecha", hasta).order("conductor_id").order("fecha").range(a, b)).catch(() => null),
   ]);
-  if (h.error || e.error) throw new Error("No se pudieron leer los horarios.");
-  return agruparHorarios(h.data ?? [], e.data ?? []);
+  if (h.error || !e) throw new Error("No se pudieron leer los horarios.");
+  return agruparHorarios(h.data ?? [], e);
 }
 
 /** Guarda días planificados (sustituye lo que hubiera esas fechas). */
