@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { confirmarAutoasignacion, prepararAutoasignacion, proponerAutoasignacion } from "@/app/central/autoasignar-actions";
 import { colorMargen, evaluarAsignacion, ESTRATEGIAS, type Estrategia } from "@/lib/dominio/autoasignacion";
@@ -12,6 +12,11 @@ const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour:
 const hhmm = (t: number | string | null) => (t == null ? "—" : hora.format(new Date(t)));
 const COLOR = { verde: "bg-green-900/60 text-green-300", naranja: "bg-amber-900/60 text-amber-300", rojo: "bg-red-900/60 text-red-300", gris: "bg-slate-800 text-slate-400" };
 const CONEXION = { en_linea: "bg-green-900/60 text-green-300", sin_senal: "bg-red-900/60 text-red-300", fuera: "bg-slate-800 text-slate-400" };
+const dec = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
+/** Número con coma decimal española («0,8»). */
+const n = (x: number) => dec.format(x);
+const plural = (k: number, uno: string, varios: string) => (k === 1 ? uno : varios);
+const ENFOCABLES = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const boton = "inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50";
 
 /** Botón «⚡ Asignar automáticamente» + diálogo: configurar → propuesta editable → confirmar y enviar. */
@@ -31,6 +36,8 @@ export default function DialogoAutoasignar({ dia }: { dia?: string }) {
   const [hecho, setHecho] = useState<Confirmado | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pend, ini] = useTransition();
+  const disparador = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   const cargar = (d?: string) => {
     setDatos(null); setRes(null); setHecho(null); setError(null);
@@ -44,11 +51,31 @@ export default function DialogoAutoasignar({ dia }: { dia?: string }) {
     });
   };
   const abrir = () => { setAbierto(true); cargar(dia); };
+  // Modal accesible: foco dentro al abrir, Tab no se escapa, Escape cierra, el fondo no se desplaza y al cerrar
+  // el foco vuelve al botón que lo abrió.
   useEffect(() => {
     if (!abierto) return;
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(false); };
+    const previo = document.activeElement as HTMLElement | null;
+    const origen = disparador.current;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panel.current?.focus();
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setAbierto(false); return; }
+      if (e.key !== "Tab" || !panel.current) return;
+      const lista = [...panel.current.querySelectorAll<HTMLElement>(ENFOCABLES)].filter((el) => el.offsetParent !== null);
+      if (!lista.length) { e.preventDefault(); panel.current.focus(); return; }
+      const primero = lista[0], ultimo = lista[lista.length - 1];
+      const dentro = panel.current.contains(document.activeElement);
+      if (e.shiftKey && (!dentro || document.activeElement === primero || document.activeElement === panel.current)) { e.preventDefault(); ultimo.focus(); }
+      else if (!e.shiftKey && (!dentro || document.activeElement === ultimo)) { e.preventDefault(); primero.focus(); }
+    };
     window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
+    return () => {
+      window.removeEventListener("keydown", k);
+      document.body.style.overflow = overflow;
+      (origen ?? previo)?.focus();
+    };
   }, [abierto]);
 
   const calcular = () => {
@@ -93,23 +120,23 @@ export default function DialogoAutoasignar({ dia }: { dia?: string }) {
 
   return (
     <>
-      <button type="button" onClick={abrir} data-accion="autoasignar"
+      <button type="button" ref={disparador} onClick={abrir} data-accion="autoasignar" aria-haspopup="dialog"
         className="inline-flex min-h-11 items-center rounded-lg border border-marca-claro px-4 py-2 font-medium text-marca-claro hover:bg-marca-claro hover:text-slate-950">
         ⚡ Asignar automáticamente
       </button>
       {abierto && (
-        <div role="dialog" aria-modal="true" aria-label="Asignar automáticamente" onClick={() => setAbierto(false)}
-          className="fixed inset-0 z-[2000] flex items-end justify-center bg-black/60 sm:items-center sm:p-4">
-          <div onClick={(e) => e.stopPropagation()} className="max-h-[95vh] w-full max-w-5xl overflow-y-auto rounded-t-2xl border border-slate-700 bg-slate-900 p-4 sm:rounded-2xl sm:p-5">
+        <div onClick={() => setAbierto(false)} className="fixed inset-0 z-[2000] flex items-end justify-center bg-black/60 sm:items-center sm:p-4">
+          <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="titulo-autoasignar" tabIndex={-1} onClick={(e) => e.stopPropagation()}
+            className="max-h-[95vh] w-full max-w-5xl overflow-y-auto overscroll-contain rounded-t-2xl border border-slate-700 bg-slate-900 p-4 focus:outline-none sm:rounded-2xl sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-marca-claro">⚡ Asignar automáticamente</h2>
+              <h2 id="titulo-autoasignar" className="text-lg font-semibold text-marca-claro">⚡ Asignar automáticamente</h2>
               <button type="button" onClick={() => setAbierto(false)} className="min-h-10 rounded-lg border border-slate-600 px-3 text-sm">Cerrar</button>
             </div>
             {error && <p role="alert" className="mb-3 rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-300">{error}</p>}
 
             {hecho ? (
               <div className="space-y-3" data-testid="resultado-autoasignar">
-                <p className="text-lg"><b className="text-green-300">{hecho.asignados}</b> asignados · <b className="text-amber-300">{hecho.saltados}</b> saltados
+                <p className="text-lg"><b className="text-green-300">{hecho.asignados}</b> {plural(hecho.asignados, "asignado", "asignados")} · <b className="text-amber-300">{hecho.saltados}</b> {plural(hecho.saltados, "saltado", "saltados")}
                   {hecho.errores > 0 && <> · <b className="text-red-300">{hecho.errores}</b> con error</>}</p>
                 <p className="text-sm text-slate-400">Cada conductor recibe un aviso en su móvil para aceptar el servicio.</p>
                 <ul className="space-y-1 text-sm">
@@ -154,7 +181,7 @@ export default function DialogoAutoasignar({ dia }: { dia?: string }) {
                             <span className="min-w-0 flex-1">
                               <b>{c.nombre}</b> · {c.vehiculo ? `${c.vehiculo.matricula} · ${c.vehiculo.plazas} plazas` : "sin vehículo"}
                               {c.vehiculo?.estado === "taller" && <span className="ml-1 rounded bg-red-900/60 px-1.5 text-xs text-red-300">en taller</span>}
-                              {c.compromisos > 0 && <span className="text-slate-400"> · {c.compromisos} ya asignados</span>}
+                              {c.compromisos > 0 && <span className="text-slate-400"> · {c.compromisos} {plural(c.compromisos, "servicio ya asignado", "servicios ya asignados")}</span>}
                               {c.noDisponible && <span data-no-disponible className="ml-1 rounded bg-amber-900/60 px-1.5 text-xs text-amber-200">{c.noDisponible}</span>}
                               {c.turno && <span data-turno className="ml-1 rounded bg-slate-800 px-1.5 text-xs text-slate-300">{c.turno}</span>}
                               <span className={`mt-0.5 block w-fit rounded-full px-2 text-xs ${CONEXION[c.conexion.estado]}`}>{c.conexion.texto}</span>
@@ -212,7 +239,7 @@ export default function DialogoAutoasignar({ dia }: { dia?: string }) {
                             </td>
                             <td className="px-2 py-2 tabular-nums">{hhmm(l.llegadaEstimada)}</td>
                             <td className="px-2 py-2"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${COLOR[color]}`}>{l.margenMin == null ? "—" : `${l.margenMin} min`}</span></td>
-                            <td className="px-2 py-2 tabular-nums">{l.kmVacio == null ? "—" : `${l.kmVacio} km`}</td>
+                            <td className="px-2 py-2 tabular-nums">{l.kmVacio == null ? "—" : `${n(l.kmVacio)} km`}</td>
                           </tr>
                         );
                       })}
@@ -246,7 +273,7 @@ export default function DialogoAutoasignar({ dia }: { dia?: string }) {
                         {evaluada!.metricas.map((m) => (
                           <tr key={m.conductorId} className="border-t border-slate-800">
                             <td className="px-2 py-2">{m.nombre}</td><td className="px-2 py-2">{m.servicios}</td><td className="px-2 py-2">{m.nuevos}</td>
-                            <td className="px-2 py-2">{m.horas} h</td><td className="px-2 py-2">{m.kmVacio} km</td>
+                            <td className="px-2 py-2 tabular-nums">{n(m.horas)} h</td><td className="px-2 py-2 tabular-nums">{n(m.kmVacio)} km</td>
                           </tr>
                         ))}
                       </tbody>
