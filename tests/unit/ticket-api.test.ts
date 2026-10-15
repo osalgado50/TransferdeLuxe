@@ -11,6 +11,7 @@ const st = vi.hoisted(() => ({
   subidas: [] as string[],
   vehiculo: { matricula: "1234 TDL", km_actuales: 1000 } as Record<string, unknown> | null,
   previos: [] as { km: number; fecha: string }[],
+  duplicados: [] as { fecha: string; importe: number; km: number }[],
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   clienteAdmin: () => ({
@@ -20,7 +21,15 @@ vi.mock("@/lib/supabase/admin", () => ({
       if (tabla === "perfiles") return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: st.perfil }) }) }) };
       if (tabla === "tickets_combustible") return {
         insert: async (f: Record<string, unknown>) => { st.inserts.push(f); return { error: null }; },
-        select: () => ({ eq: () => ({ lte: () => ({ order: () => ({ limit: async () => ({ data: st.previos }) }) }) }) }),
+        // Consulta encadenada: con filtro de importe es la búsqueda de duplicados; si no, la de km mínimo (atrasados).
+        select: () => {
+          const filtros: Record<string, unknown> = {};
+          const q = {
+            eq: (c: string, v: unknown) => { filtros[c] = v; return q; }, lte: () => q, order: () => q,
+            limit: async () => ({ data: "importe" in filtros ? st.duplicados.filter((x) => x.fecha === filtros.fecha && x.importe === filtros.importe && x.km === filtros.km) : st.previos }),
+          };
+          return q;
+        },
       };
       return {
         select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: st.vehiculo }) }) }),
@@ -29,12 +38,17 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+import { hoyMadrid } from "@/lib/dominio/ticketReglas";
+import { sumarDias } from "@/lib/dominio/dias";
 import { POST as ticket } from "@/app/api/conductor/ticket/route";
 import { POST as foto } from "@/app/api/conductor/ticket/foto/route";
 import { vaciarCacheBearer } from "@/lib/supabase/bearer"; // la verificación del token se cachea 60 s
 import { purgarCaducados } from "@/lib/limite";
 
-const body = { fecha: "2026-10-10", litros: "40,5", importe: "60", km: 1200, gasolinera: "Repsol" };
+// Fechas relativas a hoy (Madrid): el ticket no puede tener más de 60 días.
+const hoy = () => hoyMadrid();
+const haceDias = (n: number) => sumarDias(hoy(), -n);
+const body = { fecha: haceDias(5), litros: "40,5", importe: "60", km: 1200, gasolinera: "Repsol" };
 const req = (b: unknown, auth = "Bearer bueno") =>
   new Request("http://x/api", { method: "POST", headers: auth ? { authorization: auth } : {}, body: JSON.stringify(b) });
 const FIRMAS: Record<string, number[]> = { "image/png": [0x89, 0x50, 0x4e, 0x47], "image/jpeg": [0xff, 0xd8, 0xff] };
@@ -51,7 +65,7 @@ const reqFoto = async (tipo = "image/jpeg", size = 10, auth = "Bearer bueno", fi
 beforeEach(() => {
   purgarCaducados(Date.now() + 3_600_000); // límite de 10 tickets/min: cada prueba empieza de cero
   vaciarCacheBearer(); st.perfil = { id: U, rol: "conductor", vehiculo_habitual_id: V }; st.inserts = []; st.kms = []; st.subidas = [];
-  st.vehiculo = { matricula: "1234 TDL", km_actuales: 1000 }; st.previos = [];
+  st.vehiculo = { matricula: "1234 TDL", km_actuales: 1000 }; st.previos = []; st.duplicados = [];
 });
 
 test("ticket: 401 sin token, 403 no conductor, 400 datos inválidos", async () => {
@@ -76,8 +90,8 @@ test("ticket: sin vehículo habitual → 400", async () => {
   expect((await ticket(req(body))).status).toBe(400);
 });
 test("ticket ok: inserta con vehículo del perfil, corregido y actualiza km", async () => {
-  const ia = { fecha: "2026-10-09", gasolinera: "Repsol", litros: 40.5, precio_litro: null, importe: 60, tipo_combustible: null, confianza: "alta" };
-  const r = await ticket(req({ ...body, foto_path: `${U}/${crypto.randomUUID()}.jpeg`, datos_ia: ia }));
+  const ia = { fecha: haceDias(6), gasolinera: "Repsol", litros: 40.5, precio_litro: null, importe: 60, tipo_combustible: null, confianza: "alta" };
+  const r = await ticket(req({ ...body, fecha: hoy(), foto_path: `${U}/${crypto.randomUUID()}.jpeg`, datos_ia: ia }));
   expect(r.status).toBe(200);
   expect(st.inserts[0]).toMatchObject({ conductor_id: U, vehiculo_id: V, litros: 40.5, importe: 60, km: 1200, corregido: true });
   expect(st.kms[0]).toEqual([{ km_actuales: 1200 }, 1200]);
@@ -96,7 +110,6 @@ test("foto: 401, formato, tamaño y ok con ruta del conductor", async () => {
   expect(st.subidas).toEqual([j.fotoPath]);
 });
 
-const hoy = () => new Date().toISOString().slice(0, 10);
 test("km: un ticket de hoy no puede tener menos km que los últimos del vehículo", async () => {
   const r = await ticket(req({ ...body, fecha: hoy(), km: 900 }));
   expect(r.status).toBe(400);
@@ -120,4 +133,28 @@ test("datos de factura: se guardan los que llegan (vacíos → null) y se rechaz
   expect(r.status).toBe(200);
   expect(st.inserts[0]).toMatchObject({ hora: "16:55", nif_gasolinera: "B93275394", numero_factura: "039R2400065003", base_imponible: 16.53, iva_pct: 21, iva_importe: null });
   expect((await ticket(req({ ...body, hora: "25:99" }))).status).toBe(400);
+});
+
+test("fecha: ni futura ni de hace más de 60 días, con mensaje claro", async () => {
+  let r = await ticket(req({ ...body, fecha: "2024-04-25" }));
+  expect(r.status).toBe(400);
+  expect((await r.json()).error).toMatch(/últimos 60 días/);
+  r = await ticket(req({ ...body, fecha: sumarDias(hoy(), 1) }));
+  expect((await r.json()).error).toMatch(/no puede ser futura/);
+  expect((await ticket(req({ ...body, fecha: haceDias(60) }))).status).toBe(200);
+  expect(st.inserts).toHaveLength(1);
+});
+test("km del vehículo: solo los sube un ticket reciente (hoy o 2 días antes), nunca uno atrasado", async () => {
+  expect((await ticket(req({ ...body, fecha: haceDias(2), km: 1500 }))).status).toBe(200);
+  expect(st.kms).toEqual([[{ km_actuales: 1500 }, 1500]]);
+  expect((await ticket(req({ ...body, fecha: haceDias(3), km: 9000 }))).status).toBe(200);
+  expect(st.kms).toHaveLength(1);
+});
+test("duplicado: mismo vehículo, fecha, importe y km → rechazado", async () => {
+  st.duplicados = [{ fecha: body.fecha, importe: 60, km: 1200 }];
+  const r = await ticket(req(body));
+  expect(r.status).toBe(400);
+  expect((await r.json()).error).toMatch(/^Ya hay un ticket igual/);
+  expect(st.inserts).toHaveLength(0);
+  expect((await ticket(req({ ...body, km: 1201 }))).status).toBe(200);
 });

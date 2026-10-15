@@ -5,10 +5,10 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { llamarApi } from "~/lib/api";
 import { color } from "~/lib/tema";
 import { recalcular, type CampoImporte, type Derivado } from "@dominio/ticketCalculo";
+import { avisoKm, errorFechaTicket, fmtKm, hoyMadrid, ticketReciente } from "@dominio/ticketReglas";
 import { Aviso, Boton, Tarjeta } from "~/components/ui";
 
 const COMBUSTIBLES = ["Diésel", "Gasolina 95", "Gasolina 98", "Eléctrico", "Otro"];
-const hoyMadrid = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date());
 const num = (s: string) => Number(s.trim().replace(",", "."));
 type Foto = { uri: string; estado: "subiendo" | "ok" | "error"; path?: string; error?: string };
 type Campo = "fecha" | "gasolinera" | "litros" | "precio" | "importe" | "combustible" | "km" | "hora" | "nif" | "factura" | "base" | "ivaPct" | "ivaImporte";
@@ -20,17 +20,6 @@ type DatosLeidos = {
 type Referencia = { min: number; max: number; medio: number; fuente: string };
 type Lectura = { estado: "leyendo" } | { estado: "ok"; campos: number; avisos: string[] } | { estado: "nada" };
 const coma = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
-const fmtKm = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-const SALTO_RARO_KM = 3000; // más que esto desde el último registro: ¿seguro?
-/** Aviso de km: menos que los últimos del coche (no se puede guardar) o un salto muy grande (¿seguro?). */
-function avisoKm(km: string, fecha: string, ultimo: { matricula: string; km: number } | null): { texto: string; error: boolean } | null {
-  if (!ultimo || !/^\d+$/.test(km.trim())) return null;
-  const n = Number(km.trim());
-  const reciente = fecha.trim() >= new Date(Date.now() - 2 * 86400e3).toISOString().slice(0, 10);
-  if (reciente && n < ultimo.km) return { texto: `Son menos km que los últimos registrados de ${ultimo.matricula} (${fmtKm(ultimo.km)} km): el cuentakilómetros no baja.`, error: true };
-  if (n - ultimo.km > SALTO_RARO_KM) return { texto: `Son ${fmtKm(n - ultimo.km)} km más que el último registro (${fmtKm(ultimo.km)} km): ¿seguro?`, error: false };
-  return null;
-}
 const euros = (n: number) => n.toFixed(3).replace(/0$/, "").replace(".", ",");
 /** Aviso si el €/L escrito no parece un precio por litro (p. ej. 1287 sin coma). */
 function precioRaro(precio: string, ref: Referencia | null): string | null {
@@ -130,8 +119,8 @@ export default function Ticket() {
 
   async function guardar() {
     const e: string[] = [];
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(v.fecha.trim())) e.push("La fecha debe tener el formato AAAA-MM-DD.");
-    else if (new Date(`${v.fecha.trim()}T00:00:00Z`).getTime() > Date.now() + 86400e3) e.push("La fecha no puede ser futura.");
+    const ef = errorFechaTicket(v.fecha); // formato, no futura y de los últimos 60 días (Madrid)
+    if (ef) e.push(ef);
     if (!(num(v.litros) > 0) || !v.litros.trim()) e.push("Indica los litros (mayor que 0).");
     if (!(num(v.importe) > 0) || !v.importe.trim()) e.push("Indica el importe (mayor que 0).");
     if (v.precio.trim() && !(num(v.precio) > 0)) e.push("El precio por litro debe ser mayor que 0.");
@@ -151,7 +140,7 @@ export default function Ticket() {
         base_imponible: v.base.trim() ? num(v.base) : null, iva_pct: v.ivaPct.trim() ? num(v.ivaPct) : null, iva_importe: v.ivaImporte.trim() ? num(v.ivaImporte) : null,
       } });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
-      if (r.ok) { if (ultimoKm && Number(v.km.trim()) > ultimoKm.km) setUltimoKm({ ...ultimoKm, km: Number(v.km.trim()) }); setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); setDerivado(null); }
+      if (r.ok) { if (ultimoKm && ticketReciente(v.fecha) && Number(v.km.trim()) > ultimoKm.km) setUltimoKm({ ...ultimoKm, km: Number(v.km.trim()) }); setResultado({ ok: true, texto: "Ticket guardado" }); setV({ ...VACIO, fecha: hoyMadrid() }); setFoto(null); setLectura(null); setReferencia(null); tocados.current.clear(); setDerivado(null); }
       else setResultado({ ok: false, texto: j.error ?? "No se pudo guardar el ticket" });
     } catch { setResultado({ ok: false, texto: "Sin conexión: no se pudo guardar. Reinténtalo." }); }
     finally { setGuardando(false); }
@@ -183,6 +172,7 @@ export default function Ticket() {
           </Tarjeta>
         )}
         <Campo etiqueta="Fecha (AAAA-MM-DD)" valor={v.fecha} onChange={set("fecha")} />
+        {/^\d{4}-\d{2}-\d{2}$/.test(v.fecha.trim()) && errorFechaTicket(v.fecha) && <Aviso texto={errorFechaTicket(v.fecha)!} tipo="error" />}
         <Campo etiqueta="Gasolinera" valor={v.gasolinera} onChange={set("gasolinera")} />
         <View style={e.fila}>
           <Campo etiqueta={derivado === "litros" ? "Litros (calc.)" : "Litros"} valor={v.litros} onChange={setImporte("litros")} teclado="decimal-pad" />
