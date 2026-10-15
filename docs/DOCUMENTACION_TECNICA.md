@@ -636,6 +636,27 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   «Ticket ejemplo» (primera coincidencia de «ticket») en vez de buscar la que tiene cifras. Navegador: la misma
   preparación con canvas (tres cajas de radio 1 ≈ gaussiana σ 1,4).
 
+- **Pruebas de estrés y auditoría del centro de control (15/10/2026)**. Tres revisiones en paralelo sin escribir en la
+  BD compartida (carga y memoria en local con el build de producción + sonda suave a producción; QA en navegador de las
+  16 pantallas a 3 anchos; auditoría de código) → `docs/INFORME_ESTRES_CENTRAL.md`, 28 puntos. El responsable aprobó
+  arreglarlos todos y se repartieron en agentes por ficheros disjuntos. Lo más grave:
+  (1) **fuga de memoria del servidor**: cada página retenía ~75–360 KB (OOM a las ~1 200 páginas con 512 MB). Con un
+  perfil de heap por CDP y la diferencia entre dos *heap snapshots* apareció la causa: cada `createClient` de Supabase en
+  el servidor arrancaba el temporizador `autoRefreshTicker` de auth-js (por defecto fuera del navegador) que nunca se
+  paraba y retenía el cliente y la petición; se crea uno por petición y por pasada del vigilante. Con
+  `autoRefreshToken: false` (y el cliente de cookies con `fetch` propio, perfil con `cache()` por petición) el heap se
+  queda plano (~80 MB tras 3 000 páginas); `/api/salud` expone la memoria para vigilarla en la evaluación.
+  (2) **Cambio de hora**: `madridAUtc("2026-10-25","01:30")` daba las 02:30 (el desfase se medía en la hora leída como
+  UTC); ahora se prueban los dos desfases del día y se queda el que da esa hora de pared (tests de otoño y primavera).
+  (3) **Carrera reasignar ↔ aceptar**: el cambio atómico solo comparaba el estado; nueva sobrecarga del RPC (migración
+  0034) que compara también el conductor leído, y la central envía el estado que ve (`estadoEsperado`).
+  Además: alertas de horario que se resuelven solas (0033), tickets anulables y km que no se disparan con tickets
+  antiguos (0032), aviso de retraso rearmable por ciclo (0035), índices preventivos (0036), posiciones simuladas
+  marcadas (0037), OCR con 2 tickets a la vez como máximo, asignación automática con tope de 300 ms en la mejora (300
+  servicios: de 35 s a 0,4 s), datos de prueba fuera de informes/incidencias/panel, calendario, desplegable de
+  direcciones, errores 500 por fechas de URL, `error.tsx`/`loading.tsx`, CSV con coma decimal y fórmulas neutralizadas,
+  consumo por tramos, combustible paginado, aviso al conductor que pierde el servicio y textos. 812 tests.
+
 ## 6. Challenges y soluciones
 - **El OCR del servidor funcionaba en local y se colgaba en Hostinger (13/10/2026)**. Síntoma: la lectura agotaba
   siempre el tiempo, sin ningún error. Se añadió un diagnóstico que devuelve los pasos del arranque y se fue acotando

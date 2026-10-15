@@ -67,3 +67,17 @@ Comprobaciones: `tsc` sin errores, 764 tests en verde. El fallo de cambio de hor
 
 Techo de un solo proceso: ~18–20 páginas/s de `/central` (CPU). Producción (sonda suave): `/login` p50 90 ms; API del
 panel p50 269 ms con 5 conexiones; 0 errores.
+
+## Resultado (15/10/2026, misma noche)
+
+Los 28 puntos se han aplicado (commits de `56efd34` a `5d0147f`), con 812 tests en verde. Verificado en local con el
+build de producción: 3 000 renders de `/central` con 384 MB de heap → memoria plana (~80 MB tras GC; antes OOM),
+`madridAUtc` correcto en los dos cambios de hora, asignación automática de 300 servicios en 0,4 s, y repaso visual de
+panel, calendario, hoja de ruta, jornadas, combustible y nuevo servicio. Decisiones:
+- **Tickets de prueba de 2024**: anulados (no borrados) y 0001-TDL vuelve a 125 600 km (el valor de su hoja de cierre).
+- **Limpieza de fotos huérfanas**: la ruta `/api/cron/limpiar-fotos` existe (con `?simular=1`), pero **no se ha
+  programado** porque borra ficheros de forma definitiva; se activa añadiéndola al workflow cuando el responsable quiera.
+- **Pendiente para el responsable** (ajustes de Supabase, no de código): activar la protección de contraseñas
+  filtradas. Se dejan como están, por bajo impacto y riesgo de romper accesos antes de la evaluación: las 23 políticas
+  RLS con `auth.uid()` sin `(select …)`, `es_operador()` ejecutable por anon (devuelve false) y la lectura pública de
+  `lugares_frecuentes` (es intencionada: nombres de lugares públicos para el buscador de /reservar).
