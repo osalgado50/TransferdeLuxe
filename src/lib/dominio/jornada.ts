@@ -1,6 +1,7 @@
 // Jornada laboral (registro horario, art. 34.9 ET). Lógica pura compartida por web, app nativa y central.
 import { diaMadrid } from "./geo";
 import { madridAUtc, sumarDias } from "./dias";
+import { textoCsv } from "./csv";
 
 export interface Pausa { inicio: string; fin: string | null }
 export interface Jornada { id: string; conductor_id: string; inicio: string; fin: string | null; pausas: Pausa[] }
@@ -99,13 +100,12 @@ export function registroPorDia(jornadas: Jornada[], ahora: Date): FilaRegistro[]
 }
 
 const horaMadrid = (iso: string) => new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-const celda = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 const horasDec = (ms: number) => (ms / 3600e3).toFixed(2).replace(".", ",");
 
 /** CSV (separador «;», compatible con Excel en español) del registro horario. */
 export function csvRegistro(filas: FilaRegistro[], nombre: (id: string) => string): string {
   const cab = ["Conductor", "Fecha", "Entrada", "Salida", "Nº pausas", "Pausas (h)", "Horas trabajadas"];
   const lineas = filas.map((f) => [nombre(f.conductor_id), f.dia, horaMadrid(f.entrada), f.salida ? horaMadrid(f.salida) : "en curso",
-    String(f.pausas), horasDec(f.msPausa), horasDec(f.msTrabajado)].map(celda).join(";"));
+    String(f.pausas), horasDec(f.msPausa), horasDec(f.msTrabajado)].map(textoCsv).join(";"));
   return "﻿" + [cab.join(";"), ...lineas].join("\r\n") + "\r\n";
 }

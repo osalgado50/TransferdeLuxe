@@ -1,6 +1,7 @@
 // Agregaciones puras para /central/informes.
 import { distanciaKm } from "./geo";
 import { consumoMedioL100, type TicketCalculo } from "./combustible";
+import { celdaCsv } from "./csv";
 
 export const FACTOR_CARRETERA = 1.3;
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -81,11 +82,7 @@ export function serviciosPorDia(servicios: ServicioInforme[], mes: string): { di
   return c.map((n, i) => ({ dia: String(i + 1), servicios: n }));
 }
 
-const celda = (v: string | number | null) => {
-  const s = v == null ? "" : String(v);
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-/** CSV con separador ";" (Excel en español) y BOM. */
+/** CSV con separador ";" (Excel en español), coma decimal, fórmulas neutralizadas y BOM. */
 export function aCsv(cabecera: string[], filas: (string | number | null)[][]): string {
-  return "﻿" + [cabecera, ...filas].map((f) => f.map(celda).join(";")).join("\r\n") + "\r\n";
+  return "\ufeff" + [cabecera, ...filas].map((f) => f.map(celdaCsv).join(";")).join("\r\n") + "\r\n";
 }
