@@ -1418,3 +1418,9 @@ Esta es la versión web en un iPhone dieciocho Fíjate que el campo de fecha y h
 
 ---
 
+## 2026-10-16 12:58 · Claude Code · sesión `b3c0e64f`
+
+Oye, me he dado cuenta que cuando hay muchos servicios asignados, cuando asignas uno nuevo, no sé si se comprueba que haya sitio disponible para aceptar los envíos. Y luego que, por ejemplo, el agente o el conductor Mark y Laia están colapsados con envíos anteriores y le he mandado un servicio de ahora, de hace unos 20 minutos, y no lo pueden procesar. Y se queda como bloqueado en un bucle. A ver si lo puedes averiguar.
+
+---
+

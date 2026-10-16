@@ -1,5 +1,5 @@
 import { MOTIVOS_RECHAZO } from "@dominio/estados";
-import { claveAsignacion as clave, formatoCuenta, segundosRestantes } from "@dominio/plazo";
+import { claveAsignacion as clave, formatoCuenta, segundosRestantes, siguienteNuevo } from "@dominio/plazo";
 import type { Servicio } from "@dominio/tipos";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +21,7 @@ type Nuevo = Pick<Servicio, "id" | "estado" | "conductor_id" | "asignado_en" | "
 const CAMPOS = "id,estado,conductor_id,asignado_en,plazo_respuesta_min,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas,numero_vuelo,notas,origen_lat,origen_lng,destino_lat,destino_lng";
 const VUELTA = "El servicio ha vuelto a la central";
 
-/** Modal a pantalla completa cuando la central me asigna un servicio (el más antiguo primero). */
+/** Modal a pantalla completa cuando la central me asigna un servicio (el de recogida más próxima primero). */
 export function ServicioNuevo({ yo }: { yo: string }) {
   const { datos, recargar } = useConsulta(async () =>
     exigir(await supabase.from("servicios").select(CAMPOS).eq("conductor_id", yo).eq("estado", "asignado").eq("es_prueba", false).or("notas.is.null,notas.not.like.PRUEBA AUTOMÁTICA*")) as Nuevo[], [yo]);
@@ -37,9 +37,8 @@ export function ServicioNuevo({ yo }: { yo: string }) {
   const mostrado = useRef<string | null>(null);
   const ocultar = (k: string) => setOcultos((o) => new Set(o).add(k));
 
-  const s = (datos ?? [])
-    .filter((x) => x.conductor_id === yo && x.estado === "asignado" && x.asignado_en && !ocultos.has(clave(x)))
-    .sort((a, b) => (a.asignado_en! < b.asignado_en! ? -1 : 1))[0];
+  // Lo más urgente delante (recogida más próxima); las asignaciones viejas sin responder no tapan la de ahora.
+  const s = siguienteNuevo(datos ?? [], yo, ocultos, ahora);
   const restante = s ? segundosRestantes(s.asignado_en!, s.plazo_respuesta_min, ahora) : 0;
   const abierta = !!s;
 

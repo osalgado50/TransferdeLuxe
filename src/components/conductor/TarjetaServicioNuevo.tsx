@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { clienteNavegador } from "@/lib/supabase/navegador";
 import { useTiempoReal } from "@/lib/supabase/useTiempoReal";
 import { accionConductor } from "@/app/conductor/actions";
-import { segundosRestantes, claveAsignacion, formatoCuenta as cuenta } from "@/lib/dominio/plazo";
+import { segundosRestantes, claveAsignacion, formatoCuenta as cuenta, siguienteNuevo } from "@/lib/dominio/plazo";
 import { MOTIVOS_RECHAZO } from "@/lib/dominio/estados";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 import { pitar, prepararDesbloqueo } from "@/lib/sonidos";
@@ -32,9 +32,8 @@ export default function TarjetaServicioNuevo({ iniciales, yo, vuelos = true }: {
   const idAccion = useRef<string | null>(null);
   const mostrado = useRef<string | null>(null);
 
-  const s = todos
-    .filter((x) => x.conductor_id === yo && x.estado === "asignado" && x.asignado_en && !ocultos.has(clave(x)))
-    .sort((a, b) => (a.asignado_en! < b.asignado_en! ? -1 : 1))[0];
+  // Lo más urgente delante (recogida más próxima); las asignaciones viejas sin responder no tapan la de ahora.
+  const s = siguienteNuevo(todos, yo, ocultos, ahora ?? new Date());
   const restante = s && ahora ? segundosRestantes(s.asignado_en!, s.plazo_respuesta_min, ahora) : 0;
   const venceYa = !!s && !!ahora && restante === 0;
 

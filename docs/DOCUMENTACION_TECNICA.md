@@ -979,6 +979,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   modo lectura y «Archivar solo demo» en una transacción deshecha: retiró los 15 de demo, dejó los 143 servicios y 489
   eventos restantes intactos y «Deshacer» los devolvió con la misma suma de control.
 
+- **Conductores «colapsados» que no podían atender un servicio nuevo (16/10/2026)**: la central asignó un servicio
+  urgente a Marc y luego a Laia y ninguno lo podía atender. Mirando la base: Laia tenía tres asignaciones del día 13 sin
+  responder, y la pantalla «Servicio nuevo» (web y app) enseñaba primero la asignada hace más tiempo; la de ahora
+  quedaba detrás, y «Ver más tarde» solo las apartaba mientras la app seguía abierta, así que al volver reaparecían
+  (el «bucle»). Arreglo: `siguienteNuevo` (en `plazo.ts`, compartido por la web y la app, con test) enseña primero la de
+  recogida más próxima y deja de ofrecer las que tienen la recogida pasada hace más de 6 h (la central las ve en
+  «Atrasados»). La asignación ya comprobaba el horario y los demás servicios del conductor (avisa, no impide).
+
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
 Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.
