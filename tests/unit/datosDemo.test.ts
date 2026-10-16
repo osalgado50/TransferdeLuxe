@@ -86,6 +86,10 @@ test("coches de demo: aparcados sin servicio activo, y en movimiento sobre su tr
   const c = posicionDemo({ ...s, estado: "en_camino" }, 1, t);
   const base = aparcamiento(1);
   expect(c.lat).toBeGreaterThanOrEqual(Math.min(base.lat, 41.19)); expect(c.lat).toBeLessThanOrEqual(Math.max(base.lat, 41.19));
+  // De camino desde un aparcamiento que ya está en la recogida: sale del siguiente, y se mueve.
+  const enCambrils = { ...s, estado: "en_camino", origen_lat: aparcamiento(1).lat, origen_lng: aparcamiento(1).lng };
+  expect(posicionDemo(enCambrils, 1, t)).not.toEqual(posicionDemo(enCambrils, 1, t + 40e3));
+  expect(posicionDemo(enCambrils, 1, t).velocidad).toBeGreaterThan(0);
   // Sin coordenadas: aparcado, nunca NaN.
   expect(posicionDemo({ ...s, origen_lat: null }, 2, t)).toEqual({ ...aparcamiento(2), velocidad: 0 });
 });

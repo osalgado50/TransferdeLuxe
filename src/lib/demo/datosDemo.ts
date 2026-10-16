@@ -141,6 +141,7 @@ export interface ServicioEnMapa {
 }
 const APARCAMIENTOS = [L.salou, L.cambrils, L.pineda, L.tgn];
 export const aparcamiento = (indice: number) => { const p = APARCAMIENTOS[indice % APARCAMIENTOS.length]; return { lat: p.lat, lng: p.lng }; };
+const VELOCIDAD_DEMO_KMH = 50;
 const desfase = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return (h % 1000) / 1000; };
 
 /**
@@ -153,9 +154,13 @@ export function posicionDemo(s: ServicioEnMapa | null, indice: number, ahora: nu
   const ok = s && s.origen_lat != null && s.origen_lng != null && (s.estado === "en_camino" || (s.destino_lat != null && s.destino_lng != null));
   if (!ok || (s.estado !== "recogido" && s.estado !== "en_camino")) return { ...base, velocidad: 0 };
   const origen = { lat: s.origen_lat!, lng: s.origen_lng! };
-  const [a, b, min] = s.estado === "recogido" ? [origen, { lat: s.destino_lat!, lng: s.destino_lng! }, Math.max(10, s.duracion_estimada_min ?? 30)] : [base, origen, 12];
+  // De camino sale de su aparcamiento; si está casi en la recogida (sin tramo que recorrer), del siguiente.
+  const salida = distanciaKm(base, origen) < 3 ? aparcamiento(indice + 1) : base;
+  const [a, b] = s.estado === "recogido" ? [origen, { lat: s.destino_lat!, lng: s.destino_lng! }] : [salida, origen];
+  // A unos 50 km/h (entre 6 y 40 min por trayecto): se nota moverse de una pasada a otra.
+  const km = distanciaKm(a, b);
+  const min = Math.min(40, Math.max(6, (km / VELOCIDAD_DEMO_KMH) * 60));
   const x = (ahora / (min * MIN) + desfase(s.id) * 2) % 2;
   const f = x < 1 ? x : 2 - x;
-  const km = distanciaKm(a, b);
-  return { lat: a.lat + (b.lat - a.lat) * f, lng: a.lng + (b.lng - a.lng) * f, velocidad: Math.round(Math.min(110, Math.max(25, (km / min) * 60))) };
+  return { lat: a.lat + (b.lat - a.lat) * f, lng: a.lng + (b.lng - a.lng) * f, velocidad: Math.round((km / min) * 60) };
 }
