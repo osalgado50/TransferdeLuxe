@@ -1,6 +1,7 @@
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import PanelEnVivo from "@/components/central/PanelEnVivo";
+import BotonesDatosDemo from "@/components/central/BotonesDatosDemo";
 import BotonesDemo from "@/components/central/BotonesDemo";
 import type { Servicio } from "@/lib/dominio/tipos";
 import AvisosMantenimiento from "@/components/central/AvisosMantenimiento";
@@ -72,7 +73,10 @@ export default async function PanelCentral() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Panel en vivo</h1>
-        {process.env.NEXT_PUBLIC_MODO_DEMO === "true" && <BotonesDemo />}
+        <div className="flex flex-wrap items-center gap-2">
+          <BotonesDatosDemo />
+          {process.env.NEXT_PUBLIC_MODO_DEMO === "true" && <BotonesDemo />}
+        </div>
       </div>
       <AvisosMantenimiento avisos={avisosMant} />
       <EstadoTurnos horarios={horarios} conductores={perfiles.data ?? []} />

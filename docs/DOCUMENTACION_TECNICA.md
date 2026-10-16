@@ -673,6 +673,19 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   criterio de idioma (`?lang=` o navegador), selector ES · CA · EN en la propia página, la portada enlaza en su idioma y
   las traducciones avisan de que, si hay discrepancia, prevalece la versión en castellano.
 
+- **Datos de demo y archivado desde el panel en vivo (16/10/2026)**. Petición: un botón para «limpiar todos los
+  servicios y todos los históricos» y otro para «meter datos demo… para que un juez… tenga ya cosas funcionando».
+  Antes de programar se preguntó: archivar (recuperable) en vez de borrar, todos los servicios, cualquier operador.
+  Migración `0038_archivo_servicios.sql`: `archivar_servicios` copia en `archivo_filas` (JSONB) los servicios con sus
+  eventos, recorridos, seguimientos, incidencias y alertas, y los quita de las tablas vivas en una sola transacción;
+  `restaurar_ultimo_archivo` los devuelve tal cual (enlaces de ida y vuelta incluidos). `src/lib/demo/datosDemo.ts`
+  (lógica pura con tests) construye un día de ejemplo relativo a «ahora»: completados, uno con pasajeros y otro de
+  camino con su coche en el mapa y una incidencia de retraso, aceptados, uno esperando respuesta, una reserva web, un
+  rechazo para reasignar y cinco pendientes de mañana para la asignación automática; clientes inventados y lugares
+  públicos. Los botones (`BotonesDatosDemo`) están en la cabecera del panel, con confirmación, mensaje de resultado y
+  «Deshacer archivado» mientras haya algo archivado. No se duplica la demo si ya está cargada, y un coche con GPS real
+  no se mueve a una posición inventada.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
@@ -921,6 +934,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   sale de la base y solo el último tiene que volver a ella. Las alertas del vigilante no dependen de su cursor: se
   insertan con `ON CONFLICT DO NOTHING` sobre (tipo, conductor, clave) y solo se avisa si la fila es nueva, así dos
   instancias o dos pasadas nunca duplican.
+
+- **Vaciar el panel sin perder nada (16/10/2026)**: borrar de verdad los servicios arrastra en cascada el historial
+  (eventos, recorridos, incidencias, alertas) y no tiene vuelta atrás. En lugar de añadir una columna «archivado» y
+  filtrarla en las decenas de consultas de la app, las filas se mueven tal cual a una tabla de archivo (JSONB) dentro
+  de una función SQL y se devuelven con `jsonb_populate_record`. Se probó en producción dentro de una transacción
+  deshecha: 143 servicios, 489 eventos, 47 recorridos… quedaron en 0 y, al restaurar, con sumas de control idénticas.
+  La carga de demo también se ensayó con inserciones en una transacción que acaba en excepción (no queda nada), y así
+  apareció un fallo antes de publicar: las posiciones de los coches aparcados llevaban un campo de más (el nombre del
+  lugar) y la inserción habría fallado. Ahora un test comprueba que solo llevan columnas de la tabla.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
