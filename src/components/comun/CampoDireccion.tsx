@@ -24,9 +24,23 @@ type Props = {
   onCambio?: (v: { texto: string; lat: string; lng: string }) => void;
   /** Contenido extra junto a la etiqueta (p. ej. botón de favorito). */
   extra?: ReactNode;
+  /** Textos en otro idioma (portada en catalán / inglés); por defecto, en castellano. */
+  textos?: Partial<TextosDireccion>;
+  /** Clases del campo (la portada lo usa más grande). */
+  claseInput?: string;
+  /** Texto de ayuda dentro del campo. */
+  placeholder?: string;
+  /** Clases de la etiqueta (la portada la usa más grande). */
+  claseEtiqueta?: string;
+};
+export interface TextosDireccion { buscando: string; buscandoMapa: string; sugerencias: string; usar: (t: string) => string; sinPunto: string }
+const TEXTOS_ES: TextosDireccion = {
+  buscando: "Buscando direcciones…", buscandoMapa: "Buscando en el mapa…", sugerencias: "Sugerencias de dirección",
+  usar: (t) => `Usar “${t}” tal cual`, sinPunto: "(sin punto en el mapa)",
 };
 
-export default function CampoDireccion({ name, etiqueta, requerido, valorInicial = "", error, favoritos, lugaresEmpresa, rellenar, onCambio, extra }: Props) {
+export default function CampoDireccion({ name, etiqueta, requerido, valorInicial = "", error, favoritos, lugaresEmpresa, rellenar, onCambio, extra, textos, claseInput, placeholder, claseEtiqueta }: Props) {
+  const tx = { ...TEXTOS_ES, ...textos };
   const [texto, setTexto] = useState(valorInicial);
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
@@ -141,7 +155,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   return (
     <div className="relative">
       {extra && <div className="absolute right-0 top-0">{extra}</div>}
-      <label className="block text-sm font-medium text-slate-200">
+      <label className={claseEtiqueta ?? "block text-sm font-medium text-slate-200"}>
         {etiqueta}
         <span className="relative mt-1 block">
           <input
@@ -155,17 +169,18 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
               salida.current = setTimeout(() => { setFoco(false); setAbierto(false); setActivo(-1); }, 150);
             }}
             onKeyDown={teclas}
-            className="w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-3 pr-9 text-slate-100 focus:border-marca-claro focus:outline-none"
+            placeholder={placeholder}
+            className={claseInput ?? "w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-3 pr-9 text-slate-100 focus:border-marca-claro focus:outline-none"}
           />
           {buscando && <Girando className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-marca-claro" />}
         </span>
       </label>
-      <span role="status" className="sr-only">{buscando ? "Buscando direcciones…" : ""}</span>
+      <span role="status" className="sr-only">{buscando ? tx.buscando : ""}</span>
       <input type="hidden" name={`${name}_lat`} value={lat} />
       <input type="hidden" name={`${name}_lng`} value={lng} />
       {mostrar && (
         <div onMouseDown={sinPerderFoco} className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
-          {todos.length > 0 && <ul id={idLista} role="listbox" aria-label="Sugerencias de dirección" className="max-h-60 overflow-auto">
+          {todos.length > 0 && <ul id={idLista} role="listbox" aria-label={tx.sugerencias} className="max-h-60 overflow-auto">
             {todos.map((l, i) => (
               <li key={`${l.etiqueta}-${i}`} id={idOpcion(i)} role="option" aria-selected={i === activo}
                 onClick={() => elegir(l)} onMouseEnter={() => setActivo(i)}
@@ -177,7 +192,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
           </ul>}
           {buscando && (
             <p className="flex items-center gap-2 border-t border-slate-800 px-3 py-2 text-sm text-slate-400 first:border-t-0" aria-hidden="true">
-              <Girando className="h-3.5 w-3.5 text-marca-claro" /> Buscando en el mapa…
+              <Girando className="h-3.5 w-3.5 text-marca-claro" /> {tx.buscandoMapa}
             </p>
           )}
           {pie && <p className="border-t border-slate-800 px-3 py-1 text-right text-[11px] text-slate-500">{pie}</p>}
@@ -186,7 +201,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
       {talCual && !oculto && (
         <div onMouseDown={sinPerderFoco} className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-lg">
           <button type="button" onClick={usarTalCual} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
-            Usar “{texto.trim()}” tal cual <span className="text-slate-500">(sin punto en el mapa)</span>
+            {tx.usar(texto.trim())} <span className="text-slate-500">{tx.sinPunto}</span>
           </button>
         </div>
       )}

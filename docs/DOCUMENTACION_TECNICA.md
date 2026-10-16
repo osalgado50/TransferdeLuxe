@@ -657,6 +657,19 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   direcciones, errores 500 por fechas de URL, `error.tsx`/`loading.tsx`, CSV con coma decimal y fórmulas neutralizadas,
   consumo por tramos, combustible paginado, aviso al conductor que pierde el servicio y textos. 812 tests.
 
+- **Portada de reservas en tres idiomas (16/10/2026)**. Petición: convertir la portada de app.transfersvipluxe.com en
+  una web de reservas con fondo de la Costa Dorada, formulario simple, castellano/catalán/inglés, botones y letra
+  grandes, «un giro atractivo», el acceso de la central como opción premium arriba y privacidad/aviso legal al final
+  (la web de WordPress, intacta). `src/app/page.tsx`: idioma por `?lang=` o `Accept-Language` (`src/lib/i18n/portada.ts`,
+  con test de que los tres idiomas tienen las mismas claves); paisaje dibujado en SVG (sin fotos de terceros) — cielo
+  de atardecer, sol sobre el mar, Cap de Salou con el faro, palmeras del paseo y un coche negro con los faros encendidos
+  recorriendo la costa —, animado con CSS y parado con «reducir movimiento»; titular en Playfair Display con el destino
+  que va cambiando («Tu traslado privado a PortAventura… el aeropuerto…»). `ReservaRapida`: campos grandes,
+  contadores − / + de pasajeros y maletas, vehículo elegido solo (`tipoMinimo`), destinos frecuentes de un toque y los
+  errores del servidor traducidos; envía a la misma acción y validación que /reservar (que queda para ida y vuelta o un
+  vehículo concreto). `CampoDireccion` acepta textos en otro idioma y estilos más grandes. Botón dorado «★ Acceso
+  profesionales · Central y conductores» → /login.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se

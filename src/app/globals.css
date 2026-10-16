@@ -10,6 +10,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Titulares de la portada (Playfair Display, ver src/app/page.tsx). */
+  --font-titulo: var(--font-titulo-portada), Georgia, "Times New Roman", serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -53,4 +55,23 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   height: 1.4rem;
   /* Convierte el icono (negro) en el azul claro de marca #5aaee3. */
   filter: invert(62%) sepia(48%) saturate(640%) hue-rotate(170deg) brightness(97%) contrast(92%);
+}
+
+/* ── Portada (paisaje de la Costa Dorada) ── */
+@keyframes tvl-ola { from { transform: translateX(0); } to { transform: translateX(-200px); } }
+@keyframes tvl-brillo { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.45; } }
+@keyframes tvl-estrella { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.25; } }
+@keyframes tvl-faro { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+@keyframes tvl-coche { from { transform: translateX(-340px); } to { transform: translateX(1700px); } }
+@keyframes tvl-palabra { from { opacity: 0; transform: translateY(0.6em) rotateX(-60deg); } to { opacity: 1; transform: none; } }
+.tvl-ola { animation: tvl-ola 9s linear infinite; }
+.tvl-ola-lenta { animation-duration: 14s; }
+.tvl-brillo { animation: tvl-brillo 4s ease-in-out infinite; }
+.tvl-estrella { animation: tvl-estrella 3.5s ease-in-out infinite; }
+.tvl-faro { animation: tvl-faro 2.6s ease-in-out infinite; }
+.tvl-coche { animation: tvl-coche 16s linear infinite; }
+.tvl-palabra { display: inline-block; animation: tvl-palabra 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: 50% 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .tvl-ola, .tvl-brillo, .tvl-estrella, .tvl-faro, .tvl-coche, .tvl-palabra { animation: none; }
+  .tvl-coche { transform: translateX(560px); }
 }
