@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
-import { construirDemo, NOTA_DEMO } from "@/lib/demo/datosDemo";
+import { construirDemo, NOTA_DEMO, enEvaluacion, debeRenovar, posicionDemo, aparcamiento } from "@/lib/demo/datosDemo";
+import { madridAUtc } from "@/lib/dominio/dias";
 
 const ahora = new Date("2026-10-20T10:00:00Z");
 const conductores = ["a", "b", "c", "d", "e"].map((x) => ({ id: `c-${x}`, nombre: x.toUpperCase(), vehiculoId: `v-${x}` }));
@@ -45,4 +46,46 @@ test("un coche por conductor en el mapa (posiciones simuladas) y sin conductores
   const sin = construirDemo(ahora, []);
   expect(sin.servicios.every((s) => !s.conductor_id && ["pendiente", "cancelado"].includes(s.estado))).toBe(true);
   expect(sin.posiciones).toEqual([]);
+});
+
+// ── Demo viva ──
+const madrid = (dia: string, hora: string) => Date.parse(madridAUtc(dia, hora));
+
+test("evaluación: del 20 al 27/10 en hora de Madrid, ambos incluidos", () => {
+  expect(enEvaluacion(madrid("2026-10-19", "23:59"))).toBe(false);
+  expect(enEvaluacion(madrid("2026-10-20", "00:00"))).toBe(true);
+  expect(enEvaluacion(madrid("2026-10-27", "23:59"))).toBe(true);
+  expect(enEvaluacion(madrid("2026-10-28", "00:00"))).toBe(false);
+});
+
+test("renovar: solo con demo cargada hace más de 4 h, sin nadie tocándola y de día", () => {
+  const ahora = madrid("2026-10-22", "10:00");
+  const h = 3600e3;
+  expect(debeRenovar({ ultimaCarga: null, ultimaAccion: null, ahora })).toBe(false); // nunca cargada (o archivada)
+  expect(debeRenovar({ ultimaCarga: ahora - 3 * h, ultimaAccion: null, ahora })).toBe(false); // aún fresca
+  expect(debeRenovar({ ultimaCarga: ahora - 5 * h, ultimaAccion: null, ahora })).toBe(true);
+  expect(debeRenovar({ ultimaCarga: ahora - 5 * h, ultimaAccion: ahora - 10 * 60e3, ahora })).toBe(false); // alguien probando
+  expect(debeRenovar({ ultimaCarga: ahora - 5 * h, ultimaAccion: ahora - 45 * 60e3, ahora })).toBe(true);
+  const noche = madrid("2026-10-22", "03:00");
+  expect(debeRenovar({ ultimaCarga: noche - 10 * h, ultimaAccion: null, ahora: noche })).toBe(false);
+  expect(debeRenovar({ ultimaCarga: noche - 10 * h, ultimaAccion: null, ahora: madrid("2026-10-22", "06:05") })).toBe(true);
+});
+
+test("coches de demo: aparcados sin servicio activo, y en movimiento sobre su tramo si lo llevan", () => {
+  const s = { id: "s1", estado: "recogido", conductor_id: "c", duracion_estimada_min: 30, origen_lat: 41.19, origen_lng: 1.27, destino_lat: 41.09, destino_lng: 1.16 };
+  const t = madrid("2026-10-22", "10:00");
+  expect(posicionDemo(null, 0, t)).toEqual({ ...aparcamiento(0), velocidad: 0 });
+  expect(posicionDemo({ ...s, estado: "aceptado" }, 1, t)).toEqual({ ...aparcamiento(1), velocidad: 0 });
+  const a = posicionDemo(s, 0, t), b = posicionDemo(s, 0, t + 60e3);
+  expect(a).not.toEqual(b); // se mueve de una pasada a otra
+  for (const p of [a, b]) {
+    expect(p.lat).toBeGreaterThanOrEqual(41.09); expect(p.lat).toBeLessThanOrEqual(41.19); // siempre entre origen y destino
+    expect(p.velocidad).toBeGreaterThanOrEqual(25); expect(p.velocidad).toBeLessThanOrEqual(110);
+  }
+  // De camino: entre su aparcamiento y la recogida.
+  const c = posicionDemo({ ...s, estado: "en_camino" }, 1, t);
+  const base = aparcamiento(1);
+  expect(c.lat).toBeGreaterThanOrEqual(Math.min(base.lat, 41.19)); expect(c.lat).toBeLessThanOrEqual(Math.max(base.lat, 41.19));
+  // Sin coordenadas: aparcado, nunca NaN.
+  expect(posicionDemo({ ...s, origen_lat: null }, 2, t)).toEqual({ ...aparcamiento(2), velocidad: 0 });
 });

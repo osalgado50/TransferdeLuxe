@@ -7,7 +7,7 @@ import { archivarTodosLosServicios, cargarDatosDemo, deshacerArchivado, ultimoAr
  * Datos de demostración en el panel en vivo: cargar un día de ejemplo, archivar todos los servicios (con su historial;
  * se pueden recuperar) y deshacer el último archivado. Para jueces y pruebas: la app siempre tiene algo que enseñar.
  */
-export default function BotonesDatosDemo() {
+export default function BotonesDatosDemo({ soloDemo = false }: { soloDemo?: boolean }) {
   const router = useRouter();
   const [pend, ini] = useTransition();
   const [r, setR] = useState<ResultadoDemo | null>(null);
@@ -30,9 +30,11 @@ export default function BotonesDatosDemo() {
         ✨ Cargar datos de demo
       </button>
       <button type="button" disabled={pend}
-        onClick={() => hacer(archivarTodosLosServicios, "¿Archivar TODOS los servicios con su historial (eventos, recorridos, incidencias y alertas)?\n\nEl panel quedará vacío. Podrás recuperarlos con «Deshacer».")}
+        onClick={() => hacer(archivarTodosLosServicios, soloDemo
+          ? "¿Archivar los datos de demo con su historial?\n\nEstos días solo se retiran los servicios de demo; el resto se queda. Podrás recuperarlos con «Deshacer»."
+          : "¿Archivar TODOS los servicios con su historial (eventos, recorridos, incidencias y alertas)?\n\nEl panel quedará vacío. Podrás recuperarlos con «Deshacer».")}
         className={`${b} border-amber-500 text-amber-300 hover:bg-amber-950`}>
-        🗄 Archivar todos los servicios
+        🗄 {soloDemo ? "Archivar datos de demo" : "Archivar todos los servicios"}
       </button>
       {archivo && (
         <button type="button" disabled={pend} onClick={() => hacer(deshacerArchivado, `¿Recuperar el último archivado (${archivo})?`)}

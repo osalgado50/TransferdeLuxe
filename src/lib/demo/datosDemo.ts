@@ -1,3 +1,5 @@
+import { distanciaKm, diaMadrid } from "@/lib/dominio/geo";
+
 /**
  * Datos de demostración para el panel en vivo (lógica pura): servicios de hoy y de mañana en todos los estados, con su
  * historial de eventos, una incidencia y posiciones de los coches, relativos a «ahora». Pensado para que un juez o
@@ -104,10 +106,56 @@ export function construirDemo(ahora: Date, conductores: ConductorDemo[], nuevoId
     servicio(o, d, manana + h * 60 * MIN, dur, "pendiente", null, { origen_pedido: h % 2 ? "web" : "manual" });
   }
 
-  // El resto de conductores, aparcados en la base de Salou o en Cambrils (para que salgan en el mapa).
+  // El resto de conductores, aparcados (Salou, Cambrils, La Pineda, Tarragona) para que salgan en el mapa.
   conductores.slice(2).forEach((x, i) => {
-    const { lat, lng } = i % 2 ? L.cambrils : L.salou;
+    const { lat, lng } = aparcamiento(i + 2); // el mismo sitio en el que luego los mantiene el vigilante
     if (!posiciones.some((p) => p.conductor_id === x.id)) posiciones.push({ conductor_id: x.id, lat, lng, velocidad: 0, registrado_en: iso(t), simulada: true });
   });
   return { servicios, eventos, posiciones, incidencias };
+}
+
+// ── Demo viva: evaluación, renovación y coches en movimiento ────────────────────────────────────────────────────────
+
+/** Del 20 al 27/10/2026 (evaluación del hackathon) «Archivar» solo retira los datos de demo: la cuenta es compartida. */
+export const EVALUACION = { desde: "2026-10-20", hasta: "2026-10-27" };
+export const enEvaluacion = (ahora: Date | number) => { const d = diaMadrid(new Date(ahora)); return d >= EVALUACION.desde && d <= EVALUACION.hasta; };
+
+const horaMadrid = (ms: number) => Number(new Intl.DateTimeFormat("es-ES", { hour: "2-digit", hourCycle: "h23", timeZone: "Europe/Madrid" }).format(new Date(ms)));
+export const RENOVAR_TRAS_MS = 4 * 60 * MIN;
+export const QUIETO_MS = 30 * MIN;
+
+/**
+ * ¿Toca renovar la demo? Solo si hay una cargada, tiene más de 4 h, nadie la ha tocado en la última media hora (para
+ * no cambiarle los servicios a quien está probando) y es de día en Madrid (06:00–22:00).
+ */
+export function debeRenovar({ ultimaCarga, ultimaAccion, ahora }: { ultimaCarga: number | null; ultimaAccion: number | null; ahora: number }): boolean {
+  if (ultimaCarga == null || ahora - ultimaCarga < RENOVAR_TRAS_MS) return false;
+  const h = horaMadrid(ahora);
+  if (h < 6 || h >= 22) return false;
+  return ultimaAccion == null || ahora - ultimaAccion >= QUIETO_MS;
+}
+
+export interface ServicioEnMapa {
+  id: string; estado: string; conductor_id: string | null; duracion_estimada_min: number | null;
+  origen_lat: number | null; origen_lng: number | null; destino_lat: number | null; destino_lng: number | null;
+}
+const APARCAMIENTOS = [L.salou, L.cambrils, L.pineda, L.tgn];
+export const aparcamiento = (indice: number) => { const p = APARCAMIENTOS[indice % APARCAMIENTOS.length]; return { lat: p.lat, lng: p.lng }; };
+const desfase = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return (h % 1000) / 1000; };
+
+/**
+ * Dónde está ahora el coche de demo de un conductor: con pasajeros va y viene entre origen y destino; de camino, entre
+ * su aparcamiento y la recogida; si no, aparcado. Ida y vuelta continua (siempre se ve moverse), cada servicio con su
+ * propio desfase para que no vayan sincronizados.
+ */
+export function posicionDemo(s: ServicioEnMapa | null, indice: number, ahora: number): { lat: number; lng: number; velocidad: number } {
+  const base = aparcamiento(indice);
+  const ok = s && s.origen_lat != null && s.origen_lng != null && (s.estado === "en_camino" || (s.destino_lat != null && s.destino_lng != null));
+  if (!ok || (s.estado !== "recogido" && s.estado !== "en_camino")) return { ...base, velocidad: 0 };
+  const origen = { lat: s.origen_lat!, lng: s.origen_lng! };
+  const [a, b, min] = s.estado === "recogido" ? [origen, { lat: s.destino_lat!, lng: s.destino_lng! }, Math.max(10, s.duracion_estimada_min ?? 30)] : [base, origen, 12];
+  const x = (ahora / (min * MIN) + desfase(s.id) * 2) % 2;
+  const f = x < 1 ? x : 2 - x;
+  const km = distanciaKm(a, b);
+  return { lat: a.lat + (b.lat - a.lat) * f, lng: a.lng + (b.lng - a.lng) * f, velocidad: Math.round(Math.min(110, Math.max(25, (km / min) * 60))) };
 }

@@ -686,6 +686,20 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   «Deshacer archivado» mientras haya algo archivado. No se duplica la demo si ya está cargada, y un coche con GPS real
   no se mueve a una posición inventada.
 
+- **Demo viva para el jurado (16/10/2026)**. Petición tras pedir a la IA una valoración del proyecto frente a los
+  criterios del jurado: proteger «Archivar», una guía para quien evalúa y una demo que no envejezca (del 20 al 27/10 no
+  se puede tocar el código). Al revisar la base apareció que solo hay UNA cuenta de central, la misma para el
+  responsable y para el jurado, así que se preguntó de nuevo: del 20 al 27/10 «Archivar» retira solo los datos de demo
+  (migración `0039_archivar_solo_demo.sql`, una variante de `archivar_servicios` sobre un conjunto de servicios) y los
+  coches de demo se mueven solos. `GuiaJurado` en el panel: seis pasos con enlaces (cargar la demo, mapa, asignación
+  automática en la hoja de ruta de mañana, entrar como conductor en incógnito, escanear un ticket, reservar desde la
+  portada); se pliega y lo recuerda, y en el móvil empieza plegada. `src/lib/demo/demoViva.ts`, colgado del vigilante:
+  cada 5 min mira si la demo tiene más de 4 h y nadie la ha tocado en media hora (de 06:00 a 22:00) y la renueva —la
+  vieja se marca `es_prueba` (se oculta, no se borra) y se cierran sus avisos—; cada 30 s mueve los coches con servicio
+  (ida y vuelta entre origen y destino, o entre su aparcamiento y la recogida) y cada 3 min refresca los aparcados para
+  que no salgan «sin señal». Los coches con GPS real en la última media hora no se tocan. Se quitó el botón manual
+  «Simular ruta», que habría peleado con el movimiento automático.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
@@ -943,6 +957,16 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   La carga de demo también se ensayó con inserciones en una transacción que acaba en excepción (no queda nada), y así
   apareció un fallo antes de publicar: las posiciones de los coches aparcados llevaban un campo de más (el nombre del
   lugar) y la inserción habría fallado. Ahora un test comprueba que solo llevan columnas de la tabla.
+
+- **Una demo que se renueva sola sin pisar a nadie (16/10/2026)**: con el servidor posiblemente en varias instancias,
+  dos podrían renovar a la vez y duplicar la demo. La renovación se «reclama» con el propio `update … set es_prueba =
+  true where … es_prueba = false returning id`: Postgres bloquea las filas y la segunda instancia, al reevaluar el
+  filtro, no obtiene ninguna y no carga nada. Para no cambiarle los servicios a un juez que está probando, solo se
+  renueva si no hay acciones de personas (eventos con actor) en la última media hora; los avisos automáticos no
+  cuentan, y si esa consulta falla no se renueva. Los datos de demo tampoco mandan avisos al móvil de la central ni
+  generan «anomalías» de carga/descarga (sus coches son simulados). Las consultas se comprobaron contra la base real en
+  modo lectura y «Archivar solo demo» en una transacción deshecha: retiró los 15 de demo, dejó los 143 servicios y 489
+  eventos restantes intactos y «Deshacer» los devolvió con la misma suma de control.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

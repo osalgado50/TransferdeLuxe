@@ -1,4 +1,6 @@
 import "server-only";
+import { NOTA_DEMO } from "@/lib/demo/datosDemo";
+import { pasadaDemo } from "@/lib/demo/demoViva";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { enviarACentral } from "@/lib/push";
 import type { MensajeCentral } from "@/lib/dominio/lotePush";
@@ -19,7 +21,8 @@ import { leerModulos } from "@/lib/dominio/modulos";
 
 /** Pruebas automáticas (scripts/prueba-*.mjs): sin push a la central aunque aún no estén marcadas es_prueba. */
 const PREFIJO_PRUEBA = "PRUEBA AUTOMÁTICA";
-const esDePrueba = (s: { es_prueba?: boolean | null; notas?: string | null }) => !!s.es_prueba || (s.notas ?? "").startsWith(PREFIJO_PRUEBA);
+// Los datos de demo (botón del panel o renovación automática) tampoco: el móvil de la central no se llena de avisos inventados.
+const esDePrueba = (s: { es_prueba?: boolean | null; notas?: string | null }) => !!s.es_prueba || (s.notas ?? "").startsWith(PREFIJO_PRUEBA) || s.notas === NOTA_DEMO;
 
 const LIMITE = 50;
 
@@ -33,6 +36,8 @@ export async function vigilarUnaVez(): Promise<number> {
   const det = await sb.rpc("detectar_retrasos_recogida");
   if (det.error) console.error("[vigilante] retrasos:", det.error.message);
   await pasadaRecorridos(sb);
+  // Demo viva: renovarla si se ha quedado vieja y mover sus coches. Un fallo aquí no para los avisos.
+  try { await pasadaDemo(sb); } catch (e) { console.error("[vigilante] demo:", e instanceof Error ? e.message : e); }
   // Avisos de horario de esta pasada: salen junto con los demás, en un solo envío (tokens leídos una vez).
   const deHorario: MensajeCentral[] = [];
   await pasadaHorarios(sb, Date.now(), false, deHorario);
@@ -59,10 +64,11 @@ export async function vigilarUnaVez(): Promise<number> {
     ? await sb.from("servicios").select("id,origen_texto,destino_texto,fecha_hora_recogida,origen_pedido,conductor_id,es_prueba,notas,origen_lat,origen_lng,destino_lat,destino_lng").in("id", idsServ)
     : { data: [] };
   const porId = new Map(((servs ?? []) as ServicioAviso[]).map((s) => [s.id, s]));
-  // CARGA / DESCARGA lejos del punto: inserta el evento de anomalía (el aviso sale en la pasada siguiente, por el cursor).
-  await pasadaAnomalias(sb, eventos as (EventoAviso & { creado_en: string })[], porId as unknown as Map<string, ServicioAnomalia>);
-  // Pruebas automáticas (es_prueba o notas «PRUEBA AUTOMÁTICA…»): sin push a la central (el cursor avanza igual).
+  // Pruebas automáticas y demo (es_prueba, «PRUEBA AUTOMÁTICA…» o datos de demo): sin push a la central ni anomalías
+  // (los coches de demo son simulados); el cursor avanza igual.
   const prueba = new Set(((servs ?? []) as { id: string; es_prueba?: boolean; notas?: string | null }[]).filter(esDePrueba).map((s) => s.id));
+  // CARGA / DESCARGA lejos del punto: inserta el evento de anomalía (el aviso sale en la pasada siguiente, por el cursor).
+  await pasadaAnomalias(sb, (eventos as (EventoAviso & { creado_en: string })[]).filter((e) => !prueba.has(e.servicio_id)), porId as unknown as Map<string, ServicioAnomalia>);
   // Retraso en la recogida: el evento no tiene actor; se nombra (y se sitúa) al conductor asignado.
   const tarde = eventos.filter((e) => e.tipo === "retraso_recogida").map((e) => porId.get(e.servicio_id)?.conductor_id).filter((x): x is string => !!x);
   const idsPers = [...new Set([...eventos.map((e) => e.actor_id), ...tarde, ...jornadasPendientes.map((j) => j.conductor_id), ...incidencias.map((i) => i.conductor_id), ...revisiones.map((r) => r.conductor_id), ...cierres.map((x) => x.conductor_id)].filter((x): x is string => !!x))];

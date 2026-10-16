@@ -2,7 +2,8 @@ import { clienteServidor } from "@/lib/supabase/servidor";
 import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import PanelEnVivo from "@/components/central/PanelEnVivo";
 import BotonesDatosDemo from "@/components/central/BotonesDatosDemo";
-import BotonesDemo from "@/components/central/BotonesDemo";
+import GuiaJurado from "@/components/central/GuiaJurado";
+import { enEvaluacion } from "@/lib/demo/datosDemo";
 import type { Servicio } from "@/lib/dominio/tipos";
 import AvisosMantenimiento from "@/components/central/AvisosMantenimiento";
 import { avisosMantenimiento, type PlanVehiculo } from "@/lib/dominio/mantenimiento";
@@ -23,6 +24,7 @@ export default async function PanelCentral() {
   const hasta = new Date(Date.now() + 48 * 3600e3).toISOString();
   const hace12h = new Date(Date.now() - HORAS_ACTIVIDAD * 3600e3).toISOString();
   const hoy = diaMadrid(new Date());
+  const soloDemo = enEvaluacion(Date.now());
   const [ventana, sinVer, pos, perfiles, vehiculos, ajustes, eventos, ev12h, inc, revs, jors, cies, alh, hor, exc, atr] = await Promise.all([
     sb.from("servicios").select("*").eq("es_prueba", false).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta),
     sb.from("servicios").select("*").eq("es_prueba", false).eq("incidencia_vista", false),
@@ -73,11 +75,9 @@ export default async function PanelCentral() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Panel en vivo</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <BotonesDatosDemo />
-          {process.env.NEXT_PUBLIC_MODO_DEMO === "true" && <BotonesDemo />}
-        </div>
+        <BotonesDatosDemo soloDemo={soloDemo} />
       </div>
+      <GuiaJurado manana={sumarDias(hoy, 1)} soloDemo={soloDemo} />
       <AvisosMantenimiento avisos={avisosMant} />
       <EstadoTurnos horarios={horarios} conductores={perfiles.data ?? []} />
       <PanelEnVivo
