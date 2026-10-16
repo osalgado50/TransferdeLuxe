@@ -700,6 +700,17 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   que no salgan «sin señal». Los coches con GPS real en la última media hora no se tocan. Se quitó el botón manual
   «Simular ruta», que habría peleado con el movimiento automático.
 
+- **La demo trabaja sola (16/10/2026)**. Petición: movimiento suave, servicios que avanzan solos y coches por carretera.
+  `src/lib/demo/movimiento.ts` (lógica pura con tests): el conductor de demo acepta a los 4 min si nadie lo hace, sale
+  20 min antes de la recogida, avisa de que llega 4 min antes, recoge y termina, con la misma transición atómica que la
+  app (`transicion_servicio`) y una marca (`motivo = demo-simulada`) que distingue sus pasos de los de personas. El coche
+  avanza sobre rutas reales: `scripts/rutas-demo.ts` las calculó una vez con OSRM (OpenStreetMap, gratuito) para los 36
+  pares de lugares de la demo y las guardó simplificadas en `rutasCarretera.ts`, así la app no depende de ningún
+  servicio externo. Se queda donde deja al cliente (o vuelve a su base tras un viaje largo); de camino va como mucho a
+  60 km/h y, si no le da tiempo, llega tarde y salta el aviso de retraso como en la realidad. No se dan pasos a un
+  conductor que una persona está manejando (acciones suyas en la última media hora). En el mapa (`MapaFlota`), cada
+  coche se desliza hasta su nueva posición en el tiempo que tardó en llegar la actualización, así parece moverse sin parar.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se

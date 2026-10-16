@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { construirDemo, NOTA_DEMO, enEvaluacion, debeRenovar, posicionDemo, aparcamiento } from "@/lib/demo/datosDemo";
+import { construirDemo, NOTA_DEMO, enEvaluacion, debeRenovar, aparcamiento } from "@/lib/demo/datosDemo";
 import { madridAUtc } from "@/lib/dominio/dias";
 
 const ahora = new Date("2026-10-20T10:00:00Z");
@@ -69,27 +69,4 @@ test("renovar: solo con demo cargada hace más de 4 h, sin nadie tocándola y de
   const noche = madrid("2026-10-22", "03:00");
   expect(debeRenovar({ ultimaCarga: noche - 10 * h, ultimaAccion: null, ahora: noche })).toBe(false);
   expect(debeRenovar({ ultimaCarga: noche - 10 * h, ultimaAccion: null, ahora: madrid("2026-10-22", "06:05") })).toBe(true);
-});
-
-test("coches de demo: aparcados sin servicio activo, y en movimiento sobre su tramo si lo llevan", () => {
-  const s = { id: "s1", estado: "recogido", conductor_id: "c", duracion_estimada_min: 30, origen_lat: 41.19, origen_lng: 1.27, destino_lat: 41.09, destino_lng: 1.16 };
-  const t = madrid("2026-10-22", "10:00");
-  expect(posicionDemo(null, 0, t)).toEqual({ ...aparcamiento(0), velocidad: 0 });
-  expect(posicionDemo({ ...s, estado: "aceptado" }, 1, t)).toEqual({ ...aparcamiento(1), velocidad: 0 });
-  const a = posicionDemo(s, 0, t), b = posicionDemo(s, 0, t + 60e3);
-  expect(a).not.toEqual(b); // se mueve de una pasada a otra
-  for (const p of [a, b]) {
-    expect(p.lat).toBeGreaterThanOrEqual(41.09); expect(p.lat).toBeLessThanOrEqual(41.19); // siempre entre origen y destino
-    expect(p.velocidad).toBeGreaterThanOrEqual(25); expect(p.velocidad).toBeLessThanOrEqual(110);
-  }
-  // De camino: entre su aparcamiento y la recogida.
-  const c = posicionDemo({ ...s, estado: "en_camino" }, 1, t);
-  const base = aparcamiento(1);
-  expect(c.lat).toBeGreaterThanOrEqual(Math.min(base.lat, 41.19)); expect(c.lat).toBeLessThanOrEqual(Math.max(base.lat, 41.19));
-  // De camino desde un aparcamiento que ya está en la recogida: sale del siguiente, y se mueve.
-  const enCambrils = { ...s, estado: "en_camino", origen_lat: aparcamiento(1).lat, origen_lng: aparcamiento(1).lng };
-  expect(posicionDemo(enCambrils, 1, t)).not.toEqual(posicionDemo(enCambrils, 1, t + 40e3));
-  expect(posicionDemo(enCambrils, 1, t).velocidad).toBeGreaterThan(0);
-  // Sin coordenadas: aparcado, nunca NaN.
-  expect(posicionDemo({ ...s, origen_lat: null }, 2, t)).toEqual({ ...aparcamiento(2), velocidad: 0 });
 });

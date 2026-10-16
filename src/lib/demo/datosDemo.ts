@@ -1,4 +1,4 @@
-import { distanciaKm, diaMadrid } from "@/lib/dominio/geo";
+import { diaMadrid } from "@/lib/dominio/geo";
 
 /**
  * Datos de demostración para el panel en vivo (lógica pura): servicios de hoy y de mañana en todos los estados, con su
@@ -19,7 +19,10 @@ export interface IncidenciaDemo { conductor_id: string; servicio_id: string; tip
 export interface Demo { servicios: ServicioDemo[]; eventos: EventoDemo[]; posiciones: PosicionDemo[]; incidencias: IncidenciaDemo[] }
 
 export const NOTA_DEMO = "Datos de demostración";
-const L = {
+/** Marca de los pasos que da la simulación (no se enseña en la actividad; distingue sus pasos de los de personas). */
+export const MOTIVO_SIMULADO = "demo-simulada";
+/** Lugares públicos de la demo (también los usa scripts/rutas-demo.ts para calcular las rutas por carretera). */
+export const LUGARES_DEMO = {
   reus: { t: "Aeropuerto de Reus (REU)", lat: 41.1474, lng: 1.1672 },
   bcn: { t: "Aeropuerto de Barcelona-El Prat (BCN)", lat: 41.2974, lng: 2.0833 },
   pa: { t: "PortAventura World · Salou", lat: 41.0879, lng: 1.1577 },
@@ -30,6 +33,7 @@ const L = {
   pineda: { t: "La Pineda · Passeig de Pau Casals", lat: 41.0753, lng: 1.182 },
   miami: { t: "Miami Platja · centro", lat: 41.0028, lng: 0.9853 },
 };
+const L = LUGARES_DEMO;
 type Lugar = (typeof L)[keyof typeof L];
 const CLIENTES = [
   ["Lucía", "Ferrer Vidal"], ["Hugo", "Martín Soler"], ["Emma", "Roca Puig"], ["Daniel", "Serra Costa"], ["Paula", "Gil Navarro"],
@@ -64,7 +68,7 @@ export function construirDemo(ahora: Date, conductores: ConductorDemo[], nuevoId
     eventos.push({ servicio_id: id, tipo: "creado", actor_id: null, motivo: null, creado_en: iso(Math.min(recogida, t) - 24 * 60 * MIN) });
     for (const [tipo, cuando] of pasos) {
       const actor = tipo === "asignado" || tipo === "cancelado" ? null : cond?.id ?? null;
-      eventos.push({ servicio_id: id, tipo, actor_id: actor, motivo: null, creado_en: iso(cuando) });
+      eventos.push({ servicio_id: id, tipo, actor_id: actor, motivo: actor ? MOTIVO_SIMULADO : null, creado_en: iso(cuando) });
     }
     return id;
   };
@@ -135,32 +139,5 @@ export function debeRenovar({ ultimaCarga, ultimaAccion, ahora }: { ultimaCarga:
   return ultimaAccion == null || ahora - ultimaAccion >= QUIETO_MS;
 }
 
-export interface ServicioEnMapa {
-  id: string; estado: string; conductor_id: string | null; duracion_estimada_min: number | null;
-  origen_lat: number | null; origen_lng: number | null; destino_lat: number | null; destino_lng: number | null;
-}
 const APARCAMIENTOS = [L.salou, L.cambrils, L.pineda, L.tgn];
 export const aparcamiento = (indice: number) => { const p = APARCAMIENTOS[indice % APARCAMIENTOS.length]; return { lat: p.lat, lng: p.lng }; };
-const VELOCIDAD_DEMO_KMH = 50;
-const desfase = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return (h % 1000) / 1000; };
-
-/**
- * Dónde está ahora el coche de demo de un conductor: con pasajeros va y viene entre origen y destino; de camino, entre
- * su aparcamiento y la recogida; si no, aparcado. Ida y vuelta continua (siempre se ve moverse), cada servicio con su
- * propio desfase para que no vayan sincronizados.
- */
-export function posicionDemo(s: ServicioEnMapa | null, indice: number, ahora: number): { lat: number; lng: number; velocidad: number } {
-  const base = aparcamiento(indice);
-  const ok = s && s.origen_lat != null && s.origen_lng != null && (s.estado === "en_camino" || (s.destino_lat != null && s.destino_lng != null));
-  if (!ok || (s.estado !== "recogido" && s.estado !== "en_camino")) return { ...base, velocidad: 0 };
-  const origen = { lat: s.origen_lat!, lng: s.origen_lng! };
-  // De camino sale de su aparcamiento; si está casi en la recogida (sin tramo que recorrer), del siguiente.
-  const salida = distanciaKm(base, origen) < 3 ? aparcamiento(indice + 1) : base;
-  const [a, b] = s.estado === "recogido" ? [origen, { lat: s.destino_lat!, lng: s.destino_lng! }] : [salida, origen];
-  // A unos 50 km/h (entre 6 y 40 min por trayecto): se nota moverse de una pasada a otra.
-  const km = distanciaKm(a, b);
-  const min = Math.min(40, Math.max(6, (km / VELOCIDAD_DEMO_KMH) * 60));
-  const x = (ahora / (min * MIN) + desfase(s.id) * 2) % 2;
-  const f = x < 1 ? x : 2 - x;
-  return { lat: a.lat + (b.lat - a.lat) * f, lng: a.lng + (b.lng - a.lng) * f, velocidad: Math.round((km / min) * 60) };
-}
