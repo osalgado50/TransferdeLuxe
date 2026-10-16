@@ -1430,3 +1430,10 @@ Oye, no sé si sería mucho pedirte que donde hay los formularios de rellenar el
 
 ---
 
+## 2026-10-16 14:24 · Claude Code · sesión `b3c0e64f`
+
+El
+Mapa que muestras en los conductores que se vea con el sentido de marcha y que haga zoom automático cuando llegue a cruces o cambios de sentido
+
+---
+

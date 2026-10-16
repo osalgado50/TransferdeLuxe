@@ -721,6 +721,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   navegador con el servicio de su fabricante y que la app solo recibe el texto. En la app nativa no hace falta: el
   teclado del móvil ya trae su micrófono.
 
+- **Mapa del conductor con el sentido de la marcha y zoom en los cruces (16/10/2026)**. `src/lib/dominio/rumbo.ts`
+  (lógica pura con tests, compartida por la web y la app): rumbo del coche (el del GPS en marcha; parado o despacio, el
+  de la ruta; si no, el anterior, para que el mapa no dé vueltas en un semáforo), posición sobre la ruta, próximo cruce /
+  giro / rotonda / cambio de sentido (donde la ruta cambia ≥ 40° entre los 25 m anteriores y los siguientes: una curva
+  suave no cuenta) y zoom según la velocidad, de cerca ~15 s antes de cada giro. App (MapLibre): mapa «rumbo arriba»,
+  inclinado, con el coche abajo y la carretera por delante, flecha de dirección y aviso «↱ Gira a la derecha en 120 m»;
+  si el conductor mueve el mapa, deja de seguirle hasta «Centrar». Web (Leaflet no gira el mapa): norte arriba, flecha
+  orientada y el mismo zoom automático. Sin dependencias nativas nuevas: se publicó por OTA.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se

@@ -10,7 +10,8 @@ import { pitar, prepararDesbloqueo } from "@/lib/sonidos";
 import { EVENTO_ETA, type DetalleEta } from "@/components/conductor/ContadorPuntualidad";
 
 interface Ruta { coords: [number, number][]; distanciaM: number; duracionS: number; fuente: "osrm" | "recta" }
-type Pos = Punto & { precision: number };
+/** Posición del GPS con su rumbo (grados) y velocidad (m/s) cuando el navegador los da. */
+type Pos = Punto & { precision: number; rumbo?: number | null; velocidad?: number | null };
 
 const DESVIO_M = 300, REPETIR_MS = 30_000;
 
@@ -45,7 +46,7 @@ export default function NavegacionConductor({ servicioId, objetivo, origenServic
     }
     // GPS compartido con el interruptor «En servicio» (un solo watch por página, con watchdog).
     return suscribirGps({
-      fix: (p) => { setAvisoGps(null); setPos({ lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy }); },
+      fix: (p) => { setAvisoGps(null); setPos({ lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, rumbo: p.coords.heading, velocidad: p.coords.speed }); },
       error: (e) => setAvisoGps(e.code === e.PERMISSION_DENIED ? "Permite la ubicación en el navegador para ver tu posición y la distancia restante" : "Buscando señal GPS…"),
     });
   }, []);

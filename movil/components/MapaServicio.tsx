@@ -4,6 +4,7 @@ import {
   tiempoRestanteS, type Fase, type Objetivo, type PeticionRuta,
 } from "@dominio/navegacion";
 import { clasificarRespuesta, esperaBackoff } from "@dominio/reintento";
+import { difAngulo, prepararRuta, rumboCoche, rumboRutaEn, siguienteGiro, situarEnRuta, zoomNavegacion } from "@dominio/rumbo";
 import type { Punto } from "@dominio/tipos";
 import { Camera, GeoJSONSource, Layer, Map as MapaLibre, Marker, type CameraRef, type StyleSpecification } from "@maplibre/maplibre-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,6 +28,13 @@ const ESTILO: StyleSpecification = {
 };
 const VERDE = "#22c55e", ROJO = "#ef4444", AZUL = "#3b82f6";
 const lngLat = (p: Punto): [number, number] => [p.lng, p.lat];
+/** «Gira a la derecha», «Rotonda o cambio de sentido»… según cuánto gira la ruta en el próximo cruce. */
+function textoGiro(angulo: number): string {
+  const a = Math.abs(angulo);
+  if (a >= 150) return "↩ Cambio de sentido";
+  if (a >= 110) return angulo > 0 ? "↱ Gira fuerte a la derecha" : "↰ Gira fuerte a la izquierda";
+  return angulo > 0 ? "↱ Gira a la derecha" : "↰ Gira a la izquierda";
+}
 const linea = (coords: [number, number][]) => ({ type: "Feature" as const, properties: {}, geometry: { type: "LineString" as const, coordinates: coords } });
 
 export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFase, alCambiarEta, alCambiarDistancia }: {
@@ -37,6 +45,11 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
   alCambiarDistancia?: (m: number | null) => void;
 }) {
   const [pos, setPos] = useState<Punto | null>(null);
+  /** Rumbo (grados) y velocidad (m/s) que da el GPS con cada posición; -1 / null si no los sabe. */
+  const gps = useRef<{ rumbo: number | null; velocidad: number | null }>({ rumbo: null, velocidad: null });
+  /** Rumbo del coche (el mapa gira con él) y giro del mapa ahora mismo (para orientar la flecha si se ha movido a mano). */
+  const [rumboAhora, setRumboAhora] = useState<number | null>(null);
+  const [giroMapa, setGiroMapa] = useState(0);
   const [avisoGps, setAvisoGps] = useState<string | null>(null);
   const [ruta, setRuta] = useState<Ruta | null>(null);
   const [seguir, setSeguir] = useState(true);
@@ -62,7 +75,11 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
       if (!p?.granted) { setAvisoGps("Permite la ubicación para ver tu posición y la distancia restante"); return; }
       setAvisoGps("Buscando señal GPS…");
       const s = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 5, timeInterval: 2000 },
-        (l) => { setAvisoGps(null); setPos({ lat: l.coords.latitude, lng: l.coords.longitude }); });
+        (l) => {
+          setAvisoGps(null);
+          gps.current = { rumbo: l.coords.heading ?? null, velocidad: l.coords.speed ?? null };
+          setPos({ lat: l.coords.latitude, lng: l.coords.longitude });
+        });
       if (vivo) sub = s; else s.remove();
     })().catch(() => { if (vivo) setAvisoGps("No se pudo leer el GPS"); });
     return () => { vivo = false; sub?.remove(); };
@@ -147,14 +164,37 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
     void notificarLocal(fase === "llegado" ? "Has llegado" : "Estás llegando", textoAvisoProximidad(fase, objetivo.tipo, distRef.current));
   }, [fase, cargado, claves, objetivo.tipo, avisarCentral]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Seguimiento automático hasta que el conductor mueva el mapa (como mucho cada 1,5 s).
+  // Navegación «rumbo arriba»: dónde va el coche sobre la ruta, hacia dónde mira y a cuánto está el próximo cruce o giro.
+  const recorrido = useMemo(() => (ruta && ruta.coords.length > 1 ? prepararRuta(ruta.coords) : null), [ruta]);
+  const nav = useMemo(() => {
+    if (!pos) return null;
+    const sit = recorrido ? situarEnRuta(recorrido, pos) : null;
+    const sobreRuta = !!sit && sit.desvioM < 60;
+    return {
+      rumboRuta: recorrido && sit ? rumboRutaEn(recorrido, sit.s) : null,
+      desvioM: sit?.desvioM ?? null,
+      giro: recorrido && sit && sobreRuta ? siguienteGiro(recorrido, sit.s) : null,
+    };
+  }, [pos, recorrido]);
+  useEffect(() => {
+    if (!nav) return;
+    const r = rumboCoche({ gps: gps.current.rumbo, velocidadMs: gps.current.velocidad, ruta: nav.rumboRuta, desvioM: nav.desvioM, anterior: rumboAhora });
+    // Cambios de menos de 5° no giran el mapa (sin temblores).
+    if (r != null && (rumboAhora == null || Math.abs(difAngulo(rumboAhora, r)) >= 5)) setRumboAhora(r);
+  }, [nav]); // eslint-disable-line react-hooks/exhaustive-deps
+  const velocidadKmh = gps.current.velocidad != null && gps.current.velocidad >= 0 ? gps.current.velocidad * 3.6 : null;
+  const zoom = zoomNavegacion({ velocidadKmh, giroM: nav?.giro?.distanciaM ?? null });
+
+  // Seguimiento automático hasta que el conductor mueva el mapa (como mucho cada segundo): el coche abajo, la carretera
+  // por delante hacia arriba, inclinado, y de cerca al llegar a un cruce, rotonda o cambio de sentido.
   useEffect(() => {
     if (!seguir || !pos) return;
     const ahora = Date.now();
-    if (ahora - ultimoEase.current < 1500) return;
+    if (ahora - ultimoEase.current < 1000) return;
     ultimoEase.current = ahora;
-    camara.current?.easeTo({ center: lngLat(pos), duration: 600 });
-  }, [seguir, pos]);
+    camara.current?.easeTo({ center: lngLat(pos), bearing: rumboAhora ?? 0, zoom, pitch: rumboAhora == null ? 0 : 45,
+      padding: { top: 150, right: 0, bottom: 0, left: 0 }, duration: 900 });
+  }, [seguir, pos, rumboAhora, zoom]);
   useEffect(() => { if (seguir) ultimoEase.current = 0; }, [seguir]);
 
   const quedaM = restante?.restanteM ?? distObj ?? ruta?.distanciaM ?? null;
@@ -183,7 +223,8 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
       )}
       <View style={estilos.mapa}>
         <MapaLibre style={StyleSheet.absoluteFill} mapStyle={ESTILO} attribution logo={false}
-          onRegionWillChange={(e) => { if (e.nativeEvent.userInteraction) setSeguir(false); }}>
+          onRegionWillChange={(e) => { if (e.nativeEvent.userInteraction) setSeguir(false); }}
+          onRegionDidChange={(e) => setGiroMapa(e.nativeEvent.bearing ?? 0)}>
           <Camera ref={camara} initialViewState={{ center: lngLat(objetivo.punto), zoom: 14 }} />
           {geoRuta && (
             <GeoJSONSource id="ruta" data={geoRuta}>
@@ -199,7 +240,14 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
           </Marker>
           {pos ? (
             <Marker id="yo" lngLat={lngLat(pos)} anchor="center">
-              <View style={estilos.yo} accessibilityLabel="Tu posición" />
+              {rumboAhora == null
+                ? <View style={estilos.yo} accessibilityLabel="Tu posición" />
+                : (
+                  // Flecha en el sentido de la marcha (apunta arriba mientras el mapa sigue al coche).
+                  <View style={[estilos.flecha, { transform: [{ rotate: `${difAngulo(giroMapa, rumboAhora)}deg` }] }]} accessibilityLabel="Tu posición y sentido de la marcha">
+                    <View style={estilos.flechaPunta} />
+                  </View>
+                )}
             </Marker>
           ) : null}
         </MapaLibre>
@@ -207,6 +255,11 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
           <Text style={estilos.bannerTexto}>{textoBannerRuta(objetivo.tipo, quedaM, quedaS)}</Text>
           {ruta?.fuente === "recta" && <Text style={estilos.bannerAviso}>Ruta aproximada (sin servicio de rutas)</Text>}
         </View>
+        {nav?.giro && seguir && nav.giro.distanciaM <= 400 && (
+          <View style={estilos.giro} pointerEvents="none" accessibilityRole="text">
+            <Text style={estilos.giroTexto}>{textoGiro(nav.giro.angulo)} en {Math.max(10, Math.round(nav.giro.distanciaM / 10) * 10)} m</Text>
+          </View>
+        )}
         {pos && !seguir && (
           <Pressable onPress={() => setSeguir(true)} accessibilityRole="button" accessibilityLabel="Centrar en mi posición" style={estilos.centrar}>
             <Text style={estilos.centrarTexto}>Centrar</Text>
@@ -230,5 +283,10 @@ const estilos = StyleSheet.create({
   centrarTexto: { color: "#fff", fontSize: 16, fontWeight: "800" },
   objetivo: { width: 26, height: 26, borderRadius: 13, borderWidth: 3, borderColor: "#fff" },
   yo: { width: 20, height: 20, borderRadius: 10, backgroundColor: AZUL, borderWidth: 3, borderColor: "#fff" },
+  flecha: { width: 34, height: 34, borderRadius: 17, backgroundColor: AZUL, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
+  // Triángulo alargado (sin SVG en la app): la punta se distingue de la base de un vistazo.
+  flechaPunta: { width: 0, height: 0, marginTop: -4, borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 18, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#fff" },
+  giro: { position: "absolute", left: 12, bottom: 12, backgroundColor: "rgba(2,6,23,0.88)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  giroTexto: { color: "#fff", fontSize: 17, fontWeight: "800" },
   avisoGps: { backgroundColor: "#dc2626", color: "#fff", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontWeight: "600" },
 });
