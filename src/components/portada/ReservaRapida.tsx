@@ -86,9 +86,9 @@ export default function ReservaRapida({ idioma }: { idioma: Idioma }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <label className={etiqueta}>{t.form.dia}
+        <label className={`${etiqueta} min-w-0`}>{t.form.dia}
           <input type="date" name="fecha" required min={hoyMadrid()} className={campo} /><Err k="fecha" /></label>
-        <label className={etiqueta}>{t.form.hora}
+        <label className={`${etiqueta} min-w-0`}>{t.form.hora}
           <input type="time" name="hora" required className={campo} /><Err k="hora" /></label>
       </div>
 

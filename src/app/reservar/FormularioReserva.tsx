@@ -123,9 +123,9 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
         <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")}
           favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav("destino", destino)} />
         <div className="grid grid-cols-2 gap-4">
-          <label className="block text-sm font-medium">Fecha de recogida
+          <label className="block min-w-0 text-sm font-medium">Fecha de recogida
             <input type="date" name="fecha" required className={cls} /><ErrorCampo e={estado.errores} k="fecha" /></label>
-          <label className="block text-sm font-medium">Hora de recogida
+          <label className="block min-w-0 text-sm font-medium">Hora de recogida
             <input type="time" name="hora" required className={cls} /><ErrorCampo e={estado.errores} k="hora" /></label>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -167,9 +167,9 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
           <CampoDireccion name="vuelta_destino" etiqueta="Destino de la vuelta" requerido error={err("vuelta_destino_texto")}
             favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} />
           <div className="grid grid-cols-2 gap-4">
-            <label className="block text-sm font-medium">Fecha de la vuelta
+            <label className="block min-w-0 text-sm font-medium">Fecha de la vuelta
               <input type="date" name="vuelta_fecha" required className={cls} /><ErrorCampo e={estado.errores} k="vuelta_fecha" /></label>
-            <label className="block text-sm font-medium">Hora de la vuelta
+            <label className="block min-w-0 text-sm font-medium">Hora de la vuelta
               <input type="time" name="vuelta_hora" required className={cls} /><ErrorCampo e={estado.errores} k="vuelta_hora" /></label>
           </div>
           {vuelos && <label className="block text-sm font-medium">Número de vuelo de la vuelta <span className="text-slate-400">(opcional)</span>
