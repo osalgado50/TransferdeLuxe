@@ -711,6 +711,16 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   conductor que una persona está manejando (acciones suyas en la última media hora). En el mapa (`MapaFlota`), cada
   coche se desliza hasta su nueva posición en el tiempo que tardó en llegar la actualización, así parece moverse sin parar.
 
+- **Dictar las direcciones por voz (16/10/2026)**. Petición: un botón para dictar el origen y el destino. Se usa el
+  dictado que ya traen los navegadores (Web Speech API: Chrome/Android y Safari/iPhone; gratis, sin servicios nuevos):
+  `BotonVoz` dentro de `CampoDireccion`, así sale en la portada, en /reservar y en los campos de dirección de la central.
+  Mientras se habla va escribiendo lo que entiende; al terminar limpia el texto (`limpiarDictado`: sin el punto final
+  que añade Safari) y lanza la búsqueda de sugerencias como si se hubiera tecleado. Dicta en el idioma de la página
+  (es-ES, ca-ES, en-GB), avisa si no hay permiso de micrófono o no se oyó nada, y en navegadores sin dictado (Firefox)
+  el botón no aparece. La política de privacidad (en los tres idiomas) explica que el reconocimiento lo hace el
+  navegador con el servicio de su fabricante y que la app solo recibe el texto. En la app nativa no hace falta: el
+  teclado del móvil ya trae su micrófono.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se

@@ -51,6 +51,7 @@ function PrivacidadEs() {
           <li><strong>Expo</strong>: envío de notificaciones push a la app de conductores.</li>
           <li><strong>WhatsApp (Meta) o tu operador de telefonía</strong>: solo cuando te enviamos un aviso del traslado; el mensaje se envía desde el teléfono del conductor o de la central y lo trata el servicio de mensajería elegido.</li>
           <li><strong>OpenStreetMap / Nominatim / OSRM</strong>: búsqueda de direcciones y cálculo de rutas. Solo reciben la dirección o coordenadas consultadas, sin otros datos personales del cliente.</li>
+          <li><strong>Dictado por voz (opcional)</strong>: si pulsas el micrófono para dictar una dirección, el reconocimiento de voz lo hace tu navegador con el servicio de su fabricante (p. ej. Google o Apple). Nosotros no recibimos el audio, solo el texto de la dirección.</li>
         </ul>
       </Seccion>
       <Seccion titulo="5. Derechos">
@@ -104,6 +105,7 @@ function PrivacidadCa() {
           <li><strong>Expo</strong>: enviament de notificacions push a l’app de conductors.</li>
           <li><strong>WhatsApp (Meta) o el teu operador de telefonia</strong>: només quan t’enviem un avís del trasllat; el missatge s’envia des del telèfon del conductor o de la central i el tracta el servei de missatgeria escollit.</li>
           <li><strong>OpenStreetMap / Nominatim / OSRM</strong>: cerca d’adreces i càlcul de rutes. Només reben l’adreça o les coordenades consultades, sense altres dades personals del client.</li>
+          <li><strong>Dictat per veu (opcional)</strong>: si toques el micròfon per dictar una adreça, el reconeixement de veu el fa el teu navegador amb el servei del seu fabricant (p. ex. Google o Apple). Nosaltres no rebem l’àudio, només el text de l’adreça.</li>
         </ul>
       </Seccion>
       <Seccion titulo="5. Drets">
@@ -157,6 +159,7 @@ function PrivacidadEn() {
           <li><strong>Expo</strong>: sending push notifications to the drivers’ app.</li>
           <li><strong>WhatsApp (Meta) or your phone operator</strong>: only when we send you a notice about your transfer; the message is sent from the driver’s or the dispatch centre’s phone and is handled by the chosen messaging service.</li>
           <li><strong>OpenStreetMap / Nominatim / OSRM</strong>: address search and route calculation. They only receive the address or coordinates being looked up, with no other personal data of the customer.</li>
+          <li><strong>Voice dictation (optional)</strong>: if you tap the microphone to dictate an address, speech recognition is done by your browser using its vendor’s service (e.g. Google or Apple). We never receive the audio, only the text of the address.</li>
         </ul>
       </Seccion>
       <Seccion titulo="5. Your rights">

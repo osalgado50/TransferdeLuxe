@@ -1424,3 +1424,9 @@ Oye, me he dado cuenta que cuando hay muchos servicios asignados, cuando asignas
 
 ---
 
+## 2026-10-16 13:07 · Claude Code · sesión `b3c0e64f`
+
+Oye, no sé si sería mucho pedirte que donde hay los formularios de rellenar el origen y el destino, se pudiera hacer por voz. Hubiera un botoncito que le das y el usuario pueda dictar la dirección.
+
+---
+

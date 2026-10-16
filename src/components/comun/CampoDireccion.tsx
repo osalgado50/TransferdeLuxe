@@ -5,6 +5,7 @@ import { filtrarLugaresEmpresa, sugerenciaEmpresa, type LugarEmpresa } from "@/l
 import { atribucion, combinarSugerencias, normalizarBusqueda, type LugarSugerido } from "@/lib/dominio/geocodificacion";
 import { crearCacheTemporal } from "@/lib/cacheTemporal";
 import { moverActivo } from "@/lib/listaTeclado";
+import BotonVoz, { type TextosVoz } from "./BotonVoz";
 
 type Lugar = LugarSugerido;
 /** Búsquedas ya respondidas (compartidas por todos los campos de la página): volver a escribirlas es instantáneo. */
@@ -33,10 +34,17 @@ type Props = {
   /** Clases de la etiqueta (la portada la usa más grande). */
   claseEtiqueta?: string;
 };
-export interface TextosDireccion { buscando: string; buscandoMapa: string; sugerencias: string; usar: (t: string) => string; sinPunto: string }
+export interface TextosDireccion extends TextosVoz {
+  buscando: string; buscandoMapa: string; sugerencias: string; usar: (t: string) => string; sinPunto: string;
+  /** Idioma del dictado por voz (BCP 47). */
+  voz: string;
+}
 const TEXTOS_ES: TextosDireccion = {
   buscando: "Buscando direcciones…", buscandoMapa: "Buscando en el mapa…", sugerencias: "Sugerencias de dirección",
   usar: (t) => `Usar “${t}” tal cual`, sinPunto: "(sin punto en el mapa)",
+  voz: "es-ES", dictar: "Dictar la dirección", escuchando: "Escuchando… toca para terminar",
+  permiso: "Permite el micrófono para dictar la dirección.", noOido: "No te he oído. Toca el micrófono y vuelve a probar.",
+  otro: "No se pudo dictar. Escríbela, por favor.",
 };
 
 export default function CampoDireccion({ name, etiqueta, requerido, valorInicial = "", error, favoritos, lugaresEmpresa, rellenar, onCambio, extra, textos, claseInput, placeholder, claseEtiqueta }: Props) {
@@ -57,6 +65,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   /** Opción resaltada con las flechas (-1 = ninguna). */
   const [activo, setActivo] = useState(-1);
   const salida = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const campo = useRef<HTMLInputElement>(null);
   const idLista = useId();
   const idOpcion = (i: number) => `${idLista}-op-${i}`;
 
@@ -116,6 +125,10 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
     return () => { clearTimeout(t); ctl.abort(); setBuscando(false); };
   }, [texto]);
 
+  // Dictado: lo que se va entendiendo se escribe en el campo; al terminar, el campo recibe el foco para ver las sugerencias.
+  function dictando(t: string) { setTexto(t); setLat(""); setLng(""); elegido.current = null; setOculto(false); }
+  function dictado(t: string) { dictando(t); campo.current?.focus(); setAbierto(true); }
+
   function usarTalCual() {
     elegido.current = texto;
     setLat(""); setLng(""); setLugares([]); setAbierto(false);
@@ -159,7 +172,7 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
         {etiqueta}
         <span className="relative mt-1 block">
           <input
-            type="text" name={`${name}_texto`} value={texto} required={requerido} autoComplete="off" aria-busy={buscando}
+            ref={campo} type="text" name={`${name}_texto`} value={texto} required={requerido} autoComplete="off" aria-busy={buscando}
             role="combobox" aria-autocomplete="list" aria-expanded={mostrar} aria-controls={idLista}
             aria-activedescendant={hayActiva ? idOpcion(activo) : undefined}
             onChange={(e) => { setTexto(e.target.value); setLat(""); setLng(""); elegido.current = null; setOculto(false); }}
@@ -170,9 +183,14 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
             }}
             onKeyDown={teclas}
             placeholder={placeholder}
-            className={claseInput ?? "w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-3 pr-9 text-slate-100 focus:border-marca-claro focus:outline-none"}
+            className={`${claseInput ?? "w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-3 text-slate-100 focus:border-marca-claro focus:outline-none"} pr-[4.75rem]!`}
           />
-          {buscando && <Girando className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-marca-claro" />}
+          {/* A la derecha, dentro del campo: «buscando» y el micrófono para dictar (del alto del campo). */}
+          <span className="absolute inset-y-1 right-1 flex items-center gap-1.5">
+            {buscando && <Girando className="pointer-events-none h-4 w-4 text-marca-claro" />}
+            <BotonVoz idioma={tx.voz} textos={tx} onParcial={dictando} onTexto={dictado} className="aspect-square h-full"
+              sobreClaro={!!claseInput?.includes("bg-white")} />
+          </span>
         </span>
       </label>
       <span role="status" className="sr-only">{buscando ? tx.buscando : ""}</span>

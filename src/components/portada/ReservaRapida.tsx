@@ -8,6 +8,8 @@ import { reservar, type EstadoReserva } from "@/app/reservar/actions";
 
 const campo = "mt-2 min-h-14 w-full rounded-xl border-2 border-white/10 bg-white px-4 text-lg text-slate-900 placeholder:text-slate-400 focus:border-amber-300 focus:outline-none";
 const etiqueta = "block text-base font-semibold text-white";
+// El de dirección sin margen propio (lo pone CampoDireccion): así el micrófono queda centrado dentro del campo.
+const campoDireccion = campo.replace("mt-2 ", "");
 const hoyMadrid = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date());
 
 /** − 2 + en grande, para el móvil. */
@@ -70,10 +72,10 @@ export default function ReservaRapida({ idioma }: { idioma: Idioma }) {
       <h2 id="titulo-reserva" className="font-titulo text-3xl font-bold text-white sm:text-4xl">{t.form.titulo}</h2>
 
       <CampoDireccion name="origen" etiqueta={t.form.recogida} requerido placeholder={t.form.recogidaAyuda} error={error("origen_texto") ?? undefined}
-        textos={t.direccion} claseInput={`${campo} pr-10`} claseEtiqueta={etiqueta} />
+        textos={t.direccion} claseInput={campoDireccion} claseEtiqueta={etiqueta} />
       <div>
         <CampoDireccion name="destino" etiqueta={t.form.destino} requerido placeholder={t.form.destinoAyuda} error={error("destino_texto") ?? undefined}
-          textos={t.direccion} claseInput={`${campo} pr-10`} claseEtiqueta={etiqueta} rellenar={destino} />
+          textos={t.direccion} claseInput={campoDireccion} claseEtiqueta={etiqueta} rellenar={destino} />
         <p className="mt-3 text-base font-medium text-slate-300">{t.form.frecuentes}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {DESTINOS_FRECUENTES.map((d) => (
