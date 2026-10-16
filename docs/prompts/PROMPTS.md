@@ -1437,3 +1437,9 @@ Mapa que muestras en los conductores que se vea con el sentido de marcha y que h
 
 ---
 
+## 2026-10-16 20:59 · Claude Code · sesión `b3c0e64f`
+
+que en todos los servicios que se que recibe un conductor tenga un cuadrito con una X bajo una confirmación para devolverlo o, o cancelarlo, ¿vale? ¿Por qué? Porque cuando se acumulan muchos trabajos, a veces es mejor devolverlos todos a central para que central los vuelva a redistribuir o porque se le ha quedado la aplicación enganchada y no salta al siguiente al siguiente evento, ¿vale? Porque esto lo he estado probando antes y tenía un servicio activo, pero no lo podía abrir porque tenía otro pendiente anterior del día anterior y ahí se quedaba en un bucle que no funcionaba bien.
+
+---
+

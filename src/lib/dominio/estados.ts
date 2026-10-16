@@ -52,7 +52,22 @@ export const ACCION_SIGUIENTE_CONDUCTOR: Partial<Record<EstadoServicio, { accion
 
 export const MOTIVOS_RECHAZO = ["Avería", "No llego a tiempo", "Fuera de servicio", "Otro"] as const;
 /** Motivos de «No puedo hacer este servicio» (devolver). «Otro» exige escribir el motivo. */
-export const MOTIVOS_DEVOLUCION = ["Avería", "Retraso grave", "Emergencia personal", "Otro"] as const;
+export const MOTIVOS_DEVOLUCION = ["Avería", "Retraso grave", "Emergencia personal", "Demasiados servicios", "La app se ha quedado bloqueada", "Otro"] as const;
+
+/**
+ * Cómo se lo devuelve el conductor a la central desde la lista (la ✕ de cada servicio): uno asignado se rechaza, uno
+ * aceptado o de camino se devuelve. Con el cliente a bordo (recogido) o ya cerrado, no se puede.
+ */
+export function accionDevolver(estado: string): "rechazar" | "devolver" | null {
+  if (estado === "asignado") return "rechazar";
+  if (estado === "aceptado" || estado === "en_camino") return "devolver";
+  return null;
+}
+/** Servicios que «Devolver todos a la central» devolvería (sin repetir). */
+export function devolviblesEnBloque<T extends { id: string; estado: string }>(listas: readonly (readonly T[])[]): T[] {
+  const vistos = new Set<string>();
+  return listas.flat().filter((s) => accionDevolver(s.estado) && !vistos.has(s.id) && vistos.add(s.id));
+}
 /** Prefijo de `ultima_incidencia` de un servicio devuelto: «devuelto: Avería». */
 export const PREFIJO_DEVUELTO = "devuelto";
 /** Prefijo de `ultima_incidencia` de un servicio que la central ha quitado al conductor: «desasignado: Ausencia: vacaciones». */

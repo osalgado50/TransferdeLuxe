@@ -1,6 +1,7 @@
 import { direccionCorta } from "@dominio/direccion";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { DevolverRapido } from "./DevolverRapido";
 import { EstadoBadge } from "./EstadoBadge";
 import { ChipPuntualidad } from "./Puntualidad";
 import { Boton, Tarjeta } from "./ui";
@@ -8,12 +9,20 @@ import { diaHora, fmt, hora } from "~/lib/formato";
 import type { ServicioLista } from "~/lib/servicios";
 import { color } from "~/lib/tema";
 
-export function TarjetaServicio({ s, destacada, conDia }: { s: ServicioLista; destacada?: boolean; conDia?: boolean }) {
+export function TarjetaServicio({ s, destacada, conDia, yo, alDevolver }: {
+  s: ServicioLista; destacada?: boolean; conDia?: boolean;
+  /** Con el conductor: la ✕ para devolver el servicio a la central (si su estado lo permite). */
+  yo?: string; alDevolver?: (ids: string[]) => void;
+}) {
   return (
     <Tarjeta destacada={destacada} apagada={s.estado === "completado"}>
       <View style={estilos.fila}>
         <Text style={conDia ? estilos.dia : estilos.hora}>{fmt(conDia ? diaHora : hora, s.fecha_hora_recogida)}</Text>
-        <EstadoBadge estado={s.estado} />
+        <View style={estilos.derecha}>
+          <EstadoBadge estado={s.estado} />
+          {yo && <DevolverRapido conductorId={yo} servicios={[s]} alDevolver={alDevolver}
+            etiqueta={`Devolver a la central el servicio de las ${fmt(hora, s.fecha_hora_recogida)}`} />}
+        </View>
       </View>
       {!conDia && <ChipPuntualidad estado={s.estado} recogida={s.fecha_hora_recogida} />}
       <Linea tipo="recogida" texto={s.origen_texto} />
@@ -42,6 +51,7 @@ const estilos = StyleSheet.create({
   lineaTitulo: { fontSize: 11, fontWeight: "800", letterSpacing: 1 },
   lineaTexto: { color: "#fff", fontSize: 17, fontWeight: "700" },
   fila: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  derecha: { flexDirection: "row", alignItems: "center", gap: 8 },
   hora: { color: color.texto, fontSize: 32, fontWeight: "800", fontVariant: ["tabular-nums"] },
   dia: { color: color.texto, fontSize: 18, fontWeight: "700" },
   meta: { color: color.textoTenue, fontSize: 15 },

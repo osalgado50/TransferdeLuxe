@@ -730,6 +730,15 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   si el conductor mueve el mapa, deja de seguirle hasta «Centrar». Web (Leaflet no gira el mapa): norte arriba, flecha
   orientada y el mismo zoom automático. Sin dependencias nativas nuevas: se publicó por OTA.
 
+- **Devolver servicios desde la lista (16/10/2026)**. Petición: «un cuadrito con una X» en cada servicio del conductor,
+  con confirmación, para devolverlo a la central cuando se acumulan trabajos o la app se queda enganchada (al probarlo,
+  un servicio pendiente del día anterior dejaba la app en bucle). `accionDevolver` (con test): asignado → rechazar,
+  aceptado o de camino → devolver; con el cliente a bordo, no. En la app y en la web: ✕ en cada tarjeta (motivo y
+  confirmación; motivos nuevos «Demasiados servicios» y «La app se ha quedado bloqueada»), «Devolver todos a la central
+  (N)» al final de la lista y una sección «De días anteriores, sin terminar» (hasta 2 semanas) para ver y resolver lo
+  atascado, que antes no se veía en «Hoy». Todo va por la cola offline (funciona sin cobertura, nunca se duplica) y la
+  central recibe la alerta de servicio devuelto/rechazado para redistribuirlo.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
