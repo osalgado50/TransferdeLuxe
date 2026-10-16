@@ -108,9 +108,9 @@ export default async function Portada({ searchParams }: Props) {
       <footer className="border-t border-white/10 px-4 py-8 text-center text-base text-slate-400">
         <p>{t.pie.lema}</p>
         <p className="mt-2">
-          <Link href="/privacidad" className="hover:text-amber-200">{t.pie.privacidad}</Link>
+          <Link href={`/privacidad?lang=${idioma}`} className="hover:text-amber-200">{t.pie.privacidad}</Link>
           <span className="mx-3" aria-hidden>·</span>
-          <Link href="/aviso-legal" className="hover:text-amber-200">{t.pie.aviso}</Link>
+          <Link href={`/aviso-legal?lang=${idioma}`} className="hover:text-amber-200">{t.pie.aviso}</Link>
         </p>
       </footer>
     </div>

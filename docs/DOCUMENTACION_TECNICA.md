@@ -669,6 +669,9 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   errores del servidor traducidos; envía a la misma acción y validación que /reservar (que queda para ida y vuelta o un
   vehículo concreto). `CampoDireccion` acepta textos en otro idioma y estilos más grandes. Botón dorado «★ Acceso
   profesionales · Central y conductores» → /login.
+  Después, **privacidad y aviso legal en los tres idiomas** (`contenidoPrivacidad.tsx` / `contenidoAviso.tsx`): mismo
+  criterio de idioma (`?lang=` o navegador), selector ES · CA · EN en la propia página, la portada enlaza en su idioma y
+  las traducciones avisan de que, si hay discrepancia, prevalece la versión en castellano.
 
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la

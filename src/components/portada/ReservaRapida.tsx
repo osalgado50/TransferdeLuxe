@@ -118,7 +118,7 @@ export default function ReservaRapida({ idioma }: { idioma: Idioma }) {
 
       <label className="flex items-start gap-3 text-lg text-slate-200">
         <input type="checkbox" name="acepta_privacidad" required className="mt-1 size-6 accent-amber-300" />
-        <span>{t.form.privacidad} <Link href="/privacidad" className="font-semibold text-amber-200 underline">{t.form.politica}</Link></span>
+        <span>{t.form.privacidad} <Link href={`/privacidad?lang=${idioma}`} className="font-semibold text-amber-200 underline">{t.form.politica}</Link></span>
       </label>
       <Err k="acepta_privacidad" />
 
