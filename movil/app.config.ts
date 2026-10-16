@@ -1,8 +1,9 @@
 import type { ExpoConfig } from "expo/config";
 
-// Identidad y permisos de «TVL Conductor». Las carpetas ios/ y android/ se generan en EAS (CNG): no se versionan.
+// Identidad y permisos de «TDL Conductor» (marca ficticia TransferdeLuxe; slug, esquema e identificadores se conservan
+// para no perder el proyecto de EAS ni las instalaciones). Las carpetas ios/ y android/ se generan en EAS (CNG): no se versionan.
 const config: ExpoConfig = {
-  name: "TVL Conductor",
+  name: "TDL Conductor",
   slug: "tvl-conductor",
   owner: "osalgado",
   version: "1.0.0",
@@ -46,12 +47,12 @@ const config: ExpoConfig = {
       "expo-location",
       {
         locationWhenInUsePermission:
-          "TVL Conductor usa tu ubicación para que la central vea dónde estás mientras estás en servicio.",
+          "TDL Conductor usa tu ubicación para que la central vea dónde estás mientras estás en servicio.",
         locationAlwaysAndWhenInUsePermission:
           "Para seguir enviando tu posición a la central con la pantalla bloqueada, permite el acceso a la ubicación «Siempre» mientras estés en servicio.",
         locationAlwaysPermission:
           "Para seguir enviando tu posición a la central con la pantalla bloqueada, permite el acceso a la ubicación «Siempre» mientras estés en servicio.",
-        motionUsagePermission: "TVL Conductor usa los sensores de movimiento del dispositivo para mejorar la precisión de la ubicación durante los servicios.",
+        motionUsagePermission: "TDL Conductor usa los sensores de movimiento del dispositivo para mejorar la precisión de la ubicación durante los servicios.",
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
@@ -68,8 +69,8 @@ const config: ExpoConfig = {
     [
       "expo-image-picker",
       {
-        cameraPermission: "TVL Conductor usa la cámara para fotografiar los tickets de combustible.",
-        photosPermission: "TVL Conductor accede a tus fotos para adjuntar el ticket de combustible.",
+        cameraPermission: "TDL Conductor usa la cámara para fotografiar los tickets de combustible.",
+        photosPermission: "TDL Conductor accede a tus fotos para adjuntar el ticket de combustible.",
         microphonePermission: false,
       },
     ],
