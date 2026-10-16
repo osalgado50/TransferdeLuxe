@@ -152,12 +152,18 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
             <input name="umbral_anomalia_m" type="number" min={50} max={20000} step={50} defaultValue={ajustes?.umbral_anomalia_m ?? 500} className={`${campo} w-28`} /></label>
           {leerModulos(ajustes?.modulos).vuelos && <label className="text-sm">Margen equipaje tras aterrizar (0–180 min)<br />
             <input name="margen_equipaje_min" type="number" min={0} max={180} defaultValue={ajustes?.margen_equipaje_min ?? 20} className={`${campo} w-24`} /></label>}
+          <label className="text-sm">Teléfono de la central<br />
+            <input name="telefono_central" type="tel" maxLength={20} placeholder="+34 …" defaultValue={ajustes?.telefono_central ?? ""} className={`${campo} w-44`} /></label>
+          <label className="text-sm">WhatsApp de la central<br />
+            <input name="whatsapp_central" type="tel" maxLength={20} placeholder="+34 …" defaultValue={ajustes?.whatsapp_central ?? ""} className={`${campo} w-44`} /></label>
           <button className={boton}>Guardar ajustes</button>
         </form>
         <p className="text-xs text-slate-500">El plazo de respuesta se aplica solo a los servicios nuevos; los ya creados conservan el suyo.
           Si un conductor marca CARGA o DESCARGA a más de esa distancia de la recogida o del destino, la central recibe un aviso.
           El margen mínimo es el tiempo que debe sobrar entre la llegada a una recogida y su hora, desde el fin del servicio anterior
-          (lo usan «Asignar automáticamente» y el semáforo de la hoja de ruta).</p>
+          (lo usan «Asignar automáticamente» y el semáforo de la hoja de ruta).
+          El teléfono y el WhatsApp de la central se ofrecen al cliente en la web de reservas si a la hora que pide no hay ningún
+          coche libre (si están vacíos, no salen esos botones).</p>
       </section>
 
       <section id="base" className="space-y-2">

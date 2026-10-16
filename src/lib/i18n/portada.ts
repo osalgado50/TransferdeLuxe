@@ -26,6 +26,10 @@ export interface TextosPortada {
     nombre: string; telefono: string; email: string; notas: string; notasAyuda: string; privacidad: string; politica: string;
     enviar: string; enviando: string; ok: string; okDetalle: string; otra: string; revisa: string; campo: string;
     pasado: string; vuelta: string; correo: string; demasiados: string; completa: string; frecuentes: string;
+    /** Menos de 1 h de antelación; sin coche libre (contactar / enviar igualmente); página actualizada durante la reserva. */
+    pronto: string; sinHueco: string; sinHuecoTexto: string; whatsapp: string; llamar: string; igualmente: string; otraHora: string;
+    mensajeWhatsApp: (d: { dia: string; hora: string; origen: string; destino: string; pax: number }) => string;
+    actualizada: string; recargar: string;
   };
   vehiculos: Record<"sedan" | "minivan" | "minivan_premium" | "microbus" | "minibus", string>;
   ventajas: { titulo: string; items: { icono: string; titulo: string; texto: string }[] };
@@ -57,6 +61,11 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
       vuelta: "La vuelta tiene que ser después de la ida", correo: "Escribe un correo válido",
       demasiados: "Demasiadas reservas desde esta conexión. Inténtalo más tarde.",
       completa: "¿Ida y vuelta o un vehículo concreto? Usa la reserva completa", frecuentes: "Destinos frecuentes",
+      pronto: "Reserva con al menos 1 hora de antelación. Si es más urgente, llámanos.",
+      sinHueco: "A esa hora tenemos todos los coches ocupados", sinHuecoTexto: "Escríbenos o llámanos y te buscamos una solución, o elige otra hora.",
+      whatsapp: "Escribir por WhatsApp", llamar: "Llamar a la central", igualmente: "Enviar la solicitud igualmente", otraHora: "Elegir otra hora",
+      mensajeWhatsApp: (d) => `Hola, quiero un traslado el ${d.dia} a las ${d.hora} de ${d.origen} a ${d.destino} (${d.pax} pasajeros). ¿Tenéis disponibilidad?`,
+      actualizada: "Hemos actualizado la web mientras reservabas. Recarga la página y vuelve a enviarla.", recargar: "Recargar la página",
     },
     vehiculos: { sedan: "Sedán · hasta 3", minivan: "MiniVan · hasta 7", minivan_premium: "MiniVan Premium · hasta 8", microbus: "MicroBus · hasta 13", minibus: "MiniBus · hasta 19" },
     ventajas: {
@@ -95,6 +104,11 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
       vuelta: "La tornada ha de ser després de l’anada", correo: "Escriu un correu vàlid",
       demasiados: "Massa reserves des d’aquesta connexió. Torna-ho a provar més tard.",
       completa: "Anada i tornada o un vehicle concret? Fes servir la reserva completa", frecuentes: "Destinacions freqüents",
+      pronto: "Reserva amb almenys 1 hora d’antelació. Si és més urgent, truca’ns.",
+      sinHueco: "A aquesta hora tenim tots els cotxes ocupats", sinHuecoTexto: "Escriu-nos o truca’ns i et buscarem una solució, o tria una altra hora.",
+      whatsapp: "Escriure per WhatsApp", llamar: "Trucar a la central", igualmente: "Enviar la sol·licitud igualment", otraHora: "Triar una altra hora",
+      mensajeWhatsApp: (d) => `Hola, vull un trasllat el ${d.dia} a les ${d.hora} de ${d.origen} a ${d.destino} (${d.pax} passatgers). Teniu disponibilitat?`,
+      actualizada: "Hem actualitzat la web mentre reservaves. Recarrega la pàgina i torna-la a enviar.", recargar: "Recarregar la pàgina",
     },
     vehiculos: { sedan: "Berlina · fins a 3", minivan: "MiniVan · fins a 7", minivan_premium: "MiniVan Prèmium · fins a 8", microbus: "MicroBus · fins a 13", minibus: "MiniBus · fins a 19" },
     ventajas: {
@@ -133,6 +147,11 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
       vuelta: "The return must be after the outbound trip", correo: "Please enter a valid email",
       demasiados: "Too many bookings from this connection. Please try again later.",
       completa: "Return trip or a specific vehicle? Use the full booking form", frecuentes: "Popular destinations",
+      pronto: "Book at least 1 hour in advance. If it’s more urgent, please call us.",
+      sinHueco: "All our cars are booked at that time", sinHuecoTexto: "Message or call us and we’ll find a solution, or choose another time.",
+      whatsapp: "Message us on WhatsApp", llamar: "Call our office", igualmente: "Send the request anyway", otraHora: "Choose another time",
+      mensajeWhatsApp: (d) => `Hello, I’d like a transfer on ${d.dia} at ${d.hora} from ${d.origen} to ${d.destino} (${d.pax} passengers). Do you have availability?`,
+      actualizada: "We updated the website while you were booking. Please reload the page and send it again.", recargar: "Reload the page",
     },
     vehiculos: { sedan: "Sedan · up to 3", minivan: "MiniVan · up to 7", minivan_premium: "MiniVan Premium · up to 8", microbus: "MicroBus · up to 13", minibus: "MiniBus · up to 19" },
     ventajas: {

@@ -116,6 +116,34 @@ export async function sugerenciasServicio(servicioId: string) {
   const sb = clienteAdmin();
   const { data: s } = await sb.from("servicios").select("*").eq("id", servicioId).maybeSingle();
   if (!s) return null;
+  return sugerenciasPara(sb, s);
+}
+
+type ServicioSugerible = Parameters<typeof aPlan>[0] & { id: string; fecha_hora_recogida: string; pasajeros: number; maletas: number;
+  origen_lat: number | null; origen_lng: number | null; destino_lat: number | null; destino_lng: number | null; origen_texto: string; destino_texto: string };
+
+/**
+ * ¿Hay algún conductor libre para estos servicios (aún sin crear)? Mismo criterio que las sugerencias de la central:
+ * horario, ausencias, jornada, otros servicios, plazas y maletas. Lo que ningún coche propio puede llevar (grupos
+ * grandes) se subcontrata y no cuenta. Si algo falla, true: nunca se bloquea una reserva por un error al comprobarlo.
+ */
+export async function hayConductorLibre(servicios: (Omit<ServicioSugerible, "id"> & { subcontratar?: boolean })[]): Promise<boolean> {
+  try {
+    const sb = clienteAdmin();
+    for (const [i, x] of servicios.entries()) {
+      const sug = await sugerenciasPara(sb, { ...x, id: `reserva-${i}` });
+      // Ningún vehículo propio con plazas/maletas: va a subcontratar, no es falta de hueco.
+      if (sug.length && sug.every((g) => g.motivos.some((m) => /plazas|maletas|Sin vehículo/.test(m)))) continue;
+      if (!sug.some((g) => g.apto)) return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[reserva] comprobar hueco:", e instanceof Error ? e.message : e);
+    return true;
+  }
+}
+
+export async function sugerenciasPara(sb: ReturnType<typeof clienteAdmin>, s: ServicioSugerible) {
   const inicio = new Date(s.fecha_hora_recogida);
   const desde = new Date(inicio.getTime() - 12 * 3600_000).toISOString();
   const hasta = new Date(inicio.getTime() + 12 * 3600_000).toISOString();
@@ -140,8 +168,8 @@ export async function sugerenciasServicio(servicioId: string) {
   };
   const candidatos = construirCandidatos((conductores ?? []).map((c) => ({ ...c, vehiculo_habitual_id: vehiculoDe(c.id)?.id ?? c.vehiculo_habitual_id })),
     vehiculos ?? [], agenda ?? [], gps).map((c) => ({ ...c, ...disponibilidadDe(disp, c.conductorId) }));
-  const origen = s.origen_lat != null ? { lat: s.origen_lat, lng: s.origen_lng } : null;
-  const destino = s.destino_lat != null ? { lat: s.destino_lat, lng: s.destino_lng } : null;
+  const origen = s.origen_lat != null && s.origen_lng != null ? { lat: s.origen_lat, lng: s.origen_lng } : null;
+  const destino = s.destino_lat != null && s.destino_lng != null ? { lat: s.destino_lat, lng: s.destino_lng } : null;
   const duracionMin = aPlan(s).duracionMin;
   return sugerirConductores({ id: s.id, inicio, duracionMin, pasajeros: s.pasajeros, maletas: s.maletas, origen,
     destino, origenTexto: s.origen_texto, destinoTexto: s.destino_texto }, candidatos, new Date(), { base: disp.base })

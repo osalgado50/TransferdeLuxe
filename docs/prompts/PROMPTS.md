@@ -1443,3 +1443,15 @@ que en todos los servicios que se que recibe un conductor tenga un cuadrito con 
 
 ---
 
+## 2026-10-16 21:19 · Claude Code · sesión `b3c0e64f`
+
+Me ha dado este error cuando en el formulario público he puesto una fecha del día de hoy, pero la hora de las 7 de la mañana y ahora somos las 9 de la noche. Deberías de comprobar que los datos que se ponen tienen un sentido, ¿vale? Que no se pueden reservar fechas en el pasado. Y luego también estaría bien que antes de lanzar la reserva compruebes la agenda de servicios por si no hay hueco. En los, todos los choferes están ocupados por ese día, pues ya dar una respuesta al, al cliente, ¿vale? En caso de que no encuentre sitio, también le puedes dar la opción de contactar por WhatsApp o llamar directamente a la central.
+
+---
+
+## 2026-10-16 21:19 · Claude Code · sesión `b3c0e64f`
+
+transferde-luxe-hfiw ¿Este proyecto es el que estás utilizando en Vercel o es otro?
+
+---
+

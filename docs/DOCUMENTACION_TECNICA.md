@@ -739,6 +739,16 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   atascado, que antes no se veía en «Hoy». Todo va por la cola offline (funciona sin cobertura, nunca se duplica) y la
   central recibe la alerta de servicio devuelto/rechazado para redistribuirlo.
 
+- **Reservas con sentido y con hueco (16/10/2026)**. Petición: no aceptar fechas pasadas (con una reserva para hoy a las
+  7:00 hecha a las 21:00 salió «Application error») y, antes de registrar la reserva, comprobar si hay algún conductor
+  libre; si no, decírselo al cliente y ofrecerle WhatsApp o llamar a la central. `src/lib/reserva/disponibilidad.ts`
+  (con tests): mínimo 1 h de antelación en la web pública (el campo de hora no deja elegir antes y el servidor lo
+  rechaza; la central sigue pudiendo registrar lo que entra por teléfono) y enlaces de llamada/WhatsApp con el mensaje
+  ya escrito. `hayConductorLibre` reutiliza el motor de sugerencias de la central (horario, ausencias, otros servicios,
+  plazas y maletas): si nadie es «apto», la reserva no se crea y la web dice «A esa hora tenemos todos los coches
+  ocupados» con «Escribir por WhatsApp», «Llamar a la central» (número en Flota y ajustes, migración 0040), «Elegir otra
+  hora» o «Enviar la solicitud igualmente». En los tres idiomas de la portada.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
@@ -1014,6 +1024,12 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   (el «bucle»). Arreglo: `siguienteNuevo` (en `plazo.ts`, compartido por la web y la app, con test) enseña primero la de
   recogida más próxima y deja de ofrecer las que tienen la recogida pasada hace más de 6 h (la central las ve en
   «Atrasados»). La asignación ya comprobaba el horario y los demás servicios del conductor (avisa, no impide).
+
+- **«Application error» al reservar (16/10/2026)**: no se reproducía ni en local ni en producción con una página recién
+  abierta. La causa más probable: el formulario llevaba abierto desde antes de un despliegue y la página vieja llamó a
+  una acción de servidor que ya no existía con ese identificador, cosa que Next.js trata como un fallo de la página.
+  Ahora el envío captura ese error y ofrece «Recargar la página». Además, los formularios se envían a mano (no con
+  `action=`): React 19 vaciaba todos los campos tras cada envío, así que un simple error obligaba a rellenarlo todo otra vez.
 
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).

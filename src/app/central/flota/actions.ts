@@ -26,8 +26,12 @@ const esquemaConductor = z.object({
   email: z.string().trim().email("Email no válido").optional().or(z.literal("").transform(() => undefined)),
   password: z.string().optional(),
 });
+/** Teléfono de la central (web pública: «Llamar» / «WhatsApp» si no hay coche libre). Vacío = no se ofrece. */
+const telefono = z.preprocess((v) => (typeof v === "string" ? v.trim() : v), z.string().max(20).regex(/^[+\d][\d\s.-]{6,19}$/, "Teléfono no válido").or(z.literal("")))
+  .transform((v) => v || null).optional();
 const esquemaAjustes = z.object({ plazo_respuesta_min: num(5, 60), umbral_sin_senal_min: num(1, 30), margen_equipaje_min: num(0, 180).optional(),
-  margen_minimo_min: num(0, 120).optional(), umbral_anomalia_m: num(50, 20000).optional() });
+  margen_minimo_min: num(0, 120).optional(), umbral_anomalia_m: num(50, 20000).optional(),
+  telefono_central: telefono, whatsapp_central: telefono });
 
 /** Traduce errores de Supabase/Postgres a mensajes en español sin exponer detalles internos. */
 function amigable(e: { code?: string; message?: string }): string {
@@ -110,7 +114,7 @@ export async function guardarOperador(fd: FormData) {
 export async function guardarAjustes(fd: FormData) {
   await exigirRol("operador");
   const r = esquemaAjustes.safeParse(Object.fromEntries(fd));
-  if (!r.success) volver("Plazo de respuesta 5–60 min, umbral sin señal 1–30 min, margen mínimo 0–120 min, margen de equipaje 0–180 min y distancia de CARGA/DESCARGA 50–20000 m");
+  if (!r.success) volver("Plazo de respuesta 5–60 min, umbral sin señal 1–30 min, margen mínimo 0–120 min, margen de equipaje 0–180 min, distancia de CARGA/DESCARGA 50–20000 m y teléfonos con solo números (p. ej. +34 600 000 000)");
   const { error } = await clienteAdmin().from("ajustes").update(r.data).eq("id", 1);
   if (error) volver(amigable(error));
   revalidatePath("/central", "layout");

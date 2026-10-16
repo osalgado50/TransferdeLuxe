@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useState, useTransition } from "react";
+import { startTransition, useActionState, useRef, useState, useTransition, type FormEvent } from "react";
 import CampoDireccion from "@/components/comun/CampoDireccion";
 import { avisoCapacidad, NOMBRE_TIPO } from "@/lib/dominio/capacidad";
 import type { TipoVehiculo } from "@/lib/dominio/tipos";
@@ -7,6 +7,7 @@ import type { LugarEmpresa } from "@/lib/dominio/lugaresEmpresa";
 import { leerDireccionForm, tieneCoordenadas, trayectoCompleto, type Favorito } from "@/lib/dominio/favoritos";
 import { guardarFavoritoDireccion, guardarFavoritoTrayecto, type ResultadoFavorito } from "@/app/central/favoritos/actions";
 import { reservar, type EstadoReserva } from "./actions";
+import { enlaceLlamar, enlaceWhatsApp, horaMinima, sinAntelacion } from "@/lib/reserva/disponibilidad";
 
 type Accion = (prev: EstadoReserva, fd: FormData) => Promise<EstadoReserva>;
 type Props = { accion?: Accion; modo?: "publico" | "central"; favoritos?: Favorito[]; lugaresEmpresa?: LugarEmpresa[]; vuelos?: boolean };
@@ -28,7 +29,30 @@ function ErrorCampo({ e, k }: { e?: Record<string, string[]>; k: string }) {
 }
 
 export default function FormularioReserva({ accion = reservar, modo = "publico", favoritos = [], lugaresEmpresa = [], vuelos = true }: Props) {
-  const [estado, enviar, pendiente] = useActionState<EstadoReserva, FormData>(accion, {});
+  // Si la web se ha actualizado mientras se rellenaba (la acción del servidor ya no existe), aviso en vez de romperse.
+  const [estado, enviar, pendiente] = useActionState<EstadoReserva & { actualizada?: boolean }, FormData>(async (prev, fd) => {
+    try { return await accion(prev, fd); } catch { return { actualizada: true }; }
+  }, {});
+  const [fecha, setFecha] = useState("");
+  const [horaLocal, setHoraLocal] = useState<string | null>(null);
+  const [verHueco, setVerHueco] = useState(true);
+  const ultimo = useRef<FormData | null>(null);
+  // Se envía a mano (no con action=): así, si hay un error, el formulario conserva lo escrito.
+  const enviarForm = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    if (modo === "publico" && sinAntelacion(String(fd.get("fecha")), String(fd.get("hora")), Date.now())) {
+      setHoraLocal("Reserva con al menos 1 hora de antelación. Si es más urgente, llámanos."); return;
+    }
+    setHoraLocal(null); setVerHueco(true);
+    ultimo.current = fd;
+    startTransition(() => enviar(fd));
+  };
+  const enviarIgualmente = () => {
+    if (!ultimo.current) return;
+    const fd = new FormData(); ultimo.current.forEach((v, k) => fd.append(k, v)); fd.set("forzar", "1");
+    startTransition(() => enviar(fd));
+  };
   const [conVuelta, setConVuelta] = useState(false);
   const [pax, setPax] = useState(2);
   const [maletas, setMaletas] = useState(0);
@@ -107,7 +131,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
   const numeros = (desde: number, hasta: number) => Array.from({ length: hasta - desde + 1 }, (_, i) => desde + i);
 
   return (
-    <form action={enviar} className="space-y-6 text-slate-200">
+    <form onSubmit={enviarForm} className="space-y-6 text-slate-200">
       <section className={seccion}>
         <h2 className="text-lg font-semibold text-marca-claro">Trayecto</h2>
         {central && trayectos.length > 0 && (
@@ -124,9 +148,10 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
           favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav("destino", destino)} />
         <div className="grid grid-cols-2 gap-4">
           <label className="block min-w-0 text-sm font-medium">Fecha de recogida
-            <input type="date" name="fecha" required className={cls} /><ErrorCampo e={estado.errores} k="fecha" /></label>
+            <input type="date" name="fecha" required value={fecha} onChange={(e) => { setFecha(e.target.value); setHoraLocal(null); }} className={cls} /><ErrorCampo e={estado.errores} k="fecha" /></label>
           <label className="block min-w-0 text-sm font-medium">Hora de recogida
-            <input type="time" name="hora" required className={cls} /><ErrorCampo e={estado.errores} k="hora" /></label>
+            <input type="time" name="hora" required min={modo === "publico" ? horaMinima(fecha, Date.now()) : undefined} onChange={() => setHoraLocal(null)} className={cls} />
+            {horaLocal ? <p className="mt-1 text-sm text-red-400">{horaLocal}</p> : <ErrorCampo e={estado.errores} k="hora" />}</label>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">Pasajeros
@@ -206,7 +231,31 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
         </div>
       )}
 
-      {estado.mensaje && <p role="alert" className="text-sm text-red-400">{estado.mensaje}</p>}
+      {estado.mensaje && !estado.sinHueco && <p role="alert" className="text-sm text-red-400">{estado.mensaje}</p>}
+      {estado.actualizada && (
+        <div role="alert" className="space-y-2 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-100">
+          <p>Hemos actualizado la web mientras rellenabas el formulario. Recarga la página y vuelve a enviarlo.</p>
+          <button type="button" onClick={() => location.reload()} className="min-h-11 rounded-lg bg-amber-400 px-4 font-semibold text-slate-950">Recargar la página</button>
+        </div>
+      )}
+      {estado.sinHueco && verHueco && !pendiente && (() => {
+        const u = ultimo.current;
+        const texto = u ? `Hola, quiero un traslado el ${String(u.get("fecha")).split("-").reverse().join("/")} a las ${u.get("hora")} de ${u.get("origen_texto")} a ${u.get("destino_texto")} (${u.get("pasajeros")} pasajeros). ¿Tenéis disponibilidad?` : "";
+        const wa = enlaceWhatsApp(estado.contacto?.whatsapp ?? estado.contacto?.telefono, texto);
+        const tel = enlaceLlamar(estado.contacto?.telefono ?? estado.contacto?.whatsapp);
+        return (
+          <div role="alert" className="space-y-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+            <p className="text-lg font-semibold text-amber-200">A esa hora tenemos todos los coches ocupados</p>
+            <p className="text-sm text-slate-300">Escríbenos o llámanos y te buscamos una solución, o elige otra hora.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center justify-center rounded-lg bg-emerald-600 font-semibold text-white">💬 Escribir por WhatsApp</a>}
+              {tel && <a href={tel} className="flex min-h-12 items-center justify-center rounded-lg border border-slate-500 font-semibold">📞 Llamar a la central</a>}
+              <button type="button" onClick={() => setVerHueco(false)} className="min-h-12 rounded-lg border border-slate-600">Elegir otra hora</button>
+              <button type="button" onClick={enviarIgualmente} className="min-h-12 rounded-lg text-sm text-slate-300 underline">Enviar la solicitud igualmente</button>
+            </div>
+          </div>
+        );
+      })()}
       <button type="submit" disabled={pendiente}
         className="w-full rounded-lg bg-marca px-6 py-3 font-semibold text-white hover:bg-marca-oscuro disabled:opacity-60">
         {pendiente ? "Enviando…" : central ? "Crear servicio" : "Reservar"}
