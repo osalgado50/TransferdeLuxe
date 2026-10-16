@@ -9,7 +9,7 @@ import PanelSeguimiento from "@/components/seguimiento/PanelSeguimiento";
 export const dynamic = "force-dynamic";
 // Página pública del cliente: nunca en buscadores ni con el enlace en el Referer de terceros.
 export const metadata: Metadata = {
-  title: "Tu traslado · TVL VIP Transfers",
+  title: "Tu traslado · TransferdeLuxe",
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
   referrer: "no-referrer",
 };

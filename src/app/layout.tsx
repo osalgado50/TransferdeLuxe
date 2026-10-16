@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TransferdeLuxe · TVL VIP Transfers",
+  title: "TransferdeLuxe · Traslados en la Costa Dorada",
   description: "Traslados VIP en la Costa Dorada: reservas, central de operaciones y conductores.",
 };
 

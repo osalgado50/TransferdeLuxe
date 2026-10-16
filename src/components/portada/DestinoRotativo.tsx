@@ -10,7 +10,7 @@ export default function DestinoRotativo({ destinos }: { destinos: string[] }) {
   }, [destinos.length]);
   return (
     <span className="block min-h-[1.15em] [perspective:600px]" aria-live="off">
-      <span key={i} className="tvl-palabra bg-gradient-to-r from-amber-200 via-amber-300 to-orange-300 bg-clip-text text-transparent">
+      <span key={i} className="tdl-palabra bg-gradient-to-r from-amber-200 via-amber-300 to-orange-300 bg-clip-text text-transparent">
         {destinos[i]}
       </span>
       {/* Para lectores de pantalla, la lista entera una sola vez */}

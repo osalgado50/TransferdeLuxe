@@ -64,20 +64,20 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 /* ── Portada (paisaje de la Costa Dorada) ── */
-@keyframes tvl-ola { from { transform: translateX(0); } to { transform: translateX(-200px); } }
-@keyframes tvl-brillo { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.45; } }
-@keyframes tvl-estrella { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.25; } }
-@keyframes tvl-faro { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
-@keyframes tvl-coche { from { transform: translateX(-340px); } to { transform: translateX(1700px); } }
-@keyframes tvl-palabra { from { opacity: 0; transform: translateY(0.6em) rotateX(-60deg); } to { opacity: 1; transform: none; } }
-.tvl-ola { animation: tvl-ola 9s linear infinite; }
-.tvl-ola-lenta { animation-duration: 14s; }
-.tvl-brillo { animation: tvl-brillo 4s ease-in-out infinite; }
-.tvl-estrella { animation: tvl-estrella 3.5s ease-in-out infinite; }
-.tvl-faro { animation: tvl-faro 2.6s ease-in-out infinite; }
-.tvl-coche { animation: tvl-coche 16s linear infinite; }
-.tvl-palabra { display: inline-block; animation: tvl-palabra 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: 50% 100%; }
+@keyframes tdl-ola { from { transform: translateX(0); } to { transform: translateX(-200px); } }
+@keyframes tdl-brillo { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.45; } }
+@keyframes tdl-estrella { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.25; } }
+@keyframes tdl-faro { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+@keyframes tdl-coche { from { transform: translateX(-340px); } to { transform: translateX(1700px); } }
+@keyframes tdl-palabra { from { opacity: 0; transform: translateY(0.6em) rotateX(-60deg); } to { opacity: 1; transform: none; } }
+.tdl-ola { animation: tdl-ola 9s linear infinite; }
+.tdl-ola-lenta { animation-duration: 14s; }
+.tdl-brillo { animation: tdl-brillo 4s ease-in-out infinite; }
+.tdl-estrella { animation: tdl-estrella 3.5s ease-in-out infinite; }
+.tdl-faro { animation: tdl-faro 2.6s ease-in-out infinite; }
+.tdl-coche { animation: tdl-coche 16s linear infinite; }
+.tdl-palabra { display: inline-block; animation: tdl-palabra 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: 50% 100%; }
 @media (prefers-reduced-motion: reduce) {
-  .tvl-ola, .tvl-brillo, .tvl-estrella, .tvl-faro, .tvl-coche, .tvl-palabra { animation: none; }
-  .tvl-coche { transform: translateX(560px); }
+  .tdl-ola, .tdl-brillo, .tdl-estrella, .tdl-faro, .tdl-coche, .tdl-palabra { animation: none; }
+  .tdl-coche { transform: translateX(560px); }
 }

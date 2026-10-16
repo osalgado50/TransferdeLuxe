@@ -1,6 +1,6 @@
 # Guion del vídeo demo (≤ 5 min)
 
-> Entregable 5. Grabar en 1920×1080, con la central en el ordenador y la app **TVL Conductor** (Android/iOS) en el móvil.
+> Entregable 5. Grabar en 1920×1080, con la central en el ordenador y la app **TDL Conductor** (Android/iOS) en el móvil.
 > Solo datos de demo (la demo ya no se reinicia: comprobar antes que hay servicios de ejemplo para hoy).
 
 | Tiempo | Pantalla | Qué se enseña | Texto (voz en off) |

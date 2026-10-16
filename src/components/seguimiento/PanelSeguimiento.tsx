@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import LogoTVL from "@/components/comun/LogoTVL";
+import LogoMarca from "@/components/comun/LogoMarca";
 import MapaSeguimiento from "./MapaSeguimientoCarga";
 import { REFRESCO_SEGUIMIENTO_MS, TEXTOS_SEGUIMIENTO, type IdiomaSeguimiento, type Seguimiento } from "@/lib/dominio/seguimiento";
 
@@ -47,8 +47,8 @@ export default function PanelSeguimiento({ token, idioma, inicial, caducado: cad
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100">
       <div className="mx-auto max-w-lg space-y-4">
         <header className="flex items-center gap-3">
-          <LogoTVL alto={44} prioridad />
-          <span className="text-lg font-semibold text-marca-claro">TVL VIP Transfers</span>
+          <LogoMarca alto={40} soloEmblema />
+          <span className="text-lg font-semibold text-marca-claro">TransferdeLuxe</span>
         </header>
         {caducado ? (
           <section className="rounded-2xl border border-slate-700 bg-slate-900 p-5 text-center">

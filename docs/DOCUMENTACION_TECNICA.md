@@ -53,7 +53,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Mapas**: Leaflet + OpenStreetMap; búsqueda de direcciones con Photon y Nominatim en paralelo (consulta limpiada, localidad detectada, número aproximado), lugares de la empresa, favoritos y lugares frecuentes (Google Places preparado, apagado sin clave).
 - **Despliegue**: Hostinger Cloud Startup (Node.js Web App importada de GitHub, redespliegue en cada push) y
   GitHub Actions diario que mantiene activo Supabase y limpia tokens push caducados (sin reiniciar datos).
-- **App nativa TVL Conductor** (`movil/`, Expo SDK 57): GPS en segundo plano con cola sin pérdidas, notificaciones push,
+- **App nativa TDL Conductor** (`movil/`, Expo SDK 57): GPS en segundo plano con cola sin pérdidas, notificaciones push,
   mapa MapLibre + OSM con avisos de proximidad, ticket con cámara. Android (APK interno) e iOS (TestFlight) con EAS.
 - **Módulos activables** desde la central: jornada laboral, incidencias, checklist del vehículo, mantenimiento,
   informes y seguimiento de vuelos.
@@ -152,9 +152,9 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   mismo modelo recta × 1,3 a 70 km/h sin margen de carga, plan del día, `encaja` con motivo legible). La sugerencia
   de conductores exige llegar a tiempo desde el servicio anterior y al siguiente; la hoja de ruta muestra franjas de
   traslado, confirma asignaciones inviables y sugiere el mejor conductor para cada servicio sin asignar.
-- **10/10/2026**: **app nativa TVL Conductor (N1, andamiaje)**. Proyecto Expo SDK 57 en `movil/` (Expo Router,
+- **10/10/2026**: **app nativa TDL Conductor (N1, andamiaje)**. Proyecto Expo SDK 57 en `movil/` (Expo Router,
   TypeScript), proyecto EAS `@osalgado/tvl-conductor`, identidad (bundle `com.transfersvipluxe.conductor`, icono
-  VIP LUXE generado con sharp, tema oscuro de marca), permisos de ubicación en segundo plano, perfiles `eas.json`,
+  de la marca generado con sharp, tema oscuro de marca), permisos de ubicación en segundo plano, perfiles `eas.json`,
   cliente Supabase con AsyncStorage y login con guardia de rol conductor y cuentas de demo (Copiar/Usar).
 - **11/10/2026**: **módulos Mantenimiento e Informes** (activables). Mantenimiento: plan por vehículo (ITV, seguro,
   próxima revisión por fecha/km) y registro de intervenciones (migración 0013, RLS de lectura operador/conductor de su
@@ -184,7 +184,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   la central de reservas web nuevas, rechazos, plazos vencidos, incidencias y checklists con fallos (textos en
   `src/lib/dominio/avisosCentral.ts`). Rutas Bearer `/api/central/{resumen,sugerencia,asignar,reasignar,alerta-vista}`
   para el modo central de la app nativa, con la lógica compartida con las Server Actions en `src/lib/central/operaciones.ts`.
-- **Jefe multitarea, modo central en la app nativa (11/10/2026)**: la app «TVL Conductor» deja entrar también a los
+- **Jefe multitarea, modo central en la app nativa (11/10/2026)**: la app «TDL Conductor» deja entrar también a los
   operadores. El operador aterriza en `movil/app/central/` con pestañas Central (alertas con texto legible y botón
   «Visto» + mapa MapLibre de la flota con color por estado y umbral «sin señal» de los ajustes), Servicios (sin asignar,
   en curso, asignados y terminados; ficha con llamar al cliente/conductor, ver vuelo y asignar/reasignar eligiendo entre
@@ -748,6 +748,18 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   plazas y maletas): si nadie es «apto», la reserva no se crea y la web dice «A esa hora tenemos todos los coches
   ocupados» con «Escribir por WhatsApp», «Llamar a la central» (número en Flota y ajustes, migración 0040), «Elegir otra
   hora» o «Enviar la solicitud igualmente». En los tres idiomas de la portada.
+
+- **Marca ficticia y textos legales de plantilla (16/10/2026)**. Las bases no permiten datos reales y la app llevaba el
+  nombre y el logotipo de la empresa real en la que se inspira. Petición: cambiar nombre, logotipo y textos legales por
+  una plantilla sin nada real. Se preguntó: nombre «TransferdeLuxe» (el del proyecto), monograma dibujado, el dominio se
+  mantiene y la app del móvil cambia también de nombre e icono (nueva compilación). Emblema propio en SVG
+  (`src/lib/marca/emblema.ts`: anillo dorado, monograma T·L y arco de carretera, todo con trazos), componente
+  `LogoMarca` y `scripts/marca.ts`, que genera desde él los iconos de la web y de la app; se eliminaron los archivos del
+  logotipo real. Textos: «TransferdeLuxe Central» (web) y «TDL Conductor» (app), también en los avisos al cliente y la
+  página de seguimiento. Privacidad y aviso legal (castellano, catalán e inglés): titular «TransferdeLuxe Demo, S.L.
+  (empresa ficticia)» con un aviso de plantilla, los datos que faltan entre corchetes y un correo `.test` (dominio
+  reservado que no existe); se quitaron los enlaces a la web real. Orden de publicación: primero lo de dentro de la app
+  por OTA (las instaladas lo reciben), después nombre, icono y pantalla de inicio en una compilación nueva.
 
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la

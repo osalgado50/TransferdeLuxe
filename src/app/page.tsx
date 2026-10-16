@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { Playfair_Display } from "next/font/google";
-import LogoTVL from "@/components/comun/LogoTVL";
+import LogoMarca from "@/components/comun/LogoMarca";
 import PaisajeCostaDorada from "@/components/portada/PaisajeCostaDorada";
 import DestinoRotativo from "@/components/portada/DestinoRotativo";
 import ReservaRapida from "@/components/portada/ReservaRapida";
@@ -37,8 +37,8 @@ export default async function Portada({ searchParams }: Props) {
       {/* Cabecera: logo, idioma y acceso profesionales (premium) */}
       <header className="absolute inset-x-0 top-0 z-20">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Link href={`/?lang=${idioma}`} className="flex items-center gap-3" aria-label="TVL VIP Transfers">
-            <LogoTVL alto={56} prioridad />
+          <Link href={`/?lang=${idioma}`} className="flex items-center gap-3" aria-label="TransferdeLuxe">
+            <LogoMarca alto={48} soloEmblema />
             <span className="hidden font-titulo text-2xl font-bold tracking-wide sm:block">TransferdeLuxe</span>
           </Link>
           <nav className="flex items-center gap-2 sm:gap-3" aria-label={t.nav.idioma}>

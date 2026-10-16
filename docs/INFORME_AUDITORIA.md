@@ -1,4 +1,4 @@
-# Informe de auditoría y propuestas de mejora — TVL Control
+# Informe de auditoría y propuestas de mejora — TransferdeLuxe Central
 
 Fecha: 11/10/2026 · Elaborado por Claude Code (auditoría de solo lectura + pruebas de carga de solo lectura en producción).
 No se ha borrado ni modificado ningún dato. Único cambio aplicado: cabeceras de seguridad HTTP (ver §1.5).

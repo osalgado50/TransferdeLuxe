@@ -40,7 +40,7 @@ export interface TextosPortada {
 
 export const TEXTOS: Record<Idioma, TextosPortada> = {
   es: {
-    meta: { titulo: "Traslados VIP en la Costa Dorada · TVL VIP Transfers", descripcion: "Reserva tu traslado privado en Salou, Cambrils, Tarragona, PortAventura y los aeropuertos de Reus y Barcelona." },
+    meta: { titulo: "Traslados VIP en la Costa Dorada · TransferdeLuxe", descripcion: "Reserva tu traslado privado en Salou, Cambrils, Tarragona, PortAventura y los aeropuertos de Reus y Barcelona." },
     nav: { reservar: "Reservar", profesionales: "Acceso profesionales", profesionalesSub: "Central y conductores", idioma: "Idioma" },
     hero: {
       etiqueta: "Traslados VIP · Costa Dorada",
@@ -77,13 +77,13 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
         { icono: "📍", titulo: "Conductores locales", texto: "Conocemos cada rincón de la Costa Dorada." },
       ],
     },
-    pie: { privacidad: "Privacidad", aviso: "Aviso legal", lema: "TVL VIP Transfers · Costa Dorada" },
+    pie: { privacidad: "Privacidad", aviso: "Aviso legal", lema: "TransferdeLuxe · Costa Dorada" },
     direccion: { buscando: "Buscando direcciones…", buscandoMapa: "Buscando en el mapa…", sugerencias: "Sugerencias de dirección", usar: (t) => `Usar “${t}” tal cual`, sinPunto: "(sin punto en el mapa)",
       voz: "es-ES", dictar: "Dictar la dirección", escuchando: "Escuchando… toca para terminar", permiso: "Permite el micrófono para dictar la dirección.",
       noOido: "No te he oído. Toca el micrófono y vuelve a probar.", otro: "No se pudo dictar. Escríbela, por favor." },
   },
   ca: {
-    meta: { titulo: "Trasllats VIP a la Costa Daurada · TVL VIP Transfers", descripcion: "Reserva el teu trasllat privat a Salou, Cambrils, Tarragona, PortAventura i els aeroports de Reus i Barcelona." },
+    meta: { titulo: "Trasllats VIP a la Costa Daurada · TransferdeLuxe", descripcion: "Reserva el teu trasllat privat a Salou, Cambrils, Tarragona, PortAventura i els aeroports de Reus i Barcelona." },
     nav: { reservar: "Reservar", profesionales: "Accés professionals", profesionalesSub: "Central i conductors", idioma: "Idioma" },
     hero: {
       etiqueta: "Trasllats VIP · Costa Daurada",
@@ -120,13 +120,13 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
         { icono: "📍", titulo: "Conductors locals", texto: "Coneixem cada racó de la Costa Daurada." },
       ],
     },
-    pie: { privacidad: "Privacitat", aviso: "Avís legal", lema: "TVL VIP Transfers · Costa Daurada" },
+    pie: { privacidad: "Privacitat", aviso: "Avís legal", lema: "TransferdeLuxe · Costa Daurada" },
     direccion: { buscando: "Cercant adreces…", buscandoMapa: "Cercant al mapa…", sugerencias: "Suggeriments d’adreça", usar: (t) => `Fer servir “${t}” tal com està`, sinPunto: "(sense punt al mapa)",
       voz: "ca-ES", dictar: "Dictar l’adreça", escuchando: "Escoltant… toca per acabar", permiso: "Permet el micròfon per dictar l’adreça.",
       noOido: "No t’he sentit. Toca el micròfon i torna-ho a provar.", otro: "No s’ha pogut dictar. Escriu-la, si us plau." },
   },
   en: {
-    meta: { titulo: "VIP transfers on the Costa Dorada · TVL VIP Transfers", descripcion: "Book your private transfer in Salou, Cambrils, Tarragona, PortAventura and Reus and Barcelona airports." },
+    meta: { titulo: "VIP transfers on the Costa Dorada · TransferdeLuxe", descripcion: "Book your private transfer in Salou, Cambrils, Tarragona, PortAventura and Reus and Barcelona airports." },
     nav: { reservar: "Book", profesionales: "Staff access", profesionalesSub: "Dispatch & drivers", idioma: "Language" },
     hero: {
       etiqueta: "VIP transfers · Costa Dorada",
@@ -163,7 +163,7 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
         { icono: "📍", titulo: "Local drivers", texto: "We know every corner of the Costa Dorada." },
       ],
     },
-    pie: { privacidad: "Privacy", aviso: "Legal notice", lema: "TVL VIP Transfers · Costa Dorada" },
+    pie: { privacidad: "Privacy", aviso: "Legal notice", lema: "TransferdeLuxe · Costa Dorada" },
     direccion: { buscando: "Searching addresses…", buscandoMapa: "Searching the map…", sugerencias: "Address suggestions", usar: (t) => `Use “${t}” as typed`, sinPunto: "(no map point)",
       voz: "en-GB", dictar: "Dictate the address", escuchando: "Listening… tap to finish", permiso: "Allow the microphone to dictate the address.",
       noOido: "I didn’t hear you. Tap the microphone and try again.", otro: "Dictation failed. Please type it." },

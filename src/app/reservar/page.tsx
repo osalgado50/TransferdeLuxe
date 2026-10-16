@@ -1,5 +1,5 @@
 import Link from "next/link";
-import LogoTVL from "@/components/comun/LogoTVL";
+import LogoMarca from "@/components/comun/LogoMarca";
 
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { leerModulos } from "@/lib/dominio/modulos";
@@ -17,7 +17,7 @@ export default async function PaginaReservar() {
     <main className="min-h-screen bg-slate-950 px-4 py-8">
       <div className="mx-auto max-w-2xl">
         <header className="mb-6 text-center">
-          <Link href="/" className="inline-flex flex-col items-center gap-3 text-3xl font-semibold tracking-tight text-marca-claro"><LogoTVL alto={88} prioridad />TransferdeLuxe</Link>
+          <Link href="/" className="inline-flex flex-col items-center gap-3 text-3xl font-semibold tracking-tight text-marca-claro"><LogoMarca alto={88} prioridad />TransferdeLuxe</Link>
           <p className="mt-2 text-slate-300">Reserva tu traslado VIP en la Costa Dorada</p>
         </header>
         <FormularioReserva vuelos={leerModulos(aj?.modulos).vuelos} />

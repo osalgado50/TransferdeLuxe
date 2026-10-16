@@ -36,8 +36,8 @@ export default function Login() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
           <Image source={require("../assets/images/logo.png")} style={estilos.logo} contentFit="contain"
-            accessibilityLabel="Transfers VIP Luxe" />
-          <Text style={estilos.titulo} accessibilityRole="header">TVL Conductor</Text>
+            accessibilityLabel="TransferdeLuxe" />
+          <Text style={estilos.titulo} accessibilityRole="header">TDL Conductor</Text>
           <View style={estilos.tarjeta}>
             <Text style={estilos.etiqueta}>Email</Text>
             <TextInput value={email} onChangeText={setEmail} style={estilos.campo} keyboardType="email-address"

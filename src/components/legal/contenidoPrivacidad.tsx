@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Idioma } from "@/lib/i18n/portada";
-import { AVISO_WEB, Ext, PRIVACIDAD_WEB, Seccion } from "./PaginaLegal";
+import { CORREO_PRIVACIDAD, Ext, FichaTitular, Seccion } from "./PaginaLegal";
 
 /** Política de privacidad en castellano (versión que prevalece), catalán e inglés. */
 export const TITULO_PRIVACIDAD: Record<Idioma, string> = { es: "Política de privacidad", ca: "Política de privacitat", en: "Privacy policy" };
@@ -15,18 +15,17 @@ function PrivacidadEs() {
   return (
     <>
       <p className="text-base text-slate-300">
-        Esta política se aplica a la aplicación web de gestión <strong>«TVL Control»</strong> (incluida la página pública de reservas)
-        y a la aplicación móvil para conductores <strong>«TVL Conductor»</strong>. Complementa la{" "}
-        <Ext href={PRIVACIDAD_WEB}>política de privacidad de transfersvipluxe.com</Ext>.
+        Esta política se aplica a la aplicación web de gestión <strong>«TransferdeLuxe Central»</strong> (incluida la página pública de reservas)
+        y a la aplicación móvil para conductores <strong>«TDL Conductor»</strong>.
       </p>
       <Seccion titulo="1. Responsable del tratamiento">
-        <p>Responsable: el titular de transfersvipluxe.com; datos identificativos y de contacto en su <Ext href={AVISO_WEB}>aviso legal</Ext>.</p>
+        <FichaTitular idioma="es" />
       </Seccion>
       <Seccion titulo="2. Finalidades y bases legales">
         <ul className="list-disc space-y-2 pl-5">
           <li><strong>Reservas de traslados</strong> (nombre, contacto, direcciones, fecha, pasajeros y equipaje): gestionar y prestar el servicio solicitado. Base: ejecución de un contrato o medidas precontractuales (art. 6.1.b RGPD).</li>
           <li><strong>Gestión de conductores y servicios</strong> (asignación, historial, incidencias): base en la relación laboral o de prestación de servicios (art. 6.1.b RGPD) y en el cumplimiento de obligaciones legales (art. 6.1.c RGPD).</li>
-          <li><strong>Geolocalización de conductores</strong>: la app «TVL Conductor» envía la posición <strong>solo mientras el conductor tiene activado «En servicio»</strong>, para coordinar recogidas e informar al centro de control. Nunca se recoge fuera de la jornada ni con el interruptor desactivado. Se trata conforme al art. 90 LOPDGDD y al art. 20.3 del Estatuto de los Trabajadores, con información previa, expresa y clara al conductor sobre su existencia y características.</li>
+          <li><strong>Geolocalización de conductores</strong>: la app «TDL Conductor» envía la posición <strong>solo mientras el conductor tiene activado «En servicio»</strong>, para coordinar recogidas e informar al centro de control. Nunca se recoge fuera de la jornada ni con el interruptor desactivado. Se trata conforme al art. 90 LOPDGDD y al art. 20.3 del Estatuto de los Trabajadores, con información previa, expresa y clara al conductor sobre su existencia y características.</li>
           <li><strong>Fotos de tickets de combustible</strong>: gestión y justificación de gastos del servicio (art. 6.1.b y 6.1.c RGPD).</li>
           <li><strong>Token de notificaciones</strong> del dispositivo: avisar al conductor de servicios asignados o modificados (art. 6.1.b RGPD).</li>
           <li><strong>Avisos al cliente sobre su traslado</strong> (conductor en camino, retraso, llegada o cambio de conductor): el conductor o la central abren WhatsApp o SMS con el mensaje ya escrito y lo envían al teléfono que el cliente indicó al reservar. Son mensajes de servicio, sin publicidad. Base: ejecución del contrato (art. 6.1.b RGPD). En la central queda anotado qué aviso se envió y cuándo, no el contenido de la conversación.</li>
@@ -55,7 +54,7 @@ function PrivacidadEs() {
         </ul>
       </Seccion>
       <Seccion titulo="5. Derechos">
-        <p>Puedes ejercer los derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y portabilidad dirigiéndote al responsable por los medios indicados en su <Ext href={AVISO_WEB}>aviso legal</Ext>.</p>
+        <p>Puedes ejercer los derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y portabilidad escribiendo al responsable a <Ext href={`mailto:${CORREO_PRIVACIDAD}`}>{CORREO_PRIVACIDAD}</Ext>.</p>
         <p>Si consideras que el tratamiento no es adecuado, puedes reclamar ante la Agencia Española de Protección de Datos (<Ext href="https://www.aepd.es">aepd.es</Ext>).</p>
       </Seccion>
       <Seccion titulo="6. Cookies">
@@ -69,18 +68,17 @@ function PrivacidadCa() {
   return (
     <>
       <p className="text-base text-slate-300">
-        Aquesta política s’aplica a l’aplicació web de gestió <strong>«TVL Control»</strong> (inclosa la pàgina pública de reserves)
-        i a l’aplicació mòbil per a conductors <strong>«TVL Conductor»</strong>. Complementa la{" "}
-        <Ext href={PRIVACIDAD_WEB}>política de privacitat de transfersvipluxe.com</Ext>.
+        Aquesta política s’aplica a l’aplicació web de gestió <strong>«TransferdeLuxe Central»</strong> (inclosa la pàgina pública de reserves)
+        i a l’aplicació mòbil per a conductors <strong>«TDL Conductor»</strong>.
       </p>
       <Seccion titulo="1. Responsable del tractament">
-        <p>Responsable: el titular de transfersvipluxe.com; dades identificatives i de contacte al seu <Ext href={AVISO_WEB}>avís legal</Ext>.</p>
+        <FichaTitular idioma="ca" />
       </Seccion>
       <Seccion titulo="2. Finalitats i bases legals">
         <ul className="list-disc space-y-2 pl-5">
           <li><strong>Reserves de trasllats</strong> (nom, contacte, adreces, data, passatgers i equipatge): gestionar i prestar el servei sol·licitat. Base: execució d’un contracte o mesures precontractuals (art. 6.1.b RGPD).</li>
           <li><strong>Gestió de conductors i serveis</strong> (assignació, historial, incidències): base en la relació laboral o de prestació de serveis (art. 6.1.b RGPD) i en el compliment d’obligacions legals (art. 6.1.c RGPD).</li>
-          <li><strong>Geolocalització de conductors</strong>: l’app «TVL Conductor» envia la posició <strong>només mentre el conductor té activat «En servei»</strong>, per coordinar recollides i informar el centre de control. Mai no es recull fora de la jornada ni amb l’interruptor desactivat. Es tracta d’acord amb l’art. 90 LOPDGDD i l’art. 20.3 de l’Estatut dels Treballadors, amb informació prèvia, expressa i clara al conductor sobre la seva existència i característiques.</li>
+          <li><strong>Geolocalització de conductors</strong>: l’app «TDL Conductor» envia la posició <strong>només mentre el conductor té activat «En servei»</strong>, per coordinar recollides i informar el centre de control. Mai no es recull fora de la jornada ni amb l’interruptor desactivat. Es tracta d’acord amb l’art. 90 LOPDGDD i l’art. 20.3 de l’Estatut dels Treballadors, amb informació prèvia, expressa i clara al conductor sobre la seva existència i característiques.</li>
           <li><strong>Fotos de tiquets de combustible</strong>: gestió i justificació de despeses del servei (art. 6.1.b i 6.1.c RGPD).</li>
           <li><strong>Testimoni de notificacions</strong> del dispositiu: avisar el conductor de serveis assignats o modificats (art. 6.1.b RGPD).</li>
           <li><strong>Avisos al client sobre el seu trasllat</strong> (conductor de camí, retard, arribada o canvi de conductor): el conductor o la central obren WhatsApp o SMS amb el missatge ja escrit i l’envien al telèfon que el client va indicar en reservar. Són missatges de servei, sense publicitat. Base: execució del contracte (art. 6.1.b RGPD). A la central queda anotat quin avís s’ha enviat i quan, no el contingut de la conversa.</li>
@@ -109,7 +107,7 @@ function PrivacidadCa() {
         </ul>
       </Seccion>
       <Seccion titulo="5. Drets">
-        <p>Pots exercir els drets d’accés, rectificació, supressió, oposició, limitació del tractament i portabilitat adreçant-te al responsable pels mitjans indicats al seu <Ext href={AVISO_WEB}>avís legal</Ext>.</p>
+        <p>Pots exercir els drets d’accés, rectificació, supressió, oposició, limitació del tractament i portabilitat escrivint al responsable a <Ext href={`mailto:${CORREO_PRIVACIDAD}`}>{CORREO_PRIVACIDAD}</Ext>.</p>
         <p>Si consideres que el tractament no és adequat, pots reclamar davant l’Agència Espanyola de Protecció de Dades (<Ext href="https://www.aepd.es">aepd.es</Ext>).</p>
       </Seccion>
       <Seccion titulo="6. Galetes">
@@ -123,18 +121,17 @@ function PrivacidadEn() {
   return (
     <>
       <p className="text-base text-slate-300">
-        This policy applies to the <strong>“TVL Control”</strong> management web app (including the public booking page)
-        and to the <strong>“TVL Conductor”</strong> mobile app for drivers. It supplements the{" "}
-        <Ext href={PRIVACIDAD_WEB}>transfersvipluxe.com privacy policy</Ext>.
+        This policy applies to the <strong>“TransferdeLuxe Central”</strong> management web app (including the public booking page)
+        and to the <strong>“TDL Conductor”</strong> mobile app for drivers.
       </p>
       <Seccion titulo="1. Data controller">
-        <p>Controller: the owner of transfersvipluxe.com; identification and contact details in its <Ext href={AVISO_WEB}>legal notice</Ext>.</p>
+        <FichaTitular idioma="en" />
       </Seccion>
       <Seccion titulo="2. Purposes and legal bases">
         <ul className="list-disc space-y-2 pl-5">
           <li><strong>Transfer bookings</strong> (name, contact details, addresses, date, passengers and luggage): to manage and provide the requested service. Legal basis: performance of a contract or pre-contractual steps (Art. 6(1)(b) GDPR).</li>
           <li><strong>Management of drivers and services</strong> (assignment, history, incidents): based on the employment or service relationship (Art. 6(1)(b) GDPR) and on compliance with legal obligations (Art. 6(1)(c) GDPR).</li>
-          <li><strong>Driver geolocation</strong>: the “TVL Conductor” app sends the position <strong>only while the driver has “On duty” switched on</strong>, to coordinate pick-ups and keep the dispatch centre informed. It is never collected outside working hours or with the switch off. It is processed in accordance with Art. 90 of the Spanish Data Protection Act (LOPDGDD) and Art. 20.3 of the Workers’ Statute, with prior, express and clear information to the driver about its existence and features.</li>
+          <li><strong>Driver geolocation</strong>: the “TDL Conductor” app sends the position <strong>only while the driver has “On duty” switched on</strong>, to coordinate pick-ups and keep the dispatch centre informed. It is never collected outside working hours or with the switch off. It is processed in accordance with Art. 90 of the Spanish Data Protection Act (LOPDGDD) and Art. 20.3 of the Workers’ Statute, with prior, express and clear information to the driver about its existence and features.</li>
           <li><strong>Photos of fuel receipts</strong>: management and justification of service expenses (Art. 6(1)(b) and 6(1)(c) GDPR).</li>
           <li><strong>Device notification token</strong>: to notify the driver of assigned or modified services (Art. 6(1)(b) GDPR).</li>
           <li><strong>Notices to customers about their transfer</strong> (driver on the way, delay, arrival or change of driver): the driver or the dispatch centre opens WhatsApp or SMS with the message already written and sends it to the phone number the customer gave when booking. These are service messages, with no advertising. Legal basis: performance of the contract (Art. 6(1)(b) GDPR). The dispatch centre only records which notice was sent and when, not the content of the conversation.</li>
@@ -163,7 +160,7 @@ function PrivacidadEn() {
         </ul>
       </Seccion>
       <Seccion titulo="5. Your rights">
-        <p>You can exercise your rights of access, rectification, erasure, objection, restriction of processing and portability by contacting the controller through the means indicated in its <Ext href={AVISO_WEB}>legal notice</Ext>.</p>
+        <p>You can exercise your rights of access, rectification, erasure, objection, restriction of processing and portability by writing to the controller at <Ext href={`mailto:${CORREO_PRIVACIDAD}`}>{CORREO_PRIVACIDAD}</Ext>.</p>
         <p>If you believe the processing is not appropriate, you can lodge a complaint with the Spanish Data Protection Agency (<Ext href="https://www.aepd.es">aepd.es</Ext>).</p>
       </Seccion>
       <Seccion titulo="6. Cookies">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import LogoTVL from "@/components/comun/LogoTVL";
+import LogoMarca from "@/components/comun/LogoMarca";
 import { exigirRol } from "@/lib/supabase/sesion";
 import NavCentralMovil from "@/components/central/NavCentralMovil";
 import InterruptorSonido from "@/components/central/InterruptorSonido";
@@ -27,7 +27,7 @@ export default async function LayoutCentral({ children }: { children: React.Reac
     <div className="min-h-screen bg-slate-950 text-slate-200 md:flex">
       <NavCentralMovil nombre={yo.nombre} salir={salir} extra={extra} />
       <aside className="hidden w-56 md:flex shrink-0 flex-col border-r border-slate-800 bg-slate-900 p-4">
-        <Link href="/central" className="mb-6 flex flex-col items-center gap-2 text-center"><LogoTVL alto={72} prioridad /><span className="text-sm font-semibold text-marca-claro">Centro de control · TransferdeLuxe</span></Link>
+        <Link href="/central" className="mb-6 flex flex-col items-center gap-2 text-center"><LogoMarca alto={72} prioridad /><span className="text-sm font-semibold text-marca-claro">Centro de control · TransferdeLuxe</span></Link>
         <nav className="flex flex-1 flex-col gap-1">
           {[...ENLACES, ...extra].map(([h, t]) => <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm hover:bg-slate-800 hover:text-marca-claro">{t}</Link>)}
         </nav>

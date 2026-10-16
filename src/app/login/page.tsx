@@ -1,4 +1,4 @@
-import LogoTVL from "@/components/comun/LogoTVL";
+import LogoMarca from "@/components/comun/LogoMarca";
 import { CuentasDemo } from "@/components/login/CuentasDemo";
 import PieLegal from "@/components/legal/PieLegal";
 import { FormularioLogin } from "./formulario";
@@ -17,7 +17,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md space-y-6">
-        <div className="flex justify-center"><LogoTVL alto={96} prioridad /></div>
+        <div className="flex justify-center"><LogoMarca alto={96} prioridad /></div>
         <h1 className="text-center text-2xl font-semibold text-marca-claro">Acceso a TransferdeLuxe</h1>
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <FormularioLogin destino={destino ?? ""} />

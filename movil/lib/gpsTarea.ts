@@ -52,7 +52,7 @@ async function leerRef(id: string): Promise<Referencia | null> {
 
 /** Aviso local al conductor: el GPS se ha parado porque la sesión ya no es válida. */
 const avisarGpsDetenido = () => Notifications.scheduleNotificationAsync({
-  content: { title: "GPS detenido", body: "Tu sesión ha caducado. Abre TVL Conductor y vuelve a entrar para seguir en servicio." },
+  content: { title: "GPS detenido", body: "Tu sesión ha caducado. Abre TDL Conductor y vuelve a entrar para seguir en servicio." },
   trigger: null,
 }).catch(() => undefined);
 

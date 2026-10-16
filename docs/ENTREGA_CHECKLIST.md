@@ -48,7 +48,7 @@ Bases completas: `docs/Bases-Hackaton-Vibecoding-E7.docx.pdf` (local, no version
       actualizaciones automáticas siguen funcionando con la nueva huella.
 
 ## Estado a 12/10/2026
-- [x] App nativa TVL Conductor: APK Android funcionando, iOS en TestFlight.
+- [x] App nativa TDL Conductor: APK Android funcionando, iOS en TestFlight.
 - [x] Auditoría técnica/legal (`docs/INFORME_AUDITORIA.md`) y mejoras aprobadas: seguridad, GPS sin pérdidas, purga
       30 días, páginas legales, módulos (jornada, incidencias, checklist, mantenimiento, informes, vuelos).
 - [x] Guion del vídeo actualizado (sin «Restablecer demo»).

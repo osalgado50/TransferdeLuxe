@@ -1,8 +1,8 @@
-# TVL Conductor (app nativa) · Plan de implementación
+# TDL Conductor (app nativa) · Plan de implementación
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. Steps use checkbox syntax.
 
-**Goal:** App Expo «TVL Conductor» (Android/iOS) con GPS en segundo plano, push de servicio nuevo y el flujo completo
+**Goal:** App Expo «TDL Conductor» (Android/iOS) con GPS en segundo plano, push de servicio nuevo y el flujo completo
 del conductor, contra el mismo Supabase; distribución por TestFlight y prueba interna de Google Play.
 
 **Spec:** `docs/superpowers/specs/2026-10-10-app-nativa-conductor-design.md`
@@ -17,7 +17,7 @@ OpenStreetMap (sin claves de Google) · `expo-image-picker` · EAS Build/Submit 
 - Toda acción de servicio pasa por `POST https://app.transfersvipluxe.com/api/conductor/accion` (misma lógica
   `ejecutarAccion`, idempotente por `idAccion`).
 - Lógica pura compartida desde `src/lib/dominio/*` (no duplicar).
-- Datos solo ficticios; textos en español; marca TVL (icono VIP LUXE, azul de marca).
+- Datos solo ficticios; textos en español; marca ficticia TransferdeLuxe (emblema propio, azul de marca).
 - PROHIBIDO `npm run seed`, `npm run test:e2e`, `/api/demo/reset` (BD compartida con datos reales del responsable).
 - Contraseñas de Apple/Google/Expo solo las teclea el humano en su terminal; nunca en el chat ni en ficheros.
 - Commits pequeños en `main`, trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -33,9 +33,9 @@ OpenStreetMap (sin claves de Google) · `expo-image-picker` · EAS Build/Submit 
 
 ### Task N1: Andamiaje Expo, identidad y login
 - `movil/` con `npx create-expo-app@latest movil --template tabs` (TypeScript, Expo Router).
-- `app.config.ts`: nombre «TVL Conductor», slug `tvl-conductor`, owner `osalgado`, `ios.bundleIdentifier` y
-  `android.package` `com.transfersvipluxe.conductor`, icono y splash desde `public/marca/` (generar 1024×1024 con sharp
-  desde el icono VIP LUXE), `userInterfaceStyle: dark`, permisos de ubicación (textos en español) y `UIBackgroundModes`
+- `app.config.ts`: nombre «TDL Conductor», slug `tvl-conductor`, owner `osalgado`, `ios.bundleIdentifier` y
+  `android.package` `com.transfersvipluxe.conductor`, icono y splash generados con `scripts/marca.ts` (generar 1024×1024 con sharp
+  desde el emblema de la marca), `userInterfaceStyle: dark`, permisos de ubicación (textos en español) y `UIBackgroundModes`
   `location`, `remote-notification`; Android `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE_LOCATION`.
 - `eas.json` con perfiles `development`, `preview` (Android APK, `distribution: internal`) y `production`
   (AAB / iOS store).
@@ -62,7 +62,7 @@ OpenStreetMap (sin claves de Google) · `expo-image-picker` · EAS Build/Submit 
 
 ### Task N4: GPS en segundo plano
 - `expo-task-manager` + `Location.startLocationUpdatesAsync` (accuracy Balanced/High, `timeInterval` 15 s,
-  `distanceInterval` 25 m, `foregroundService` con notificación «TVL Conductor está usando tu ubicación»,
+  `distanceInterval` 25 m, `foregroundService` con notificación «TDL Conductor está usando tu ubicación»,
   `showsBackgroundLocationIndicator`, `pausesUpdatesAutomatically: false`).
 - La tarea inserta en `posiciones` con la sesión persistida (refrescar si caduca), con cola si no hay red.
 - Interruptor En servicio (arranca/para la tarea, marca fuera de servicio), estado «📍 hace Xs», permisos

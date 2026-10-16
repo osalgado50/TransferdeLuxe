@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Idioma } from "@/lib/i18n/portada";
-import { AVISO_WEB, Ext, Seccion } from "./PaginaLegal";
+import { Ext, FichaTitular, Seccion } from "./PaginaLegal";
 
 /** Aviso legal en castellano (versión que prevalece), catalán e inglés. */
 export const TITULO_AVISO: Record<Idioma, string> = { es: "Aviso legal", ca: "Avís legal", en: "Legal notice" };
@@ -18,10 +18,11 @@ function AvisoEs() {
   return (
     <>
       <Seccion titulo="1. Titular">
-        <p>En cumplimiento del art. 10 de la Ley 34/2002, de Servicios de la Sociedad de la Información y de Comercio Electrónico (LSSI-CE), se informa de que esta aplicación pertenece al titular de transfersvipluxe.com; datos identificativos y de contacto en su <Ext href={AVISO_WEB}>aviso legal</Ext>.</p>
+        <p>En cumplimiento del art. 10 de la Ley 34/2002, de Servicios de la Sociedad de la Información y de Comercio Electrónico (LSSI-CE), se informa de los datos identificativos del titular de esta aplicación:</p>
+        <FichaTitular idioma="es" />
       </Seccion>
       <Seccion titulo="2. Objeto">
-        <p>La aplicación «TVL Control» y la app «TVL Conductor» son herramientas internas de gestión de traslados (planificación, asignación a conductores, seguimiento y gastos). Además, ofrecen una página pública para solicitar reservas de traslados.</p>
+        <p>La aplicación «TransferdeLuxe Central» y la app «TDL Conductor» son herramientas internas de gestión de traslados (planificación, asignación a conductores, seguimiento y gastos). Además, ofrecen una página pública para solicitar reservas de traslados.</p>
       </Seccion>
       <Seccion titulo="3. Condiciones de uso">
         <p>El acceso a las zonas de gestión está restringido a personal autorizado con credenciales propias, que es responsable de custodiarlas. El usuario se compromete a usar la aplicación conforme a la ley y a este aviso, a facilitar datos veraces en las reservas y a no realizar acciones que dañen o sobrecarguen el servicio.</p>
@@ -47,10 +48,11 @@ function AvisoCa() {
   return (
     <>
       <Seccion titulo="1. Titular">
-        <p>En compliment de l’art. 10 de la Llei 34/2002, de serveis de la societat de la informació i de comerç electrònic (LSSI-CE), s’informa que aquesta aplicació pertany al titular de transfersvipluxe.com; dades identificatives i de contacte al seu <Ext href={AVISO_WEB}>avís legal</Ext>.</p>
+        <p>En compliment de l’art. 10 de la Llei 34/2002, de serveis de la societat de la informació i de comerç electrònic (LSSI-CE), s’informa de les dades identificatives del titular d’aquesta aplicació:</p>
+        <FichaTitular idioma="ca" />
       </Seccion>
       <Seccion titulo="2. Objecte">
-        <p>L’aplicació «TVL Control» i l’app «TVL Conductor» són eines internes de gestió de trasllats (planificació, assignació a conductors, seguiment i despeses). A més, ofereixen una pàgina pública per sol·licitar reserves de trasllats.</p>
+        <p>L’aplicació «TransferdeLuxe Central» i l’app «TDL Conductor» són eines internes de gestió de trasllats (planificació, assignació a conductors, seguiment i despeses). A més, ofereixen una pàgina pública per sol·licitar reserves de trasllats.</p>
       </Seccion>
       <Seccion titulo="3. Condicions d’ús">
         <p>L’accés a les zones de gestió està restringit a personal autoritzat amb credencials pròpies, que és responsable de custodiar-les. L’usuari es compromet a fer servir l’aplicació d’acord amb la llei i amb aquest avís, a facilitar dades veraces a les reserves i a no fer accions que malmetin o sobrecarreguin el servei.</p>
@@ -76,10 +78,11 @@ function AvisoEn() {
   return (
     <>
       <Seccion titulo="1. Owner">
-        <p>In accordance with Art. 10 of Spanish Law 34/2002 on Information Society Services and Electronic Commerce (LSSI-CE), you are informed that this application belongs to the owner of transfersvipluxe.com; identification and contact details in its <Ext href={AVISO_WEB}>legal notice</Ext>.</p>
+        <p>In accordance with Art. 10 of Spanish Law 34/2002 on Information Society Services and Electronic Commerce (LSSI-CE), the identification details of the owner of this application are as follows:</p>
+        <FichaTitular idioma="en" />
       </Seccion>
       <Seccion titulo="2. Purpose">
-        <p>The “TVL Control” application and the “TVL Conductor” app are internal tools for managing transfers (planning, assignment to drivers, tracking and expenses). They also provide a public page to request transfer bookings.</p>
+        <p>The “TransferdeLuxe Central” application and the “TDL Conductor” app are internal tools for managing transfers (planning, assignment to drivers, tracking and expenses). They also provide a public page to request transfer bookings.</p>
       </Seccion>
       <Seccion titulo="3. Terms of use">
         <p>Access to the management areas is restricted to authorised staff with their own credentials, who are responsible for keeping them safe. Users undertake to use the application in accordance with the law and this notice, to provide truthful information when booking and not to take any action that could damage or overload the service.</p>

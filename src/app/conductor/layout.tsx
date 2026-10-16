@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { leerModulos } from "@/lib/dominio/modulos";
-import LogoTVL from "@/components/comun/LogoTVL";
+import LogoMarca from "@/components/comun/LogoMarca";
 import type { Metadata, Viewport } from "next";
 import { exigirConductor } from "@/lib/supabase/sesion";
 import InterruptorServicio from "@/components/conductor/InterruptorServicio";
@@ -11,9 +11,9 @@ import RegistroSW from "@/components/conductor/RegistroSW";
 import DrenajeCola from "@/components/conductor/DrenajeCola";
 
 export const metadata: Metadata = {
-  title: "TVL VIP Transfers · Conductor",
+  title: "TransferdeLuxe · Conductor",
   icons: { apple: "/apple-touch-icon.png" },
-  appleWebApp: { capable: true, title: "TVL Conductor", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "TDL Conductor", statusBarStyle: "black-translucent" },
 };
 export const viewport: Viewport = { themeColor: "#0b1b2e", width: "device-width", initialScale: 1 };
 
@@ -32,7 +32,7 @@ export default async function LayoutConductor({ children }: { children: React.Re
       <DrenajeCola conductorId={yo.id} />
       <TarjetaServicioNuevo iniciales={(nuevos ?? []) as ServicioNuevo[]} yo={yo.id} vuelos={leerModulos(aj?.modulos).vuelos} />
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 px-4 py-3">
-        <div className="flex items-center gap-3"><LogoTVL alto={48} prioridad /><div><p className="text-xs text-slate-400">Conductor · TransferdeLuxe</p><p className="text-lg font-semibold text-marca-claro">{yo.nombre}</p></div></div>
+        <div className="flex items-center gap-3"><LogoMarca alto={44} soloEmblema /><div><p className="text-xs text-slate-400">Conductor · TransferdeLuxe</p><p className="text-lg font-semibold text-marca-claro">{yo.nombre}</p></div></div>
         <InterruptorServicio conductorId={yo.id} />
       </header>
       <main className="p-4">{children}</main>

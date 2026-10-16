@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const CLAVE = "tvl-guia-plegada";
+const CLAVE = "tdl-guia-plegada";
 
 /**
  * Guía rápida en el panel en vivo para quien evalúa o prueba la app: qué tocar y dónde, en cinco minutos. Se pliega y

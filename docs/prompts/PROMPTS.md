@@ -1455,3 +1455,9 @@ transferde-luxe-hfiw ¿Este proyecto es el que estás utilizando en Vercel o es 
 
 ---
 
+## 2026-10-16 23:46 · Claude Code · sesión `b3c0e64f`
+
+Vale, ahora queda otro punto que me preocupa es que la normativa del concurso dice que no podemos utilizar datos reales entonces tendríamos que cambiar el nombre de la empresa cambiar el logotipo y los textos legales pones uno tipo plantilla que no incluya nada de de real para que no tengamos ningún problema con, con el uso de, datos de de un propietario real.
+
+---
+

@@ -1,4 +1,4 @@
-// Decisiones puras del GPS en segundo plano de la app nativa (TVL Conductor). Sin dependencias de Expo:
+// Decisiones puras del GPS en segundo plano de la app nativa (TDL Conductor). Sin dependencias de Expo:
 // las prueba vitest en la raíz y las importa la app vía @dominio/gpsNativo.
 
 export const MIN_ENTRE_ENVIOS_MS = 12_000; // el SO puede entregar lotes seguidos: como mucho un envío cada 12 s

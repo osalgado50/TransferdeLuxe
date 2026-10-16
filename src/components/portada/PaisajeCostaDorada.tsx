@@ -47,7 +47,7 @@ export default function PaisajeCostaDorada({ className = "" }: { className?: str
       <rect width="1600" height="900" fill="url(#cielo)" />
       <g fill="#fff">
         {[[120, 70], [260, 140], [430, 60], [610, 120], [820, 50], [990, 110], [1180, 70], [1350, 130], [1500, 60], [700, 200], [350, 230], [1250, 220]].map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 2 : 1.3} className="tvl-estrella" style={{ animationDelay: `${(i % 5) * 0.7}s` }} />
+          <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 2 : 1.3} className="tdl-estrella" style={{ animationDelay: `${(i % 5) * 0.7}s` }} />
         ))}
       </g>
 
@@ -60,12 +60,12 @@ export default function PaisajeCostaDorada({ className = "" }: { className?: str
       <path d="M0 555 C 140 520 260 515 380 545 C 450 562 520 585 600 600 L 0 600 Z" fill="#20162f" />
       <rect x="236" y="430" width="10" height="34" fill="#1a1226" />
       <polygon points="232,432 250,432 241,420" fill="#1a1226" />
-      <circle cx="241" cy="428" r="26" fill="url(#faro)" className="tvl-faro" />
+      <circle cx="241" cy="428" r="26" fill="url(#faro)" className="tdl-faro" />
       <path d="M1180 600 C 1300 585 1420 575 1600 580 L 1600 600 Z" fill="#2a1d3d" />
 
       {/* Mar, reflejo del sol y olas */}
       <rect y="598" width="1600" height="302" fill="url(#mar)" />
-      <g fill="#ffd98c" className="tvl-brillo">
+      <g fill="#ffd98c" className="tdl-brillo">
         <rect x="1030" y="610" width="100" height="5" rx="2.5" />
         <rect x="1010" y="632" width="140" height="5" rx="2.5" opacity="0.8" />
         <rect x="1040" y="656" width="80" height="4" rx="2" opacity="0.7" />
@@ -73,14 +73,14 @@ export default function PaisajeCostaDorada({ className = "" }: { className?: str
         <rect x="1050" y="710" width="60" height="3" rx="1.5" opacity="0.4" />
       </g>
       <g fill="none" stroke="#8fb0e6" strokeOpacity="0.35" strokeWidth="2.5" strokeLinecap="round">
-        <path className="tvl-ola" d="M-200 690 q 50 -12 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0" />
-        <path className="tvl-ola tvl-ola-lenta" d="M-200 735 q 60 -14 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0" strokeOpacity="0.25" />
+        <path className="tdl-ola" d="M-200 690 q 50 -12 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0 t 100 0" />
+        <path className="tdl-ola tdl-ola-lenta" d="M-200 735 q 60 -14 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0" strokeOpacity="0.25" />
       </g>
 
       {/* Paseo marítimo: arena, carretera y el coche */}
       <path d="M0 790 C 300 770 600 772 900 782 C 1200 792 1400 788 1600 776 L 1600 900 L 0 900 Z" fill="url(#arena)" />
       <path d="M0 818 C 400 806 1000 812 1600 804" stroke="#5a4a6a" strokeWidth="3" strokeDasharray="22 18" fill="none" opacity="0.6" />
-      <g className="tvl-coche">
+      <g className="tdl-coche">
         {/* Berlina negra de lujo con faros */}
         <polygon points="196,806 420,798 420,816 196,830" fill="url(#luces)" opacity="0.55" />
         <path d="M70 812 C 72 798 92 792 112 790 L 140 778 C 150 772 168 770 186 771 L 206 772 C 222 774 234 782 244 790 L 262 793 C 276 795 284 802 284 812 Z" fill="#05070d" />

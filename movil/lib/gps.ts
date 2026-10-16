@@ -37,7 +37,7 @@ export async function arrancarGps(): Promise<void> {
     showsBackgroundLocationIndicator: true,
     activityType: Location.ActivityType.AutomotiveNavigation,
     foregroundService: {
-      notificationTitle: "TVL Conductor",
+      notificationTitle: "TDL Conductor",
       notificationBody: "Compartiendo tu ubicación con la central",
       notificationColor: "#2a75a8",
       killServiceOnDestroy: false,

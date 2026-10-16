@@ -1,4 +1,4 @@
-# TVL Conductor — App nativa (Android/iOS) · Diseño
+# TDL Conductor — App nativa (Android/iOS) · Diseño
 
 Fecha: 10/10/2026 · Estado: aprobado en conversación, pendiente de revisión escrita · Plataforma: Claude Code
 
@@ -23,7 +23,7 @@ CARGA, DESCARGA, ticket) funciona igual que en la PWA. Distribución: TestFlight
 | Push | `expo-notifications` + Expo Push Service; tabla `dispositivos_push(conductor_id, token, plataforma)`; trigger/función en servidor que notifica al pasar un servicio a `asignado` |
 | Mapa | `react-native-maps` (Apple Maps en iOS, Google en Android) con la ruta de `/api/ruta` y avisos de proximidad (`lib/dominio/navegacion.ts` compartido) |
 | Ticket | Cámara con `expo-image-picker`; OCR: se mantiene Tesseract.js en la web; en la app nativa la primera versión sube la foto y el conductor rellena los campos (OCR nativo como mejora) |
-| Identidad | Nombre «TVL Conductor», bundle/package `com.transfersvipluxe.conductor`, icono VIP LUXE, paleta de marca |
+| Identidad | Nombre «TDL Conductor», bundle/package `com.transfersvipluxe.conductor`, emblema propio de TransferdeLuxe, paleta de marca |
 | Distribución | iOS: TestFlight con la cuenta personal de Apple Developer. Android: pista de prueba interna (hasta 100 testers) con la cuenta personal de Google Play |
 
 ## 3. Pantallas (mismas que la PWA)

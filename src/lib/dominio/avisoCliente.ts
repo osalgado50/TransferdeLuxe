@@ -60,7 +60,7 @@ export interface DatosAviso {
   emisor?: "conductor" | "central";
 }
 
-const EMPRESA = "TVL VIP Transfers";
+const EMPRESA = "TransferdeLuxe";
 
 /** Texto del mensaje (es/en). Las piezas que faltan (ETA, enlace, vehículo) se omiten sin dejar huecos raros. */
 export function mensajeAviso(tipo: TipoAviso, d: DatosAviso): string {
