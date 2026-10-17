@@ -30,6 +30,13 @@ def main():
         )
     ahora = datetime.now(ZoneInfo("Europe/Madrid")).strftime("%Y-%m-%d %H:%M")
     sesion = (data.get("session_id") or "")[:8]
+    # Sin datos personales reales ni la marca real (bases del hackathon): mismo filtro que las transcripciones.
+    try:
+        sys.path.insert(0, str(root / "scripts"))
+        from anonimizar import anonimizar
+        prompt = anonimizar(prompt)
+    except Exception:
+        pass
     with log.open("a", encoding="utf-8") as f:
         f.write(f"## {ahora} · Claude Code · sesión `{sesion}`\n\n{prompt}\n\n---\n\n")
 

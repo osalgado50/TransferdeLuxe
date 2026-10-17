@@ -25,20 +25,9 @@ def texto(content):
     return "\n\n".join(p.strip() for p in partes if p.strip())
 
 
-# Datos personales reales que no deben salir en el historial público (bases del hackathon).
-ANONIMIZAR = [
-    (re.compile(r"Oscar Salgado(?: Sugra[ñn]es)?", re.I), "[responsable]"),
-    (re.compile(r"Dr\.? Eduard Punset[^\n»]*", re.I), "[dirección privada]"),
-    (re.compile(r"Rustical Mont-roig", re.I), "[establecimiento]"),
-    (re.compile(r"\bOscar\b"), "[responsable]"),
-    (re.compile(r"Demo-zjSOtzfsbqGS"), "[contraseña de demo antigua]"),
-]
-
-
-def anonimizar(t):
-    for patron, sust in ANONIMIZAR:
-        t = patron.sub(sust, t)
-    return t
+# Datos personales reales y la marca real: fuera del historial público (bases del hackathon). Módulo común.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from anonimizar import anonimizar  # noqa: E402
 
 
 def hora(ts):

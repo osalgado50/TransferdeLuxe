@@ -41,3 +41,6 @@ movil/.expo/
 movil/ios/
 movil/android/
 movil/dist/
+
+# Patrones locales del anonimizador (contienen los datos reales que tapan)
+scripts/anonimizar.local.tsv
