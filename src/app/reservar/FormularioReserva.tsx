@@ -42,7 +42,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     if (modo === "publico" && sinAntelacion(String(fd.get("fecha")), String(fd.get("hora")), Date.now())) {
-      setHoraLocal("Reserva con al menos 1 hora de antelación. Si es más urgente, llámanos."); return;
+      setHoraLocal("Reserva con al menos media hora de antelación. Si es más urgente, llámanos."); return;
     }
     setHoraLocal(null); setVerHueco(true);
     ultimo.current = fd;

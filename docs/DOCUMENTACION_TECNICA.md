@@ -742,7 +742,7 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 - **Reservas con sentido y con hueco (16/10/2026)**. Petición: no aceptar fechas pasadas (con una reserva para hoy a las
   7:00 hecha a las 21:00 salió «Application error») y, antes de registrar la reserva, comprobar si hay algún conductor
   libre; si no, decírselo al cliente y ofrecerle WhatsApp o llamar a la central. `src/lib/reserva/disponibilidad.ts`
-  (con tests): mínimo 1 h de antelación en la web pública (el campo de hora no deja elegir antes y el servidor lo
+  (con tests): mínimo media hora de antelación en la web pública (al principio 1 h; se redujo a petición) (el campo de hora no deja elegir antes y el servidor lo
   rechaza; la central sigue pudiendo registrar lo que entra por teléfono) y enlaces de llamada/WhatsApp con el mensaje
   ya escrito. `hayConductorLibre` reutiliza el motor de sugerencias de la central (horario, ausencias, otros servicios,
   plazas y maletas): si nadie es «apto», la reserva no se crea y la web dice «A esa hora tenemos todos los coches

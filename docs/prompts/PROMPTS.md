@@ -1461,3 +1461,41 @@ Vale, ahora queda otro punto que me preocupa es que la normativa del concurso di
 
 ---
 
+## 2026-10-17 00:22 · Claude Code · sesión `b3c0e64f`
+
+<pasted_content id="e72c">
+mac2019@MAC2019 TransferdeLuxe % npx eas-cli build --platform ios --profile production --auto-submit
+
+⚠️ Detected that your app uses Expo Go for development, this is not recommended when building production apps.
+Learn more
+To suppress this warning, set EAS_BUILD_NO_EXPO_GO_WARNING=true.
+
+EAS project not configured.
+✔ Which account should own this project? › osalgado
+✔ Would you like to automatically create an EAS project for @osalgado/transferdeluxe? … yes
+✔ Created @osalgado/transferdeluxe on EAS
+✔ Linked local project to EAS project 1d1914c1-f318-4369-9eb8-88fd5312d36d
+Resolved "production" environment for the build. Learn more
+No environment variables with visibility "Plain text" and "Sensitive" found for the "production" environment on EAS.
+
+📝  iOS Bundle Identifier Learn more
+✔ What would you like your iOS bundle identifier to be? … com.osalgado.transferdeluxe
+✔ iOS app only uses standard/exempt encryption? Learn more … yes
+Failed to resolve iOS entitlements from Expo config using the bundled config fallback: Cannot find 'expo-modules-autolinking' package in your project, make sure that you have 'expo' package installed
+    Error: build command failed.
+</pasted_content id="e72c">
+
+---
+
+## 2026-10-17 00:32 · Claude Code · sesión `b3c0e64f`
+
+ya está compilando, avísame cuando esté en TestFlight
+
+---
+
+## 2026-10-17 13:07 · Claude Code · sesión `b3c0e64f`
+
+Reduce a media hora el plazo mínimo en lugar de una hora, ¿vale? Más o menos, una media hora.
+
+---
+

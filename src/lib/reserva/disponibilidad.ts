@@ -1,12 +1,12 @@
 /**
- * Reserva pública con sentido: nada en el pasado ni con menos de 1 h de antelación (para lo urgente, llamar), y si no
+ * Reserva pública con sentido: nada en el pasado ni con menos de media hora de antelación (para lo urgente, llamar), y si no
  * hay ningún coche libre a esa hora, ofrecer contactar con la central por WhatsApp o teléfono (lógica pura).
  */
 import { madridAUtc } from "@/lib/dominio/dias";
 
-export const ANTELACION_MIN = 60;
+export const ANTELACION_MIN = 30;
 
-/** ¿La recogida es antes de ahora + 1 h? (fecha «2026-10-16», hora «07:00», hora de Madrid). */
+/** ¿La recogida es antes de ahora + 30 min? (fecha «2026-10-16», hora «07:00», hora de Madrid). */
 export function sinAntelacion(fecha: string, hora: string, ahora: number): boolean {
   const t = Date.parse(madridAUtc(fecha, hora));
   return Number.isFinite(t) && t < ahora + ANTELACION_MIN * 60_000;
@@ -15,7 +15,7 @@ export function sinAntelacion(fecha: string, hora: string, ahora: number): boole
 const fmtDia = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" });
 const fmtHora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 /**
- * Hora mínima del campo «hora» si la fecha elegida es hoy (ahora + 1 h, redondeada a 5 min hacia arriba); undefined si
+ * Hora mínima del campo «hora» si la fecha elegida es hoy (ahora + 30 min, redondeada a 5 min hacia arriba); undefined si
  * es otro día. Si ya no da tiempo hoy, «23:59» (el navegador no dejará elegir ninguna).
  */
 export function horaMinima(fecha: string, ahora: number): string | undefined {

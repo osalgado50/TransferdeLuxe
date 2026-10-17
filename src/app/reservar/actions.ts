@@ -13,13 +13,13 @@ export type EstadoReserva = {
   sinHueco?: boolean; contacto?: { telefono: string | null; whatsapp: string | null };
 };
 
-const PRONTO = `Reserva con al menos ${ANTELACION_MIN / 60} h de antelación (para algo más urgente, llámanos)`;
+const PRONTO = `Reserva con al menos ${ANTELACION_MIN} minutos de antelación (para algo más urgente, llámanos)`;
 
 export async function reservar(_: EstadoReserva, fd: FormData): Promise<EstadoReserva> {
   const ip = ipCliente(await headers());
   const r = esquemaReserva.safeParse(Object.fromEntries(fd));
   if (!r.success) return { errores: r.error.flatten().fieldErrors as Record<string, string[]>, mensaje: "Revisa los campos marcados" };
-  // La web pública no admite nada pasado ni con menos de 1 h (la central sí puede registrar lo que entra por teléfono).
+  // La web pública no admite nada pasado ni con menos de media hora (la central sí puede registrar lo que entra por teléfono).
   const ahora = Date.now();
   const errores: Record<string, string[]> = {};
   if (sinAntelacion(r.data.fecha, r.data.hora, ahora)) errores.hora = [PRONTO];
