@@ -1505,3 +1505,27 @@ Dos cosas a hacer con el mapa de la pantalla del conductor. Este cuadrito que sa
 
 ---
 
+## 2026-10-17 13:16 · Claude Code · sesión `b3c0e64f`
+
+¿Me puedes explicar cómo hay un coche en el agua? El, el de la O. Los coches no pueden salir del terreno. A ver si, si cuadras este. En caso de no tener los datos GPS claros, pues los pones en la base.
+
+---
+
+## 2026-10-17 13:16 · Claude Code · sesión `b3c0e64f`
+
+Nos haría falta un botón para cancelar o borrar conductores, ¿vale? Al lado de guardar le pones una X roja para poder eliminar ese conductor de la base de datos.
+
+---
+
+## 2026-10-17 13:16 · Claude Code · sesión `b3c0e64f`
+
+Esta es la versión eh, de la página web. Vista en un iPhone 18, fíjate los iconos de los altavoces de los micrófonos, perdona, donde aparecen. A ver si los puedes colocar en su sitio y comprueba que se vea bien en, todos los tamaños de los móviles y en las versiones de la página web que se vean desde un navegador de móvil. Esto está visto en Safari, pues también tendrás que mirar Chrome. Que esté perfecta cuadrado.
+
+---
+
+## 2026-10-17 13:17 · Claude Code · sesión `b3c0e64f`
+
+Luego a ver si puedes añadir en, en dónde recogemos otro botoncito que mediante el GPS del, del teléfono móvil o, o la localización que puedas tener, eh, recoge la dirección de donde estamos. ¿Vale? O sea, toco aquí, aunque yo soy en extranjero, no sé en qué calle estoy, pues que me rellene automáticamente el campo buscándolo en el GPS.
+
+---
+

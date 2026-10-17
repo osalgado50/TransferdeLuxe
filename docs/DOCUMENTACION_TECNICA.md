@@ -767,6 +767,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   el coche. El «cuadrito gris» con FPS/GPU que pidió quitar no es de la app: es el HUD de rendimiento gráfico de iOS
   (Ajustes → Desarrollador), que el sistema dibuja sobre cualquier vista Metal como el mapa.
 
+- **Micrófono bien colocado en Safari y «Usar mi ubicación» (17/10/2026)**. En el iPhone el botón de dictar salía
+  encima del texto: Safari no calcula «alto 100 % + proporción cuadrada» dentro de un elemento absoluto; ahora es de
+  tamaño fijo y centrado (comprobado en Safari del simulador de iPhone y en Chrome a 360 px). Nuevo botón ➤ en la
+  dirección de recogida: pide la ubicación al móvil y la convierte en dirección con Nominatim «reverse» (gratuito, en
+  el servidor, 1 petición/s y caché); si no responde, se usa «Mi ubicación (coordenadas)», que también sirve para
+  recoger. Avisos si no hay permiso o no se encuentra; textos en los tres idiomas; parser con test.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se

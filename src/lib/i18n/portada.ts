@@ -35,7 +35,8 @@ export interface TextosPortada {
   ventajas: { titulo: string; items: { icono: string; titulo: string; texto: string }[] };
   pie: { privacidad: string; aviso: string; lema: string };
   direccion: { buscando: string; buscandoMapa: string; sugerencias: string; usar: (t: string) => string; sinPunto: string;
-    voz: string; dictar: string; escuchando: string; permiso: string; noOido: string; otro: string };
+    voz: string; dictar: string; escuchando: string; permiso: string; noOido: string; otro: string;
+    ubicacion: string; buscandoUbicacion: string; sinPermisoUbicacion: string; errorUbicacion: string };
 }
 
 export const TEXTOS: Record<Idioma, TextosPortada> = {
@@ -80,7 +81,9 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
     pie: { privacidad: "Privacidad", aviso: "Aviso legal", lema: "TransferdeLuxe · Costa Dorada" },
     direccion: { buscando: "Buscando direcciones…", buscandoMapa: "Buscando en el mapa…", sugerencias: "Sugerencias de dirección", usar: (t) => `Usar “${t}” tal cual`, sinPunto: "(sin punto en el mapa)",
       voz: "es-ES", dictar: "Dictar la dirección", escuchando: "Escuchando… toca para terminar", permiso: "Permite el micrófono para dictar la dirección.",
-      noOido: "No te he oído. Toca el micrófono y vuelve a probar.", otro: "No se pudo dictar. Escríbela, por favor." },
+      noOido: "No te he oído. Toca el micrófono y vuelve a probar.", otro: "No se pudo dictar. Escríbela, por favor.",
+      ubicacion: "Usar mi ubicación", buscandoUbicacion: "Buscando dónde estás…", sinPermisoUbicacion: "Permite la ubicación en el navegador para rellenar la dirección.",
+      errorUbicacion: "No se pudo saber dónde estás. Escribe la dirección, por favor." },
   },
   ca: {
     meta: { titulo: "Trasllats VIP a la Costa Daurada · TransferdeLuxe", descripcion: "Reserva el teu trasllat privat a Salou, Cambrils, Tarragona, PortAventura i els aeroports de Reus i Barcelona." },
@@ -123,7 +126,9 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
     pie: { privacidad: "Privacitat", aviso: "Avís legal", lema: "TransferdeLuxe · Costa Daurada" },
     direccion: { buscando: "Cercant adreces…", buscandoMapa: "Cercant al mapa…", sugerencias: "Suggeriments d’adreça", usar: (t) => `Fer servir “${t}” tal com està`, sinPunto: "(sense punt al mapa)",
       voz: "ca-ES", dictar: "Dictar l’adreça", escuchando: "Escoltant… toca per acabar", permiso: "Permet el micròfon per dictar l’adreça.",
-      noOido: "No t’he sentit. Toca el micròfon i torna-ho a provar.", otro: "No s’ha pogut dictar. Escriu-la, si us plau." },
+      noOido: "No t’he sentit. Toca el micròfon i torna-ho a provar.", otro: "No s’ha pogut dictar. Escriu-la, si us plau.",
+      ubicacion: "Fer servir la meva ubicació", buscandoUbicacion: "Cercant on ets…", sinPermisoUbicacion: "Permet la ubicació al navegador per omplir l’adreça.",
+      errorUbicacion: "No s’ha pogut saber on ets. Escriu l’adreça, si us plau." },
   },
   en: {
     meta: { titulo: "VIP transfers on the Costa Dorada · TransferdeLuxe", descripcion: "Book your private transfer in Salou, Cambrils, Tarragona, PortAventura and Reus and Barcelona airports." },
@@ -166,7 +171,9 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
     pie: { privacidad: "Privacy", aviso: "Legal notice", lema: "TransferdeLuxe · Costa Dorada" },
     direccion: { buscando: "Searching addresses…", buscandoMapa: "Searching the map…", sugerencias: "Address suggestions", usar: (t) => `Use “${t}” as typed`, sinPunto: "(no map point)",
       voz: "en-GB", dictar: "Dictate the address", escuchando: "Listening… tap to finish", permiso: "Allow the microphone to dictate the address.",
-      noOido: "I didn’t hear you. Tap the microphone and try again.", otro: "Dictation failed. Please type it." },
+      noOido: "I didn’t hear you. Tap the microphone and try again.", otro: "Dictation failed. Please type it.",
+      ubicacion: "Use my location", buscandoUbicacion: "Finding where you are…", sinPermisoUbicacion: "Allow location in your browser to fill in the address.",
+      errorUbicacion: "We couldn’t find your location. Please type the address." },
   },
 };
 

@@ -33,11 +33,14 @@ type Props = {
   placeholder?: string;
   /** Clases de la etiqueta (la portada la usa más grande). */
   claseEtiqueta?: string;
+  /** Botón «Usar mi ubicación» (recogida): rellena el campo con la dirección del GPS del móvil. */
+  conUbicacion?: boolean;
 };
 export interface TextosDireccion extends TextosVoz {
   buscando: string; buscandoMapa: string; sugerencias: string; usar: (t: string) => string; sinPunto: string;
   /** Idioma del dictado por voz (BCP 47). */
   voz: string;
+  ubicacion: string; buscandoUbicacion: string; sinPermisoUbicacion: string; errorUbicacion: string;
 }
 const TEXTOS_ES: TextosDireccion = {
   buscando: "Buscando direcciones…", buscandoMapa: "Buscando en el mapa…", sugerencias: "Sugerencias de dirección",
@@ -45,9 +48,11 @@ const TEXTOS_ES: TextosDireccion = {
   voz: "es-ES", dictar: "Dictar la dirección", escuchando: "Escuchando… toca para terminar",
   permiso: "Permite el micrófono para dictar la dirección.", noOido: "No te he oído. Toca el micrófono y vuelve a probar.",
   otro: "No se pudo dictar. Escríbela, por favor.",
+  ubicacion: "Usar mi ubicación", buscandoUbicacion: "Buscando dónde estás…",
+  sinPermisoUbicacion: "Permite la ubicación en el navegador para rellenar la dirección.", errorUbicacion: "No se pudo saber dónde estás. Escribe la dirección, por favor.",
 };
 
-export default function CampoDireccion({ name, etiqueta, requerido, valorInicial = "", error, favoritos, lugaresEmpresa, rellenar, onCambio, extra, textos, claseInput, placeholder, claseEtiqueta }: Props) {
+export default function CampoDireccion({ name, etiqueta, requerido, valorInicial = "", error, favoritos, lugaresEmpresa, rellenar, onCambio, extra, textos, claseInput, placeholder, claseEtiqueta, conUbicacion }: Props) {
   const tx = { ...TEXTOS_ES, ...textos };
   const [texto, setTexto] = useState(valorInicial);
   const [lat, setLat] = useState("");
@@ -66,6 +71,8 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   const [activo, setActivo] = useState(-1);
   const salida = useRef<ReturnType<typeof setTimeout> | null>(null);
   const campo = useRef<HTMLInputElement>(null);
+  /** Campo grande (portada): micrófono más grande. */
+  const grande = !!claseInput?.includes("min-h-14");
   const idLista = useId();
   const idOpcion = (i: number) => `${idLista}-op-${i}`;
 
@@ -129,6 +136,30 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
   function dictando(t: string) { setTexto(t); setLat(""); setLng(""); elegido.current = null; setOculto(false); }
   function dictado(t: string) { dictando(t); campo.current?.focus(); setAbierto(true); }
 
+  // «Usar mi ubicación»: GPS del móvil → dirección (servidor, Nominatim reverse) → campo rellenado y elegido.
+  const [localizando, setLocalizando] = useState(false);
+  const [falloUbicacion, setFalloUbicacion] = useState<string | null>(null);
+  useEffect(() => {
+    if (!falloUbicacion) return;
+    const t = setTimeout(() => setFalloUbicacion(null), 6000);
+    return () => clearTimeout(t);
+  }, [falloUbicacion]);
+  function usarUbicacion() {
+    if (localizando) return;
+    if (!navigator.geolocation) { setFalloUbicacion(tx.errorUbicacion); return; }
+    setLocalizando(true); setFalloUbicacion(null);
+    navigator.geolocation.getCurrentPosition(async (p) => {
+      try {
+        const r = await fetch(`/api/geocodificar?lat=${p.coords.latitude.toFixed(6)}&lng=${p.coords.longitude.toFixed(6)}`);
+        const l = r.ok ? ((await r.json()) as Lugar) : null;
+        if (l?.etiqueta) elegir(l); else setFalloUbicacion(tx.errorUbicacion);
+      } catch { setFalloUbicacion(tx.errorUbicacion); } finally { setLocalizando(false); }
+    }, (e) => {
+      setLocalizando(false);
+      setFalloUbicacion(e.code === e.PERMISSION_DENIED ? tx.sinPermisoUbicacion : tx.errorUbicacion);
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60_000 });
+  }
+
   function usarTalCual() {
     elegido.current = texto;
     setLat(""); setLng(""); setLugares([]); setAbierto(false);
@@ -183,17 +214,27 @@ export default function CampoDireccion({ name, etiqueta, requerido, valorInicial
             }}
             onKeyDown={teclas}
             placeholder={placeholder}
-            className={`${claseInput ?? "w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-3 text-slate-100 focus:border-marca-claro focus:outline-none"} pr-[4.75rem]!`}
+            className={`${claseInput ?? "w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-3 text-slate-100 focus:border-marca-claro focus:outline-none"} ${conUbicacion ? (grande ? "pr-[8.25rem]!" : "pr-[6.5rem]!") : grande ? "pr-[5.25rem]!" : "pr-[4.25rem]!"}`}
           />
           {/* A la derecha, dentro del campo: «buscando» y el micrófono para dictar (del alto del campo). */}
-          <span className="absolute inset-y-1 right-1 flex items-center gap-1.5">
+          {/* Centrado con top 50% + translate y tamaño fijo: Safari (iPhone) no calcula bien alto 100% + aspect-ratio
+              dentro de un absoluto y colocaba el micrófono encima del texto. */}
+          <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
             {buscando && <Girando className="pointer-events-none h-4 w-4 text-marca-claro" />}
-            <BotonVoz idioma={tx.voz} textos={tx} onParcial={dictando} onTexto={dictado} className="aspect-square h-full"
+            {conUbicacion && (
+              <button type="button" onClick={usarUbicacion} aria-label={localizando ? tx.buscandoUbicacion : tx.ubicacion} title={tx.ubicacion} aria-busy={localizando}
+                className={`flex shrink-0 items-center justify-center rounded-lg transition ${grande ? "size-11" : "size-8"} ${claseInput?.includes("bg-white") ? "bg-slate-900/10 text-slate-700 hover:bg-amber-200" : "bg-slate-400/20 text-slate-200 hover:bg-slate-400/35"}`}>
+                {localizando ? <Girando className="h-[50%] w-[50%] text-marca-claro" />
+                  : <svg viewBox="0 0 24 24" className="h-[55%] w-[55%]" fill="currentColor" aria-hidden="true"><path d="M21 3 3 10.5l7.2 2.3L12.5 20z" /></svg>}
+              </button>
+            )}
+            <BotonVoz idioma={tx.voz} textos={tx} onParcial={dictando} onTexto={dictado} className={grande ? "size-11 shrink-0" : "size-8 shrink-0"}
               sobreClaro={!!claseInput?.includes("bg-white")} />
           </span>
         </span>
       </label>
-      <span role="status" className="sr-only">{buscando ? tx.buscando : ""}</span>
+      <span role="status" className="sr-only">{buscando ? tx.buscando : localizando ? tx.buscandoUbicacion : ""}</span>
+      {falloUbicacion && <p role="alert" className="mt-1 text-sm font-medium text-amber-300">{falloUbicacion}</p>}
       <input type="hidden" name={`${name}_lat`} value={lat} />
       <input type="hidden" name={`${name}_lng`} value={lng} />
       {mostrar && (

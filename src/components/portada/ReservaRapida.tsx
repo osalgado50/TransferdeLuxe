@@ -105,7 +105,7 @@ export default function ReservaRapida({ idioma }: { idioma: Idioma }) {
     <form onSubmit={enviarForm} className="space-y-5 rounded-3xl border border-white/10 bg-slate-950/75 p-5 shadow-2xl backdrop-blur-md sm:p-7" aria-labelledby="titulo-reserva">
       <h2 id="titulo-reserva" className="font-titulo text-3xl font-bold text-white sm:text-4xl">{t.form.titulo}</h2>
 
-      <CampoDireccion name="origen" etiqueta={t.form.recogida} requerido placeholder={t.form.recogidaAyuda} error={error("origen_texto") ?? undefined}
+      <CampoDireccion name="origen" conUbicacion etiqueta={t.form.recogida} requerido placeholder={t.form.recogidaAyuda} error={error("origen_texto") ?? undefined}
         textos={t.direccion} claseInput={campoDireccion} claseEtiqueta={etiqueta} />
       <div>
         <CampoDireccion name="destino" etiqueta={t.form.destino} requerido placeholder={t.form.destinoAyuda} error={error("destino_texto") ?? undefined}

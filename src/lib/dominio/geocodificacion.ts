@@ -191,3 +191,14 @@ export function atribucion(lugares: { fuente?: FuenteLugar }[]): string | null {
   if (lugares.some((l) => l.fuente === "nominatim")) return "Búsqueda: © OpenStreetMap";
   return null;
 }
+
+/**
+ * Respuesta de Nominatim «reverse» (de coordenadas a dirección, botón «Usar mi ubicación») → lugar con etiqueta
+ * «Calle nº · Localidad»; null si no trae nada útil. Las coordenadas del lugar son las del móvil (más exactas).
+ */
+export function lugarDesdeReverse(json: unknown, lat: number, lng: number): LugarSugerido | null {
+  const o = json as ObjNominatim | null;
+  if (!o || typeof o !== "object" || !o.display_name) return null;
+  const [c] = parsearNominatim([{ ...o, lat: String(lat), lon: String(lng) }]) ?? [];
+  return c ? { etiqueta: c.etiqueta, lat, lng, frecuente: false, fuente: "nominatim" } : null;
+}

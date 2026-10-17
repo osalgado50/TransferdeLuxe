@@ -142,7 +142,7 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
             </select>
           </label>
         )}
-        <CampoDireccion name="origen" etiqueta="Dirección de recogida" requerido error={err("origen_texto")}
+        <CampoDireccion name="origen" conUbicacion etiqueta="Dirección de recogida" requerido error={err("origen_texto")}
           favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} rellenar={rellenoO} onCambio={setOrigen} extra={botonFav("origen", origen)} />
         <CampoDireccion name="destino" etiqueta="Dirección de destino" requerido error={err("destino_texto")}
           favoritos={central ? direcciones : undefined} lugaresEmpresa={central ? lugaresEmpresa : undefined} rellenar={rellenoD} onCambio={setDestino} extra={botonFav("destino", destino)} />
