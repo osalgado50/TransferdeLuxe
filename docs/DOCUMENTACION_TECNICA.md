@@ -1075,6 +1075,14 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   15.5.28). Se forzó la versión corregida solo para Next con `overrides` de npm (`postcss ^8.5.30`, la misma rama 8.5 que
   ya usaba Tailwind); `npm audit` queda en 0 vulnerabilidades y la web compila igual.
 
+- **Sin datos personales reales en la app (17/10/2026)**: al repasar las bases antes de entregar apareció que las
+  pruebas reales con los móviles habían dejado datos personales del responsable en la base: 13 servicios con su nombre,
+  4 teléfonos y 2 correos reales, direcciones con número, 2.781 posiciones GPS reales (y los trazados calculados con
+  ellas) y 4 fotos de tickets reales. Con su permiso se anonimizó: nombres, teléfonos (600 000 9xx) y correos
+  (`@ejemplo.test`) inventados, direcciones particulares sustituidas por lugares públicos con sus coordenadas, borradas
+  las posiciones GPS reales, sus trazados y las coordenadas de las incidencias reales, y las fotos de tickets cambiadas
+  por las de ejemplo (también ficticias). Un barrido de todos los campos de texto confirmó que no queda nada.
+
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
 Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.

@@ -1541,3 +1541,9 @@ cierra los servicios de Jordi que están en camino
 
 ---
 
+## 2026-10-17 18:35 · Claude Code · sesión `b3c0e64f`
+
+repasa las normas del concurso. nos falta algo?
+
+---
+
