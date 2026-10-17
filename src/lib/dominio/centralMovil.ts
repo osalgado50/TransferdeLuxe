@@ -102,9 +102,9 @@ export function agruparServiciosCentral<T extends ServGrupo>(servicios: T[]): Gr
     .filter((g) => g.servicios.length > 0);
 }
 
-/** «Asignar» si no tiene conductor; «Reasignar» si está asignado y aún no ha salido; null en otro caso. */
+/** «Asignar» si no tiene conductor; «Reasignar» si tiene (también en camino o con el cliente a bordo); null si está cerrado. */
 export function accionAsignacion(s: Pick<Servicio, "estado" | "conductor_id">): "asignar" | "reasignar" | null {
   if (s.estado === "pendiente") return "asignar";
-  if (s.estado === "asignado" || s.estado === "aceptado") return "reasignar";
+  if (["asignado", "aceptado", "en_camino", "recogido"].includes(s.estado)) return "reasignar";
   return null;
 }

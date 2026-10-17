@@ -17,7 +17,7 @@ import { aPlan, aTramo } from "@/lib/dominio/planificacion";
 import type { EstadoServicio } from "@/lib/dominio/tipos";
 
 /** Lógica de la central compartida por las Server Actions (web) y las rutas /api/central/* (app nativa). */
-export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar" | "deshacer" | "desasignar";
+export type AccionOperador = "asignar" | "reasignar" | "cancelar" | "subcontratar" | "deshacer" | "desasignar" | "completar";
 export interface PeticionOperador { idAccion: string; servicioId: string; accion: AccionOperador; conductorId?: string; vehiculoId?: string;
   /** Solo «desasignar»: por qué se le quita (p. ej. «Ausencia: vacaciones»). */
   motivo?: string;
@@ -34,7 +34,7 @@ export async function ejecutarAccionOperador(operadorId: string, p: PeticionOper
   // Sin vehículo indicado: el del turno de ese día (el coche que coge en la base), si lo hay.
   if (asigna && !p.vehiculoId && hz.vehiculoId) p = { ...p, vehiculoId: hz.vehiculoId };
   // A quién se le quita (para avisarle), leído antes de cambiar: desasignar, reasignar a otro, subcontratar o cancelar.
-  const quita = p.accion === "desasignar" || p.accion === "reasignar" || p.accion === "subcontratar" || p.accion === "cancelar";
+  const quita = p.accion === "desasignar" || p.accion === "reasignar" || p.accion === "subcontratar" || p.accion === "cancelar" || p.accion === "completar";
   const antes = quita
     ? (await clienteAdmin().from("servicios").select("conductor_id,fecha_hora_recogida,origen_texto").eq("id", p.servicioId).maybeSingle()).data
     : null;
@@ -44,8 +44,9 @@ export async function ejecutarAccionOperador(operadorId: string, p: PeticionOper
   const pierde = antes?.conductor_id && !(p.accion === "reasignar" && p.conductorId === antes.conductor_id) ? (antes.conductor_id as string) : null;
   if (r.ok && !r.duplicada && pierde && antes) {
     const hora = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(antes.fecha_hora_recogida));
-    const porque = p.accion === "cancelar" ? "ha cancelado" : p.accion === "subcontratar" ? "ha subcontratado" : p.accion === "reasignar" ? "ha pasado a otro conductor" : "te ha quitado";
-    const titulo = p.accion === "cancelar" ? "Servicio cancelado" : "Servicio retirado";
+    const porque = p.accion === "cancelar" ? "ha cancelado" : p.accion === "subcontratar" ? "ha subcontratado" : p.accion === "reasignar" ? "ha pasado a otro conductor"
+      : p.accion === "completar" ? "ha dado por terminado" : "te ha quitado";
+    const titulo = p.accion === "cancelar" ? "Servicio cancelado" : p.accion === "completar" ? "Servicio cerrado" : "Servicio retirado";
     const avisoRetirado = () => notificarAConductor(pierde, titulo, `La central ${porque} el servicio de las ${hora} (${antes.origen_texto})`, { tipo: "servicio_retirado", servicioId: p.servicioId });
     return { r, avisar: async () => { await avisoRetirado(); if (toca) await notificarServicioNuevo(p.servicioId); } };
   }

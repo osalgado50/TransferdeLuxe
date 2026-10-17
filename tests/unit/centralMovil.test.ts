@@ -60,7 +60,9 @@ describe("grupos de la central", () => {
 test("accionAsignacion", () => {
   expect(accionAsignacion({ estado: "pendiente", conductor_id: null })).toBe("asignar");
   expect(accionAsignacion({ estado: "aceptado", conductor_id: "c" })).toBe("reasignar");
-  expect(accionAsignacion({ estado: "en_camino", conductor_id: "c" })).toBeNull();
+  expect(accionAsignacion({ estado: "en_camino", conductor_id: "c" })).toBe("reasignar");
+  expect(accionAsignacion({ estado: "recogido", conductor_id: "c" })).toBe("reasignar");
+  expect(accionAsignacion({ estado: "completado", conductor_id: "c" })).toBeNull();
 });
 
 test("marcadoresFlota", () => {

@@ -8,6 +8,7 @@ import { etiquetaZona, normalizarZonas, resumenCierre, type GravedadCierre, type
 import { agruparFinJornada, textoDevueltosFinJornada, textoJornadaConPendientes } from "./finJornada";
 import { leerMotivoAnomalia, textoAnomalia } from "./anomalias";
 import { PREFIJO_ASIGNADO_AUSENTE } from "./ausencias";
+import { MOTIVO_CIERRE_CENTRAL } from "./estados";
 import { PREFIJO_FUERA_HORARIO, textoFueraDeSuHorario } from "./horarios";
 
 /**
@@ -127,7 +128,7 @@ const ICONO: Record<string, string> = {
   creado: "🆕", asignado: "📤", reasignado: "🔁", aceptado: "✅", rechazado: "❌", expirado: "⏰", en_camino: "🚗",
   llegando_recogida: "📍", llegando_destino: "📍", recogido: "🧳", completado: "🏁", cancelado: "🚫", subcontratado: "🤝",
   llegada_vuelo: "✈️", recogida_reajustada: "🕒", retraso_recogida: "🔴", deshecho: "↩️", devuelto: "🔁", aviso_cliente: "💬",
-  anomalia_carga: "⚠️", anomalia_descarga: "⚠️", desasignado: "↩️",
+  anomalia_carga: "⚠️", anomalia_descarga: "⚠️", desasignado: "↩️", editado: "✏️",
 };
 /** Eventos que hace el propio conductor (el actor es él). En el resto se nombra al conductor asignado. */
 const DEL_CONDUCTOR = new Set(["aceptado", "rechazado", "en_camino", "recogido", "completado", "llegando_recogida", "llegando_destino", "devuelto",
@@ -183,7 +184,9 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
     const deshecho = ev.tipo === "deshecho" ? leerDeshecho(ev.motivo) : null;
     // Aviso al cliente: lo manda el conductor o la central (actor que no es conductor → «La central»).
     const avisoCentral = ev.tipo === "aviso_cliente" && !!ev.actor_id && !gente.has(ev.actor_id);
-    const cid = DEL_CONDUCTOR.has(ev.tipo) || (deshecho && !deshecho.central) ? (ev.actor_id ?? s?.conductor_id ?? null)
+    // La central da por terminado un servicio que el conductor no cerró: el actor es el operador, no el conductor.
+    const cierreCentral = ev.tipo === "completado" && !!ev.motivo?.startsWith(MOTIVO_CIERRE_CENTRAL);
+    const cid = cierreCentral ? (s?.conductor_id ?? null) : DEL_CONDUCTOR.has(ev.tipo) || (deshecho && !deshecho.central) ? (ev.actor_id ?? s?.conductor_id ?? null)
       : ev.tipo === "aviso_cliente" ? (avisoCentral ? (s?.conductor_id ?? null) : (ev.actor_id ?? s?.conductor_id ?? null))
       : ev.tipo === "asignado" || ev.tipo === "reasignado" ? destinatario(ev) : (s?.conductor_id ?? null);
     const m = base(`ev-${ev.id}`, ev.creado_en, cid, s);
@@ -226,7 +229,7 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
       case "llegando_recogida": texto = `${N} está llegando a la recogida${C ? ` de ${C}` : ""}${O ? ` en ${O}` : ""}`; break;
       case "recogido": texto = `${N} ha recogido ${C ? `a ${C}` : "al cliente"}${O ? ` en ${O}` : ""}`; break;
       case "llegando_destino": texto = `${N} está llegando${D ? ` a ${D}` : " al destino"}${C ? ` con ${C}` : ""}`; break;
-      case "completado": texto = `${N} ha dejado ${C ? `a ${C}` : "al cliente"}${D ? ` en ${D}` : ""} · queda libre`; break;
+      case "completado": texto = cierreCentral ? `${Serv} cerrado por la central${cid ? ` (${N} no lo cerró)` : ""}${T}` : `${N} ha dejado ${C ? `a ${C}` : "al cliente"}${D ? ` en ${D}` : ""} · queda libre`; break;
       case "cancelado": texto = `${Serv} cancelado${T}`; break;
       case "subcontratado": texto = `${Serv} subcontratado${T}`; break;
       case "retraso_recogida": {

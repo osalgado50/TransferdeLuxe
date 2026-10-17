@@ -128,10 +128,11 @@ describe("bloqueo en la sugerencia y en la asignación automática", () => {
 });
 
 describe("desasignar (central)", () => {
-  test("operador: de asignado/aceptado a pendiente con evento «desasignado»; el conductor no puede", () => {
+  test("operador: de cualquier estado con conductor a pendiente con evento «desasignado»; el conductor no puede", () => {
     expect(transicion("aceptado", "desasignar", { rol: "operador", esAsignado: false, central: true })).toEqual({ ok: true, nuevo: "pendiente", evento: "desasignado" });
     expect(transicion("asignado", "desasignar", { rol: "operador", esAsignado: false, central: true }).ok).toBe(true);
-    expect(transicion("en_camino", "desasignar", { rol: "operador", esAsignado: false, central: true }).ok).toBe(false);
+    expect(transicion("en_camino", "desasignar", { rol: "operador", esAsignado: false, central: true }).ok).toBe(true);
+    expect(transicion("completado", "desasignar", { rol: "operador", esAsignado: false, central: true }).ok).toBe(false);
     expect(transicion("aceptado", "desasignar", { rol: "conductor", esAsignado: true }).ok).toBe(false);
   });
 });

@@ -32,8 +32,17 @@ export default function AccionesFicha({ servicioId, estado }: { servicioId: stri
   const activo = !["completado", "cancelado", "subcontratado"].includes(estado);
   // La central puede deshacer el último paso del conductor (salida, carga o descarga) sin límite de tiempo.
   const pregunta = preguntaDeshacer(estado as EstadoServicio);
-  const lanzar = (accion: "cancelar" | "subcontratar" | "deshacer") => {
-    const texto = accion === "cancelar" ? "¿Cancelar el servicio?" : accion === "subcontratar" ? "¿Marcar como subcontratado?" : pregunta;
+  // Con conductor (también en camino o con el cliente a bordo): la central se lo puede quitar, pasar a otro o cerrarlo.
+  const conConductor = ["asignado", "aceptado", "en_camino", "recogido"].includes(estado);
+  const enCurso = estado === "en_camino" || estado === "recogido";
+  const PREGUNTAS = {
+    cancelar: enCurso ? "El conductor ya está en marcha. ¿Cancelar el servicio igualmente? Se le avisará." : "¿Cancelar el servicio?",
+    subcontratar: conConductor ? "¿Subcontratar el servicio? Se le quitará al conductor y se le avisará." : "¿Marcar como subcontratado?",
+    desasignar: "¿Quitar el servicio al conductor? Vuelve a «Sin asignar» para dárselo a otro y se le avisará.",
+    completar: "¿Dar el servicio por terminado? Úsalo si el conductor lo hizo pero no lo cerró en la app.",
+  } as const;
+  const lanzar = (accion: "cancelar" | "subcontratar" | "deshacer" | "desasignar" | "completar") => {
+    const texto = accion === "deshacer" ? pregunta : PREGUNTAS[accion];
     if (!texto || !confirm(texto)) return;
     ini(async () => {
       // Con el estado que ve el operador: si el conductor ha avanzado mientras tanto, el servidor no lo hace.
@@ -46,9 +55,11 @@ export default function AccionesFicha({ servicioId, estado }: { servicioId: stri
   const b = "rounded-lg border px-4 py-2 text-sm disabled:opacity-50";
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {activo && <DialogoAsignar servicioId={servicioId} reasignar={["asignado", "aceptado"].includes(estado)} />}
+      {activo && <DialogoAsignar servicioId={servicioId} reasignar={conConductor} />}
+      {conConductor && <button type="button" data-accion="desasignar" disabled={pend} onClick={() => lanzar("desasignar")} className={`${b} border-sky-500 text-sky-300`}>Quitar conductor</button>}
       {activo && <button type="button" data-accion="cancelar" disabled={pend} onClick={() => lanzar("cancelar")} className={`${b} border-red-500 text-red-400`}>Cancelar</button>}
       {activo && <button type="button" data-accion="subcontratar" disabled={pend} onClick={() => lanzar("subcontratar")} className={`${b} border-orange-500 text-orange-300`}>Subcontratar</button>}
+      {conConductor && <button type="button" data-accion="completar" disabled={pend} onClick={() => lanzar("completar")} className={`${b} border-green-500 text-green-300`}>✓ Cerrar como completado</button>}
       {pregunta && <button type="button" data-accion="deshacer" disabled={pend} onClick={() => lanzar("deshacer")} className={`${b} border-amber-400 text-amber-200`}>↩ Deshacer último paso</button>}
       {msg && <span role="alert" className="text-sm text-red-400">{msg}</span>}
     </div>

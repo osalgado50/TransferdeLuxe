@@ -12,7 +12,7 @@ import type { EstadoReserva } from "@/app/reservar/actions";
 const uuid = z.string().uuid();
 const esquemaOperador = z.object({
   idAccion: uuid, servicioId: uuid,
-  accion: z.enum(["asignar", "reasignar", "cancelar", "subcontratar", "deshacer", "desasignar"]),
+  accion: z.enum(["asignar", "reasignar", "cancelar", "subcontratar", "deshacer", "desasignar", "completar"]),
   conductorId: uuid.optional(), vehiculoId: uuid.optional(), motivo: z.string().max(300).optional(),
   estadoEsperado: z.enum(["pendiente", "asignado", "aceptado", "en_camino", "recogido", "completado", "cancelado", "subcontratado"]).optional(),
 });

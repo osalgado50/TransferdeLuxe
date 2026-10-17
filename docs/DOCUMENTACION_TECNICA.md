@@ -825,6 +825,16 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   páginas legales tienen además «← Volver». En la app se retiró el cartel de giro (el acercamiento automático en los
   cruces se mantiene) y se publicó por actualización en el aire.
 
+- **La central manda sobre cualquier servicio abierto (17/10/2026)**. Petición: un servicio en camino no se podía
+  cancelar ni mover desde la central («No se puede cancelar un servicio en estado en_camino»); si el conductor no
+  responde, la central tiene que poder hacerlo todo. Las reglas de estados permiten ahora a la central, también en camino
+  o con el cliente a bordo: reasignar (el nuevo conductor lo recibe para aceptar), quitar el conductor (vuelve a «Sin
+  asignar»), cancelar, subcontratar y la acción nueva «Cerrar como completado» (mismo evento que la DESCARGA, con el
+  motivo «Cerrado por la central», para que cuente en informes y recorridos). Al conductor que lo pierde le llega un aviso.
+  Nuevo «✏️ Editar servicio» en la ficha: hora, direcciones, pasajeros, maletas, vehículo, vuelo, cliente y notas en
+  cualquier estado; recalcula la duración si cambia el trayecto, deja en el historial qué cambió y avisa al conductor.
+  La app (modo central) también permite reasignar en curso. Tests de las reglas y de la detección de cambios.
+
 - **Historial de prompts sin la marca real (17/10/2026)**. El registro automático y las transcripciones pasan por
   `scripts/anonimizar.py`, común al hook y al exportador: marca, web e identificadores de la empresa real, nombres,
   teléfonos, correos y direcciones privadas se sustituyen por etiquetas ([marca real], [teléfono omitido]…). Los

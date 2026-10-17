@@ -75,7 +75,7 @@ const ETIQUETAS: Record<string, string> = { llegando_recogida: "Llegando a la re
   llegada_vuelo: "Llegada real del vuelo", recogida_reajustada: "Recogida reajustada por el vuelo",
   retraso_recogida: "Llega tarde a la recogida", deshecho: "Paso deshecho", devuelto: "Devuelto por el conductor", desasignado: "Quitado al conductor para reasignar",
   anomalia_carga: "CARGA lejos de la recogida", anomalia_descarga: "DESCARGA lejos del destino",
-  aviso_cliente: "Aviso al cliente" };
+  aviso_cliente: "Aviso al cliente", editado: "Modificado por la central" };
 export const etiquetaEvento = (tipo: string) => ETIQUETAS[tipo] ?? tipo;
 
 /**

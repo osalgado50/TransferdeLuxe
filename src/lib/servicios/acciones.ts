@@ -1,4 +1,4 @@
-import { PREFIJO_DESASIGNADO, PREFIJO_DEVUELTO, transicion, type Accion } from "@/lib/dominio/estados";
+import { MOTIVO_CIERRE_CENTRAL, PREFIJO_DESASIGNADO, PREFIJO_DEVUELTO, transicion, type Accion } from "@/lib/dominio/estados";
 import { comprobarDeshacer, type EventoPaso } from "@/lib/dominio/deshacer";
 import type { EstadoServicio, Rol, Servicio } from "@/lib/dominio/tipos";
 
@@ -62,7 +62,8 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, incidencia_vista: true });
   }
   // Aceptado, cancelado o subcontratado: la alerta que tuviera («Sin respuesta», rechazado, devuelto…) ya no aplica.
-  if (p.accion === "aceptar" || p.accion === "cancelar" || p.accion === "subcontratar") cambios.incidencia_vista = true;
+  if (p.accion === "aceptar" || p.accion === "cancelar" || p.accion === "subcontratar" || p.accion === "completar") cambios.incidencia_vista = true;
+  if (p.accion === "completar") motivo = (p.motivo?.trim() ? `${MOTIVO_CIERRE_CENTRAL}: ${p.motivo.trim()}` : MOTIVO_CIERRE_CENTRAL).slice(0, 300);
   if (p.accion === "rechazar") {
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
   }

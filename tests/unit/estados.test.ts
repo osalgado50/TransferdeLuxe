@@ -27,18 +27,28 @@ describe("transicion", () => {
     expect(transicion("pendiente", "asignar", conductor).ok).toBe(false);
     expect(transicion("aceptado", "cancelar", conductor).ok).toBe(false);
   });
-  test("operador cancela hasta aceptado, no después", () => {
-    expect(transicion("aceptado", "cancelar", operador)).toMatchObject({ ok: true, nuevo: "cancelado" });
-    expect(transicion("en_camino", "cancelar", operador).ok).toBe(false);
+  test("la central cancela cualquier servicio abierto, también en camino o con el cliente a bordo; no los cerrados", () => {
+    for (const e of ["pendiente", "asignado", "aceptado", "en_camino", "recogido"] as const)
+      expect(transicion(e, "cancelar", operador)).toMatchObject({ ok: true, nuevo: "cancelado" });
+    for (const e of ["completado", "cancelado", "subcontratado"] as const) expect(transicion(e, "cancelar", operador).ok).toBe(false);
   });
-  test("reasignar desde asignado o aceptado", () => {
-    expect(transicion("aceptado", "reasignar", operador)).toMatchObject({ ok: true, nuevo: "asignado", evento: "reasignado" });
-    expect(transicion("recogido", "reasignar", operador).ok).toBe(false);
+  test("reasignar, quitar o cerrar desde cualquier estado con conductor (no responde y no hay forma de contactarle)", () => {
+    for (const e of ["asignado", "aceptado", "en_camino", "recogido"] as const) {
+      expect(transicion(e, "reasignar", operador)).toMatchObject({ ok: true, nuevo: "asignado", evento: "reasignado" });
+      expect(transicion(e, "desasignar", operador)).toMatchObject({ ok: true, nuevo: "pendiente", evento: "desasignado" });
+      expect(transicion(e, "completar", operador)).toMatchObject({ ok: true, nuevo: "completado", evento: "completado" });
+    }
+    expect(transicion("pendiente", "reasignar", operador).ok).toBe(false);
+    expect(transicion("pendiente", "completar", operador).ok).toBe(false);
+    expect(transicion("completado", "reasignar", operador).ok).toBe(false);
   });
-  test("subcontratar desde pendiente o asignado (plazo vencido), no después de aceptar", () => {
-    expect(transicion("pendiente", "subcontratar", operador)).toMatchObject({ ok: true, nuevo: "subcontratado" });
-    expect(transicion("asignado", "subcontratar", operador)).toMatchObject({ ok: true, nuevo: "subcontratado" });
-    expect(transicion("aceptado", "subcontratar", operador).ok).toBe(false);
+  test("subcontratar cualquier servicio abierto", () => {
+    for (const e of ["pendiente", "asignado", "aceptado", "en_camino", "recogido"] as const)
+      expect(transicion(e, "subcontratar", operador)).toMatchObject({ ok: true, nuevo: "subcontratado" });
+    expect(transicion("completado", "subcontratar", operador).ok).toBe(false);
+  });
+  test("el conductor no puede cerrar como la central", () => {
+    expect(transicion("en_camino", "completar", conductor)).toEqual({ ok: false, error: "No tienes permiso para esta acción" });
   });
   test("botón siguiente del conductor", () => {
     expect(ACCION_SIGUIENTE_CONDUCTOR.aceptado?.accion).toBe("salir");
