@@ -1,40 +1,53 @@
 # TransferdeLuxe — Documentación técnica
 
-> Borrador en Markdown. Al final se pasa a **un único Google Doc** (entregable 1).
-> El historial de prompts NO va aquí: va en otro Google Doc.
+Hackathon de Vibe Coding · Máster en Inteligencia Artificial (Big School), edición 7. Desarrollado del 9 al 19 de
+octubre de 2026 íntegramente con Claude Code. El historial de prompts va en su propio documento.
 
 ## 1. Descripción del proyecto
-TransferdeLuxe es el **centro de control de una empresa de traslados VTC de Salou** (Costa Dorada) con 3 vehículos
-propios (2 de 8 plazas y 1 de 7) y 3 conductores. Hoy los pedidos llegan por un formulario web y por teléfono y se
-reparten a mano. La aplicación cubre todo el ciclo:
+TransferdeLuxe es una **empresa ficticia de traslados privados de la Costa Dorada** (Salou, Cambrils, Tarragona,
+aeropuertos de Reus y Barcelona). Recibía las reservas por teléfono y formularios y coordinaba a sus conductores a mano.
+El proyecto cubre todo el ciclo con tres piezas:
 
-1. **Reserva pública** (`/reservar`): el cliente pide su traslado (ida y vuelta opcional) con los mismos campos que
-   el formulario de la web de referencia; las direcciones se autocompletan con lugares frecuentes y OpenStreetMap.
-2. **Centro de control** (`/central`): mapa en tiempo real de la flota, alertas (reservas nuevas, rechazos, plazos
-   vencidos, grupos de más de 8 que hay que subcontratar), asignación con sugerencia de conductor, hoja de ruta por
-   arrastre, flota y ajustes, y panel de gasto en combustible.
-3. **App del conductor** (`/conductor`, PWA instalable): hoja del día y próximos días, GPS, aceptar o rechazar
-   servicios con cuenta atrás, botones de en camino / CARGA / DESCARGA que funcionan sin cobertura, y lectura del
-   ticket de combustible con OCR en el propio móvil.
+1. **Web de reservas** (`/`, en castellano, catalán e inglés): reserva en un minuto con botones grandes, destinos
+   frecuentes, dirección por GPS («Usar mi ubicación») o dictada por voz, vehículo elegido según pasajeros y maletas,
+   mínimo media hora de antelación y comprobación de que hay algún conductor libre (si no, WhatsApp o llamada a la
+   central). Formulario completo en `/reservar` (ida y vuelta, vehículo concreto, vuelo).
+2. **Centro de control** (`/central`): panel en vivo con el mapa de la flota y las alertas, agenda y hoja de ruta,
+   asignación con sugerencia y **asignación automática** (turnos, pausas, plazas, maletas, distancias y márgenes),
+   horarios por semanas y meses (también nocturnos), ausencias, jornadas, combustible con tickets leídos por OCR,
+   mantenimiento, checklists, incidencias, informes e historial de viajes con el recorrido GPS.
+3. **App del conductor «TDL Conductor»** (Android/iOS, Expo; también versión web en `/conductor`): aceptar o rechazar
+   con cuenta atrás, en camino / carga / descarga con un botón (funciona sin cobertura), GPS en segundo plano,
+   navegación con el mapa en el sentido de la marcha y zoom en los cruces, avisos al cliente por WhatsApp con enlace de
+   seguimiento en directo, ticket de combustible por foto, jornada y devolver servicios a la central.
 
-Todo con datos de demostración inventados (cuentas `@transferdeluxe.test`, matrículas imposibles, clientes ficticios).
+Todos los datos son de demostración: marca, clientes, conductores y matrículas inventados (cuentas `@transferdeluxe.test`);
+los textos legales son una plantilla con un titular ficticio.
 
 **Acceso para el jurado**:
-- URL: https://app.transfersvipluxe.com (central: `/central`, conductor en el móvil: `/conductor`, reserva pública: `/reservar`)
+- URL: https://app.transfersvipluxe.com (web de reservas: `/`; central: `/central`; conductor: `/conductor`)
 - Cuentas: `central@transferdeluxe.test` (central) y `conductor1@…`, `conductor2@…`, `conductor3@transferdeluxe.test`
   (conductores). La contraseña de prueba aparece en la propia pantalla de acceso.
 - Repositorio: https://github.com/osalgado50/TransferdeLuxe
-- Botón de demo en el panel: «Simular ruta» (mueve los coches). Los datos que se crean se conservan.
+- En el panel en vivo, una **guía rápida** explica qué probar; «✨ Cargar datos de demo» llena el día con servicios en
+  todos los estados y los conductores de demo trabajan solos (aceptan, salen, recogen y terminan por carretera).
 
 ## 2. Plataforma utilizada
-Claude Code (agente de codificación en terminal / app de escritorio), modelo Claude Opus 5.5.
+**Claude Code** (agente de codificación, en la app de escritorio), modelo Claude Opus 5.5, para todo el código, los
+tests, la documentación y los despliegues. No se ha usado ninguna otra plataforma de desarrollo con IA. Servicios de
+alojamiento y despliegue (permitidos por las bases): Hostinger (web), Supabase (base de datos, autenticación,
+almacenamiento y tiempo real), Expo/EAS (compilación y actualizaciones de la app) y servicios gratuitos de
+OpenStreetMap (mapas, direcciones y rutas). Para probar el OCR desde el móvil, el responsable fotografió tickets de
+prueba, uno de ellos una imagen de ticket ficticia creada con un generador de imágenes; ese generador no produjo
+código ni ninguna parte de la aplicación.
 
 ## 3. Arquitectura
 ```
-Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
-        │                       │  OCR Tesseract.js         │
+Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
+        │                       │                          │
         └────────── Next.js 15 (App Router) en Hostinger ───┘
-           /central            /conductor            /reservar
+           /central       /conductor + /api/conductor     /  y  /reservar
+           vigilante (avisos push, alertas, demo viva)   OCR de tickets (Tesseract)
            Server Actions y rutas API: validación zod, máquina de estados,
            sugerencia de conductor, idempotencia, subida de fotos
                          │
@@ -49,17 +62,26 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   recarga si se pierde la conexión.
 - **Plazo de respuesta**: `pg_cron` cada minuto marca los servicios no aceptados a tiempo y avisa a la central; el conductor aún puede aceptarlos mientras no se reasignen.
 - **Sin cobertura**: cola local por conductor; cada pulsación lleva un `idAccion` y el servidor ignora duplicados.
-- **Tickets**: OCR gratuito en el navegador (Tesseract.js) + reglas de extracción; la foto va a un bucket privado.
+- **Tickets**: OCR gratuito (Tesseract) en el servidor con preprocesado de imagen y varias pasadas, más reglas de
+  extracción (importe, litros, precio, CIF con dígito de control, factura) y comprobación del precio con el del
+  Ministerio; la foto va a un bucket privado.
+- **Reservas**: castellano, catalán e inglés; dictado por voz (Web Speech API del navegador), «Usar mi ubicación»
+  (Nominatim reverse), antelación mínima y comprobación de conductor libre con el mismo motor que la asignación.
+- **Demo viva** (`src/lib/demo`): datos de demostración en todos los estados, renovación automática, conductores de
+  demo que aceptan, salen, recogen y terminan, y coches que circulan por rutas de OpenStreetMap precalculadas.
 - **Mapas**: Leaflet + OpenStreetMap; búsqueda de direcciones con Photon y Nominatim en paralelo (consulta limpiada, localidad detectada, número aproximado), lugares de la empresa, favoritos y lugares frecuentes (Google Places preparado, apagado sin clave).
 - **Despliegue**: Hostinger Cloud Startup (Node.js Web App importada de GitHub, redespliegue en cada push) y
   GitHub Actions diario que mantiene activo Supabase y limpia tokens push caducados (sin reiniciar datos).
 - **App nativa TDL Conductor** (`movil/`, Expo SDK 57): GPS en segundo plano con cola sin pérdidas, notificaciones push,
-  mapa MapLibre + OSM con avisos de proximidad, ticket con cámara. Android (APK interno) e iOS (TestFlight) con EAS.
+  mapa MapLibre + OSM «rumbo arriba» con zoom en los cruces y pantalla completa, avisos de proximidad, ticket con
+  cámara y modo central. Android (APK) e iOS (TestFlight) con EAS; cambios de JavaScript por actualizaciones en el
+  aire (EAS Update) comprobando antes la huella nativa.
 - **Módulos activables** desde la central: jornada laboral, incidencias, checklist del vehículo, mantenimiento,
   informes y seguimiento de vuelos.
 - **Seguridad y legal**: RLS en todas las tablas, cabeceras HTTP, validación y purga de posiciones (30 días),
   páginas `/privacidad` y `/aviso-legal`. Auditoría completa en `docs/INFORME_AUDITORIA.md`.
-- **Calidad**: más de 240 tests unitarios (Vitest) y 2 tests de punta a punta (Playwright).
+- **Calidad**: 840 tests unitarios (Vitest), pruebas de punta a punta (Playwright), auditoría técnica, pruebas de
+  estrés de la central (`docs/INFORME_ESTRES_CENTRAL.md`) y dependencias sin vulnerabilidades (`npm audit`).
 - Documentos de diseño: `docs/superpowers/specs/` (especificación) y `docs/superpowers/plans/` (plan de 22 tareas).
 
 ## 4. Casos de uso
@@ -89,6 +111,21 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
 21. **Mantenimiento e informes**: semáforo de ITV, seguro y revisiones por vehículo; informe mensual de servicios, km y consumo con export CSV.
 22. **Vuelo retrasado**: el operador anota la hora real de llegada y la app propone mover la recogida; el conductor recibe un aviso push.
 23. **Módulos**: en Flota y ajustes la empresa activa o desactiva cada módulo y desaparece de la central y de la app.
+24. **Reserva desde el móvil en otro idioma**: un turista en inglés toca «Use my location», dicta el destino y reserva;
+    si a esa hora no hay ningún coche libre, la web se lo dice y le ofrece WhatsApp o llamar a la central.
+25. **Asignación automática del día siguiente**: la central pulsa ⚡, revisa la propuesta (conductor, llegada, margen,
+    km en vacío), cambia alguna línea y confirma; los conductores reciben el aviso.
+26. **Horarios y planificación**: turnos partidos o nocturnos, semana tipo, cambios de una semana concreta y copiar al
+    mes siguiente; la asignación no propone a nadie fuera de turno.
+27. **Navegación del conductor**: mapa en el sentido de la marcha, zoom al acercarse a un cruce, «↱ Gira a la derecha en
+    120 m» y pantalla completa al tocar el mapa.
+28. **Aviso al cliente**: el conductor avisa por WhatsApp de que va de camino o llega tarde; el cliente sigue el coche
+    en una página sin registro que caduca al terminar.
+29. **Devolver servicios**: con trabajos acumulados, el conductor devuelve uno (✕) o todos a la central con un motivo,
+    y la central los redistribuye.
+30. **Demo para el jurado**: «Cargar datos de demo» llena el día; «Archivar» lo vacía (solo la demo durante la
+    evaluación) y «Deshacer» lo recupera.
+31. **Baja de un conductor**: sin historial se elimina; con historial se da de baja conservando sus registros.
 
 ## 5. Proceso iterativo con la IA
 - **09/10/2026**: preparación del entorno. Repo nuevo, reglas de las bases en `CLAUDE.md` para que el
