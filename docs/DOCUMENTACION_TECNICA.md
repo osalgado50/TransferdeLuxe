@@ -1056,6 +1056,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   Ahora el envío captura ese error y ofrece «Recargar la página». Además, los formularios se envían a mano (no con
   `action=`): React 19 vaciaba todos los campos tras cada envío, así que un simple error obligaba a rellenarlo todo otra vez.
 
+- **Un coche de demo en el mar (17/10/2026)**: el coche de Oscar aparecía frente a Cambrils, en el agua. Estaba
+  aparcado donde dejó a su último cliente, «Miami Platja · centro», y esa coordenada de la demo estaba mal (3 km mar
+  adentro). Se comprobaron todos los lugares de la demo contra el mapa de carreteras (OSRM «nearest»): Miami Platja era
+  el único fuera de tierra; se corrigió (Carrer de Mallorca) y se recalcularon las rutas. Además, como pidió el
+  responsable, un coche de demo cuyo último destino no es un lugar conocido (coordenadas dudosas, p. ej. servicios ya
+  cargados con la coordenada vieja) va a la base de la empresa (Flota y ajustes) o a su aparcamiento.
+
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
 Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.

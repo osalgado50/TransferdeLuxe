@@ -67,11 +67,13 @@ const destinoDe = (s: ServicioEnMapa): Punto | null => (s.destino_lat != null &&
  * Dónde está aparcado el coche cuando no lleva servicio: en el destino de su último servicio terminado (los coches se
  * quedan donde dejan al cliente) o, si aún no ha hecho ninguno, en su aparcamiento.
  */
-export function aparcadoEn(suyos: ServicioEnMapa[], indice: number, antesDe = Infinity): Punto {
+export function aparcadoEn(suyos: ServicioEnMapa[], indice: number, antesDe = Infinity, baseEmpresa: Punto | null = null): Punto {
   const hechos = suyos.filter((s) => s.estado === "completado" && t(s.fecha_hora_recogida) < antesDe && destinoDe(s))
     .sort((a, b) => t(b.fecha_hora_recogida) - t(a.fecha_hora_recogida));
-  const base = aparcamiento(indice);
+  const base = baseEmpresa ?? aparcamiento(indice);
   if (!hechos.length) return base;
+  // Un destino que no es ningún lugar conocido de la demo (coordenadas dudosas): a la base, nunca en un sitio raro.
+  if (!lugarDe(destinoDe(hechos[0])!)) return base;
   // Tras un viaje largo (aeropuerto de Barcelona, Miami…) vuelve a su base: si no, saldría del mapa o cruzaría media
   // provincia en minutos para la siguiente recogida.
   const fin = destinoDe(hechos[0])!;
@@ -117,8 +119,8 @@ export function siguientePasoDemo(s: ServicioEnMapa, tramo: ReturnType<typeof tr
 }
 
 /** De camino: sale de donde estaba aparcado; si es casi la misma recogida (sin tramo que recorrer), del aparcamiento siguiente. */
-export function salidaHacia(s: ServicioEnMapa, suyos: ServicioEnMapa[], indice: number): Punto {
-  const base = aparcadoEn(suyos, indice, t(s.fecha_hora_recogida));
+export function salidaHacia(s: ServicioEnMapa, suyos: ServicioEnMapa[], indice: number, baseEmpresa: Punto | null = null): Punto {
+  const base = aparcadoEn(suyos, indice, t(s.fecha_hora_recogida), baseEmpresa);
   const o = origenDe(s);
-  return o && distanciaKm(base, o) < 3 ? aparcamiento(indice + 1) : base;
+  return o && distanciaKm(base, o) < 3 ? (baseEmpresa && distanciaKm(baseEmpresa, o) >= 3 ? baseEmpresa : aparcamiento(indice + 1)) : base;
 }

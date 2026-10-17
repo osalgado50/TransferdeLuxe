@@ -31,7 +31,7 @@ export const LUGARES_DEMO = {
   cambrils: { t: "Cambrils · Port", lat: 41.067, lng: 1.0597 },
   tgn: { t: "Tarragona · Rambla Nova", lat: 41.1189, lng: 1.2445 },
   pineda: { t: "La Pineda · Passeig de Pau Casals", lat: 41.0753, lng: 1.182 },
-  miami: { t: "Miami Platja · centro", lat: 41.0028, lng: 0.9853 },
+  miami: { t: "Miami Platja · centro", lat: 41.01004, lng: 0.93811 }, // Carrer de Mallorca (antes caía en el mar)
 };
 const L = LUGARES_DEMO;
 type Lugar = (typeof L)[keyof typeof L];

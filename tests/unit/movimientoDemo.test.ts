@@ -78,3 +78,14 @@ test("aparcado: donde dejó al último cliente o en su aparcamiento; de camino n
   const salida = salidaHacia(enCambrils, [enCambrils], 1);
   expect(distanciaKm(salida, L.cambrils)).toBeGreaterThan(3);
 });
+
+test("coche de demo con un destino que no es ningún lugar conocido (coordenadas dudosas): a la base, nunca en el mar", () => {
+  const raro = serv({ id: "r", estado: "completado", fecha_hora_recogida: new Date(t0 - 60 * MIN).toISOString(), destino_lat: 41.0028, destino_lng: 0.9853 });
+  expect(aparcadoEn([raro], 3)).toEqual(aparcamiento(3)); // sin base configurada: su aparcamiento
+  const base = { lat: 41.0764, lng: 1.1416 };
+  expect(aparcadoEn([raro], 3, Infinity, base)).toEqual(base); // con base de la empresa: la base
+  // Miami Platja ya está en tierra: a menos de 100 m de una calle.
+  const miami = rutaEntre(L.reus, L.miami);
+  expect(miami.length).toBeGreaterThan(10);
+  expect(distanciaKm(miami.at(-1)!, L.miami)).toBeLessThan(0.05);
+});

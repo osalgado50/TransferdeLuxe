@@ -117,7 +117,7 @@ async function simularDemo(sb: Sb, ahora: number, aparcados: boolean): Promise<v
   if (!servs?.length) return; // sin demo cargada no se simula nada
   const lista = servs as ServicioEnMapa[];
   const activos = lista.filter((s) => s.estado === "en_camino" || s.estado === "recogido");
-  const [conductores, reales, { data: manos }, { data: evs }] = await Promise.all([
+  const [conductores, reales, { data: manos }, { data: evs }, { data: aj }] = await Promise.all([
     conductoresDemo(sb), conGpsReal(sb, ahora),
     sb.from("eventos_servicio").select("actor_id").gte("creado_en", new Date(ahora - 30 * 60_000).toISOString())
       .not("actor_id", "is", null).or(`motivo.is.null,motivo.neq.${MOTIVO_SIMULADO}`).limit(500),
@@ -125,7 +125,10 @@ async function simularDemo(sb: Sb, ahora: number, aparcados: boolean): Promise<v
       ? sb.from("eventos_servicio").select("servicio_id,tipo,creado_en").in("servicio_id", activos.map((s) => s.id))
         .in("tipo", ["en_camino", "recogido", "llegando_recogida", "llegando_destino"]).order("creado_en")
       : Promise.resolve({ data: [] as { servicio_id: string; tipo: string; creado_en: string }[] }),
+    // Base de la empresa (Flota y ajustes): ahí van los coches de demo cuyo sitio no está claro.
+    sb.from("ajustes").select("base_lat,base_lng").eq("id", 1).maybeSingle(),
   ]);
+  const base = aj?.base_lat != null && aj?.base_lng != null ? { lat: aj.base_lat as number, lng: aj.base_lng as number } : null;
   const enManos = new Set((manos ?? []).map((m) => m.actor_id as string));
   const ultimo = (id: string, tipo: string) => (evs ?? []).filter((e) => e.servicio_id === id && e.tipo === tipo).at(-1)?.creado_en ?? null;
   const ts = new Date(ahora).toISOString();
@@ -137,7 +140,7 @@ async function simularDemo(sb: Sb, ahora: number, aparcados: boolean): Promise<v
     let tramo = null;
     if (actual) {
       const paso = ultimo(actual.id, actual.estado);
-      tramo = tramoDemo(actual, salidaHacia(actual, suyos, i), paso ? Date.parse(paso) : null);
+      tramo = tramoDemo(actual, salidaHacia(actual, suyos, i, base), paso ? Date.parse(paso) : null);
     }
     // Pasos: los de todos sus servicios (uno por servicio y pasada), salvo que lo esté manejando una persona.
     if (!enManos.has(c.id)) {
@@ -151,7 +154,7 @@ async function simularDemo(sb: Sb, ahora: number, aparcados: boolean): Promise<v
       }
     }
     if (!tramo && !aparcados) continue;
-    filas.push({ conductor_id: c.id, ...posicionDemo(tramo, aparcadoEn(suyos, i), ahora), registrado_en: ts, simulada: true });
+    filas.push({ conductor_id: c.id, ...posicionDemo(tramo, aparcadoEn(suyos, i, Infinity, base), ahora), registrado_en: ts, simulada: true });
   }
   if (!filas.length) return;
   const { error: e2 } = await sb.from("posiciones").insert(filas); // el trigger actualiza posicion_actual
