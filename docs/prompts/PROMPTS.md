@@ -1577,3 +1577,15 @@ Este es un servicio que está asignado a un conductor pero yo desde el centro de
 
 ---
 
+## 2026-10-17 20:55 · Claude Code · sesión `b3c0e64f`
+
+Has pensado cómo grabar el vídeo para el concurso? Has valorado mostrar cómo funciona todo desde la central, página web y aplicaciones de los conductores?
+
+---
+
+## 2026-10-17 20:59 · Claude Code · sesión `b3c0e64f`
+
+Si actualiza. Puedes grabar tu la voz en off en castellano. Pero intenta no usar un español con acento inglés que lo odio!
+
+---
+

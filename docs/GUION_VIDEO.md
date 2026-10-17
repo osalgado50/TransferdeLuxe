@@ -1,19 +1,81 @@
 # Guion del vídeo demo (≤ 5 min)
 
-> Entregable 5. Grabar en 1920×1080: la central en el ordenador y la app **TDL Conductor** en el móvil (o la versión web
+> Entregable 5. Grabar en 1920×1080: la central en el ordenador y la app **TDL Conductor** en el iPhone (o la versión web
 > del conductor en una ventana de incógnito). Solo datos de demostración y marca ficticia (TransferdeLuxe).
+> Voz en off ya grabada, bloque a bloque, en [`docs/video/voz/`](video/voz/) (voz «Mónica», castellano de España, de
+> macOS) y seguida en [`docs/video/Voz_en_off_completa.m4a`](video/Voz_en_off_completa.m4a). La voz suma 2:27: el resto
+> de cada bloque es imagen sin voz para que se vea la acción (no hace falta llegar a 5:00; mejor 3:30–4:30 y con ritmo).
+> Regenerarla tras cambiar los textos: `python3 -I scripts/voz_en_off.py docs/video/voz`.
 
-| Tiempo | Pantalla | Qué se enseña | Texto (voz en off) |
-|---|---|---|---|
-| 0:00–0:20 | Portada (`/`) | El problema | «Una empresa de traslados de la Costa Dorada —ficticia, TransferdeLuxe— recibe reservas por teléfono y formularios y coordina a sus conductores a mano. He construido su web de reservas, su centro de control y la app de sus conductores, 100 % con vibe coding en Claude Code.» |
-| 0:20–0:55 | Portada → formulario (móvil) | Reserva del cliente | «El cliente reserva en castellano, catalán o inglés. Toca la flecha y rellena la recogida con su ubicación, o dicta el destino con el micrófono. Pasajeros y maletas con botones grandes: la web elige el vehículo. No deja reservar en el pasado y, antes de aceptar, comprueba si hay algún conductor libre; si no lo hay, ofrece WhatsApp o llamar a la central.» |
-| 0:55–1:30 | `/central` | Panel en vivo | «La reserva entra al instante en la central. Los coches circulan en el mapa por carretera; a la derecha, la actividad y las alertas: retrasos, rechazos, servicios fuera de horario. Para que el jurado lo vea funcionando, la demo trabaja sola: sus conductores aceptan, salen, recogen y terminan.» |
-| 1:30–2:10 | Hoja de ruta de mañana → ⚡ Asignar automáticamente | Asignación automática | «Con un botón, la central propone conductor para cada servicio teniendo en cuenta turnos, pausas, plazas, maletas, distancias y el tiempo entre servicios. Se puede cambiar cada línea antes de confirmar; lo que nadie puede hacer queda sin asignar y explica por qué.» |
-| 2:10–2:50 | Móvil: servicio nuevo → aceptar → navegación | App del conductor | «Al conductor le llega el aviso y acepta con una cuenta atrás. Avanza con un solo botón: en camino, carga, descarga. El mapa va en el sentido de la marcha, se acerca solo en los cruces y se abre a pantalla completa. Si se le acumulan servicios, los devuelve a la central con la ✕.» |
-| 2:50–3:20 | Móvil: «Avisar al cliente» → página de seguimiento | Cliente informado | «Con un toque, el conductor avisa al cliente por WhatsApp; el cliente sigue el coche en directo y ve la hora estimada de llegada.» |
-| 3:20–3:50 | Móvil: Ticket → Combustible | Tickets por OCR | «El ticket de gasolina se fotografía y los datos se rellenan solos: litros, precio, importe, CIF y número de factura. Se comprueba el precio con el del Ministerio y los kilómetros con los últimos del coche.» |
-| 3:50–4:25 | Horarios · Informes · Flota y ajustes | Gestión | «Horarios por turnos, también nocturnos, planificados por semanas y meses; informes de servicios, kilómetros y consumo; registro de jornada; mantenimiento con avisos; y la flota y los conductores, que se pueden dar de baja conservando su historial.» |
-| 4:25–5:00 | Repositorio · documentación | Vibe coding | «Todo se ha hecho conversando con Claude Code: 329 commits, 40 migraciones de base de datos, 840 tests automáticos, auditorías y pruebas de estrés, y una app nativa publicada por actualizaciones en el aire. El historial de prompts acompaña la entrega. Gracias.» |
+## Bloques
+
+| # | Tiempo | Pantalla | Qué se enseña | Voz en off (audio · duración) |
+|---|---|---|---|---|
+| 1 | 0:00–0:20 | Portada (`/`) en el ordenador | El problema | `01_portada.m4a` · 15 s |
+| 2 | 0:20–0:55 | Portada → reserva en el móvil | Reserva del cliente | `02_reserva.m4a` · 20 s |
+| 3 | 0:55–1:25 | `/central` | Panel en vivo | `03_panel.m4a` · 15 s |
+| 4 | 1:25–1:55 | Hoja de ruta de mañana → ⚡ Asignar automáticamente | Asignación automática | `04_asignacion.m4a` · 16 s |
+| 5 | 1:55–2:40 | **Pantalla dividida**: central + móvil del conductor | App del conductor en tiempo real | `05_conductor.m4a` · 19 s |
+| 6 | 2:40–3:10 | Ficha de un servicio en camino | La central lo controla todo | `06_central_manda.m4a` · 14 s |
+| 7 | 3:10–3:30 | Móvil: «Avisar al cliente» → página de seguimiento | Cliente informado | `07_cliente.m4a` · 7 s |
+| 8 | 3:30–3:55 | Móvil: Ticket → central: Combustible | Tickets por OCR | `08_ticket.m4a` · 12 s |
+| 9 | 3:55–4:25 | Horarios · Informes · Flota y ajustes | Gestión | `09_gestion.m4a` · 14 s |
+| 10 | 4:25–4:55 | Repositorio · documentación | Vibe coding | `10_cierre.m4a` · 16 s |
+
+### Texto de la voz en off
+
+1. «Transfer de Luxe es una empresa de traslados de la Costa Dorada, inventada para este concurso. Recibía las reservas
+   por teléfono y coordinaba a sus conductores a mano. He construido su web de reservas, su centro de control y la
+   aplicación de sus conductores, todo con Claude Code.»
+2. «El cliente reserva desde el móvil, en castellano, catalán o inglés. Toca la flecha y la recogida se rellena con su
+   ubicación; el destino lo puede dictar. Pasajeros y maletas, con botones grandes, y la web elige el vehículo. Antes de
+   aceptar, comprueba que haya algún conductor libre; si no lo hay, le ofrece escribir por WhatsApp o llamar.»
+3. «La reserva entra al instante en el centro de control. En el mapa, los coches circulan por carretera; a la derecha,
+   la actividad y las alertas. Para que el jurado lo vea funcionando, la demo trabaja sola: sus conductores aceptan,
+   salen, recogen y terminan.»
+4. «Con un solo botón, la central propone un conductor para cada servicio de mañana, teniendo en cuenta turnos, pausas,
+   plazas, maletas, distancias y el tiempo entre servicios. Cada línea se puede cambiar antes de confirmar, y lo que
+   nadie puede hacer queda sin asignar, explicando por qué.»
+5. «Al conductor le llega el aviso y lo acepta antes de que acabe la cuenta atrás. A la izquierda, la central lo ve
+   cambiar en el mismo segundo. Avanza con un único botón: en camino, carga y descarga. El mapa gira con el coche, se
+   acerca solo en los cruces y se abre a pantalla completa. Si no puede hacer un servicio, lo devuelve con un toque.»
+6. «Y si un conductor no responde, la central manda: le quita el servicio aunque ya esté en camino, se lo pasa a otro,
+   lo cancela o lo cierra. También cambia la hora, las direcciones o los pasajeros; el conductor recibe un aviso y todo
+   queda en el historial.»
+7. «Con un toque, el conductor avisa al cliente por WhatsApp. El cliente abre el enlace, sigue el coche en directo y ve
+   a qué hora llegará.»
+8. «El ticket de gasolina se fotografía y los datos se rellenan solos: litros, precio, importe, CIF y número de factura.
+   La aplicación compara el precio con el del Ministerio y los kilómetros con los últimos del coche.»
+9. «Horarios por turnos, también de noche, planificados por semanas y meses; informes de servicios, kilómetros y
+   consumo; registro de jornada; mantenimiento con avisos; y la flota y los conductores, que se pueden dar de baja sin
+   perder su historial.»
+10. «Todo se ha hecho conversando con Claude Code: más de trescientos treinta commits, cuarenta migraciones de base de
+    datos, más de ochocientas cuarenta pruebas automáticas y una aplicación nativa que se actualiza sin pasar por las
+    tiendas. El historial de prompts acompaña la entrega. Gracias.»
+
+## Plan de tomas
+
+Grabar cada bloque por separado (si algo sale mal, se repite solo ese) y montarlos al final sobre su audio.
+
+**Herramientas (gratuitas)**: QuickTime en el Mac. Ordenador: Archivo → Nueva grabación de pantalla (pantalla completa).
+iPhone por cable: Archivo → Nueva grabación de película → en la flecha junto al botón rojo, elegir el iPhone como cámara
+(graba la pantalla del móvil limpia). Montaje en iMovie: «Pantalla dividida» para el bloque 5.
+
+| Toma | Dónde | Qué hacer, en orden |
+|---|---|---|
+| 1 | Ordenador · incógnito | Abrir la portada, bajar despacio hasta el formulario y volver arriba. |
+| 2 | iPhone · Safari | Portada en castellano → cambiar a catalán y volver → «Usar mi ubicación» en la recogida → dictar «Aeropuerto de Reus» en el destino → 2 pasajeros, 2 maletas → nombre de prueba, teléfono 600 000 123, correo `prueba@ejemplo.test` → «Reservar ahora». Datos inventados. |
+| 3 | Ordenador · `/central` | Panel en vivo con los coches moviéndose; pasar el ratón por un coche y por la columna de actividad. Debe verse la reserva de la toma 2 recién entrada. |
+| 4 | Ordenador | Hoja de ruta de mañana → ⚡ Asignar automáticamente → enseñar la propuesta → cambiar un conductor en una línea → Confirmar. |
+| 5 | **Las dos a la vez** | Iniciar las dos grabaciones, dar una palmada delante del Mac (sirve para sincronizar al montar). En la central, asignar un servicio a tu conductor de prueba; en el iPhone, aceptarlo; luego EN CAMINO → abrir el mapa a pantalla completa → CARGA → DESCARGA. Que se vea el panel cambiando en cada paso. |
+| 6 | Ordenador | Ficha de un servicio en camino de la demo → ✏️ Editar servicio → cambiar la hora → Guardar (se ve en el historial) → «Reasignar» y elegir otro conductor. |
+| 7 | iPhone | En un servicio en camino, «Avisar al cliente» → se abre WhatsApp con el mensaje (no enviarlo) → abrir el enlace de seguimiento en Safari. |
+| 8 | iPhone + ordenador | Pestaña Ticket → «Probar con un ticket de ejemplo» (o foto a un ticket) → campos rellenos → Guardar. En la central, Combustible con el ticket nuevo. |
+| 9 | Ordenador | Horarios (vista de mes) → Informes → Flota y ajustes, unos segundos en cada uno. |
+| 10 | Ordenador | El repositorio en GitHub (lista de commits) → `docs/prompts/` → la documentación. |
+
+**Montaje**: cada toma sobre su audio (`01…10`), recortando las esperas. Si una toma es más corta que su audio, congelar
+el último fotograma o ralentizar un poco. Exportar en 1080p y comprobar que dura menos de 5:00.
 
 ## Comprobaciones antes de grabar
 - [ ] En el panel en vivo hay datos de demo de hoy (si no, «✨ Cargar datos de demo»).
@@ -21,6 +83,8 @@
 - [ ] Si el móvil manda GPS real como conductor, la simulación deja quieto ese coche: para que se muevan solos, graba con
       otro conductor o sin la app abierta. Al terminar, cierra la sesión del conductor en el móvil (no debe quedar tu
       ubicación real a la vista del jurado).
-- [ ] Ninguna notificación personal visible y nada de datos reales en pantalla (nombres, teléfonos, direcciones).
+- [ ] Modo «No molestar» en el Mac y en el iPhone: ninguna notificación personal visible y nada de datos reales en
+      pantalla (nombres, teléfonos, direcciones, la barra de favoritos del navegador).
 - [ ] Ajustes de iPhone → Desarrollador → HUD de gráficos desactivado (si no, sale el recuadro de FPS sobre el mapa).
+- [ ] App «TDL Conductor» actualizada (ciérrala y ábrela una vez antes de grabar para que coja la última versión).
 - [ ] Duración final ≤ 5:00.
