@@ -761,6 +761,12 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   reservado que no existe); se quitaron los enlaces a la web real. Orden de publicación: primero lo de dentro de la app
   por OTA (las instaladas lo reciben), después nombre, icono y pantalla de inicio en una compilación nueva.
 
+- **Mapa del conductor a pantalla completa (17/10/2026)**. Petición: al tocar el mapa, ampliarlo a pantalla completa
+  con zoom y un botón para volver. El mismo mapa (MapLibre) se monta en la tarjeta o en un Modal a pantalla completa,
+  con botones + / − (dejan de seguir al coche hasta «Centrar») y «✕ Salir del mapa»; al cambiar, vuelve a centrarse en
+  el coche. El «cuadrito gris» con FPS/GPU que pidió quitar no es de la app: es el HUD de rendimiento gráfico de iOS
+  (Ajustes → Desarrollador), que el sistema dibuja sobre cualquier vista Metal como el mapa.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se

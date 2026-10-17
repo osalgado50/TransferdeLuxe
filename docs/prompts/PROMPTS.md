@@ -1499,3 +1499,9 @@ Reduce a media hora el plazo mínimo en lugar de una hora, ¿vale? Más o menos,
 
 ---
 
+## 2026-10-17 13:12 · Claude Code · sesión `b3c0e64f`
+
+Dos cosas a hacer con el mapa de la pantalla del conductor. Este cuadrito que sale arriba a la derecha de color gris transparente con unos datos, lo puedes eliminar No, no tiene interés. Y luego, si el conductor toca sobre el mapa, el mapa se ampliará, pantalla completa, y podrá disponer de controles de zoom y un botón para salir a la pantalla anterior.
+
+---
+

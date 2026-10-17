@@ -11,7 +11,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { llamarApi } from "~/lib/api";
 import { notificarLocal } from "~/lib/push";
 import { color } from "~/lib/tema";
@@ -50,6 +51,9 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
   /** Rumbo del coche (el mapa gira con él) y giro del mapa ahora mismo (para orientar la flecha si se ha movido a mano). */
   const [rumboAhora, setRumboAhora] = useState<number | null>(null);
   const [giroMapa, setGiroMapa] = useState(0);
+  /** Mapa a pantalla completa (al tocarlo) y zoom actual del mapa (para los botones + / −). */
+  const [completa, setCompleta] = useState(false);
+  const [zoomMapa, setZoomMapa] = useState(14);
   const [avisoGps, setAvisoGps] = useState<string | null>(null);
   const [ruta, setRuta] = useState<Ruta | null>(null);
   const [seguir, setSeguir] = useState(true);
@@ -214,6 +218,61 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
     ],
   }), [pos, inicio, fin, objetivo.punto]);
 
+  // El mismo mapa en la tarjeta o a pantalla completa (al tocarlo): se monta en un sitio u otro y vuelve a seguir al coche.
+  const abrirCompleta = () => { ultimoEase.current = 0; setCompleta(true); };
+  const cerrarCompleta = () => { ultimoEase.current = 0; setCompleta(false); };
+  const zoomManual = (d: number) => { setSeguir(false); camara.current?.zoomTo(Math.max(3, Math.min(19, zoomMapa + d)), { duration: 250 }); };
+  const mapa = (
+    <MapaLibre style={StyleSheet.absoluteFill} mapStyle={ESTILO} attribution logo={false}
+      onPress={completa ? undefined : abrirCompleta}
+      onRegionWillChange={(e) => { if (e.nativeEvent.userInteraction) setSeguir(false); }}
+      onRegionDidChange={(e) => { setGiroMapa(e.nativeEvent.bearing ?? 0); setZoomMapa(e.nativeEvent.zoom ?? zoomMapa); }}>
+      <Camera ref={camara} initialViewState={{ center: lngLat(pos ?? objetivo.punto), zoom: 14 }} />
+      {geoRuta && (
+        <GeoJSONSource id="ruta" data={geoRuta}>
+          <Layer id="ruta-borde" type="line" style={{ lineColor: "#1e3a8a", lineWidth: 8, lineCap: "round", lineJoin: "round" }} />
+          <Layer id="ruta-linea" type="line" style={{ lineColor: AZUL, lineWidth: 5, lineCap: "round", lineJoin: "round" }} />
+        </GeoJSONSource>
+      )}
+      <GeoJSONSource id="conectores" data={conectores}>
+        <Layer id="conectores-linea" type="line" style={{ lineColor: AZUL, lineWidth: 3, lineDasharray: [1, 2] }} />
+      </GeoJSONSource>
+      <Marker id="objetivo" lngLat={lngLat(objetivo.punto)} anchor="center">
+        <View style={[estilos.objetivo, { backgroundColor: colorObj }]} accessibilityLabel={objetivo.tipo === "recogida" ? "Recogida" : "Destino"} />
+      </Marker>
+      {pos ? (
+        <Marker id="yo" lngLat={lngLat(pos)} anchor="center">
+          {rumboAhora == null
+            ? <View style={estilos.yo} accessibilityLabel="Tu posición" />
+            : (
+              // Flecha en el sentido de la marcha (apunta arriba mientras el mapa sigue al coche).
+              <View style={[estilos.flecha, { transform: [{ rotate: `${difAngulo(giroMapa, rumboAhora)}deg` }] }]} accessibilityLabel="Tu posición y sentido de la marcha">
+                <View style={estilos.flechaPunta} />
+              </View>
+            )}
+        </Marker>
+      ) : null}
+    </MapaLibre>
+  );
+  const capas = (
+    <>
+      <View style={estilos.banner} pointerEvents="none">
+        <Text style={estilos.bannerTexto}>{textoBannerRuta(objetivo.tipo, quedaM, quedaS)}</Text>
+        {ruta?.fuente === "recta" && <Text style={estilos.bannerAviso}>Ruta aproximada (sin servicio de rutas)</Text>}
+      </View>
+      {nav?.giro && seguir && nav.giro.distanciaM <= 400 && (
+        <View style={estilos.giro} pointerEvents="none" accessibilityRole="text">
+          <Text style={estilos.giroTexto}>{textoGiro(nav.giro.angulo)} en {Math.max(10, Math.round(nav.giro.distanciaM / 10) * 10)} m</Text>
+        </View>
+      )}
+      {pos && !seguir && (
+        <Pressable onPress={() => setSeguir(true)} accessibilityRole="button" accessibilityLabel="Centrar en mi posición" style={estilos.centrar}>
+          <Text style={estilos.centrarTexto}>Centrar</Text>
+        </Pressable>
+      )}
+    </>
+  );
+
   return (
     <View style={estilos.caja}>
       {fase !== "lejos" && (
@@ -222,51 +281,29 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
         </View>
       )}
       <View style={estilos.mapa}>
-        <MapaLibre style={StyleSheet.absoluteFill} mapStyle={ESTILO} attribution logo={false}
-          onRegionWillChange={(e) => { if (e.nativeEvent.userInteraction) setSeguir(false); }}
-          onRegionDidChange={(e) => setGiroMapa(e.nativeEvent.bearing ?? 0)}>
-          <Camera ref={camara} initialViewState={{ center: lngLat(objetivo.punto), zoom: 14 }} />
-          {geoRuta && (
-            <GeoJSONSource id="ruta" data={geoRuta}>
-              <Layer id="ruta-borde" type="line" style={{ lineColor: "#1e3a8a", lineWidth: 8, lineCap: "round", lineJoin: "round" }} />
-              <Layer id="ruta-linea" type="line" style={{ lineColor: AZUL, lineWidth: 5, lineCap: "round", lineJoin: "round" }} />
-            </GeoJSONSource>
-          )}
-          <GeoJSONSource id="conectores" data={conectores}>
-            <Layer id="conectores-linea" type="line" style={{ lineColor: AZUL, lineWidth: 3, lineDasharray: [1, 2] }} />
-          </GeoJSONSource>
-          <Marker id="objetivo" lngLat={lngLat(objetivo.punto)} anchor="center">
-            <View style={[estilos.objetivo, { backgroundColor: colorObj }]} accessibilityLabel={objetivo.tipo === "recogida" ? "Recogida" : "Destino"} />
-          </Marker>
-          {pos ? (
-            <Marker id="yo" lngLat={lngLat(pos)} anchor="center">
-              {rumboAhora == null
-                ? <View style={estilos.yo} accessibilityLabel="Tu posición" />
-                : (
-                  // Flecha en el sentido de la marcha (apunta arriba mientras el mapa sigue al coche).
-                  <View style={[estilos.flecha, { transform: [{ rotate: `${difAngulo(giroMapa, rumboAhora)}deg` }] }]} accessibilityLabel="Tu posición y sentido de la marcha">
-                    <View style={estilos.flechaPunta} />
-                  </View>
-                )}
-            </Marker>
-          ) : null}
-        </MapaLibre>
-        <View style={estilos.banner} pointerEvents="none">
-          <Text style={estilos.bannerTexto}>{textoBannerRuta(objetivo.tipo, quedaM, quedaS)}</Text>
-          {ruta?.fuente === "recta" && <Text style={estilos.bannerAviso}>Ruta aproximada (sin servicio de rutas)</Text>}
-        </View>
-        {nav?.giro && seguir && nav.giro.distanciaM <= 400 && (
-          <View style={estilos.giro} pointerEvents="none" accessibilityRole="text">
-            <Text style={estilos.giroTexto}>{textoGiro(nav.giro.angulo)} en {Math.max(10, Math.round(nav.giro.distanciaM / 10) * 10)} m</Text>
-          </View>
-        )}
-        {pos && !seguir && (
-          <Pressable onPress={() => setSeguir(true)} accessibilityRole="button" accessibilityLabel="Centrar en mi posición" style={estilos.centrar}>
-            <Text style={estilos.centrarTexto}>Centrar</Text>
-          </Pressable>
-        )}
+        {completa
+          ? <View style={estilos.enCompleta}><Text style={estilos.enCompletaTexto}>Mapa a pantalla completa</Text></View>
+          : <>{mapa}{capas}<View style={estilos.ampliar} pointerEvents="none"><Text style={estilos.ampliarTexto}>⤢ Toca para ampliar</Text></View></>}
       </View>
       {avisoGps && <Text accessibilityRole="text" style={estilos.avisoGps}>{avisoGps}</Text>}
+      <Modal visible={completa} animationType="fade" presentationStyle="fullScreen" onRequestClose={cerrarCompleta} supportedOrientations={["portrait"]}>
+        {/* Un Modal es otra ventana nativa: necesita su propio proveedor de zona segura. */}
+        <SafeAreaProvider>
+          <SafeAreaView style={estilos.completa} edges={["top", "bottom"]}>
+            <View style={{ flex: 1 }}>
+              {mapa}
+              {capas}
+              <View style={estilos.zoom}>
+                <Pressable onPress={() => zoomManual(1)} accessibilityRole="button" accessibilityLabel="Acercar" style={estilos.zoomBoton}><Text style={estilos.zoomTexto}>+</Text></Pressable>
+                <Pressable onPress={() => zoomManual(-1)} accessibilityRole="button" accessibilityLabel="Alejar" style={estilos.zoomBoton}><Text style={estilos.zoomTexto}>−</Text></Pressable>
+              </View>
+            </View>
+            <Pressable onPress={cerrarCompleta} accessibilityRole="button" accessibilityLabel="Salir del mapa a pantalla completa" style={estilos.salir}>
+              <Text style={estilos.salirTexto}>✕  Salir del mapa</Text>
+            </Pressable>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </Modal>
     </View>
   );
 }
@@ -288,5 +325,15 @@ const estilos = StyleSheet.create({
   flechaPunta: { width: 0, height: 0, marginTop: -4, borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 18, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#fff" },
   giro: { position: "absolute", left: 12, bottom: 12, backgroundColor: "rgba(2,6,23,0.88)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   giroTexto: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  ampliar: { position: "absolute", right: 10, top: 52, backgroundColor: "rgba(2,6,23,0.75)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+  ampliarTexto: { color: "#e2e8f0", fontSize: 13, fontWeight: "700" },
+  enCompleta: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: color.tarjeta },
+  enCompletaTexto: { color: color.textoTenue, fontSize: 15 },
+  completa: { flex: 1, backgroundColor: "#020617" },
+  zoom: { position: "absolute", right: 12, top: "40%", gap: 10 },
+  zoomBoton: { width: 56, height: 56, borderRadius: 14, backgroundColor: "rgba(2,6,23,0.88)", borderWidth: 1, borderColor: color.borde, alignItems: "center", justifyContent: "center" },
+  zoomTexto: { color: "#fff", fontSize: 30, fontWeight: "700", marginTop: -2 },
+  salir: { minHeight: 60, margin: 12, borderRadius: 16, backgroundColor: "#1e293b", borderWidth: 1, borderColor: color.borde, alignItems: "center", justifyContent: "center" },
+  salirTexto: { color: "#fff", fontSize: 19, fontWeight: "800" },
   avisoGps: { backgroundColor: "#dc2626", color: "#fff", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontWeight: "600" },
 });
