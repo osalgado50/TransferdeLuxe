@@ -44,7 +44,7 @@ describe("jornada", () => {
     expect(filas[0].pausas).toBe(1);
     expect(filas[0].salida).toBe("2026-10-12T15:00:00Z");
     const csv = csvRegistro(filas, () => "Conductor; Demo");
-    expect(csv).toContain('"Conductor; Demo";2026-10-12;08:00;17:00;1;0,25;6,75');
+    expect(csv).toContain('"Conductor; Demo";2026-10-12;08:00;17:00;1;0,25;6,75;No');
   });
 });
 
@@ -83,5 +83,28 @@ describe("checklist", () => {
   it("reordenar", () => {
     expect(reordenar(items, "a", -1)).toEqual([{ id: "a", orden: 1 }, { id: "b", orden: 2 }, { id: "c", orden: 3 }]);
     expect(reordenar(items, "b", -1)[0]).toEqual({ id: "b", orden: 1 });
+  });
+});
+
+import { errorMomentoCentral } from "@/lib/dominio/jornada";
+describe("jornada empezada o terminada por la central", () => {
+  const ahora = Date.parse("2026-10-17T20:00:00Z");
+  const abierta = { id: "j", conductor_id: "c", inicio: "2026-10-17T06:00:00Z", fin: null, pausas: [{ inicio: "2026-10-17T11:00:00Z", fin: null }] };
+  it("empezar: no en el futuro, ni con otra abierta, ni más de 48 h atrás, ni antes de que acabara la anterior", () => {
+    expect(errorMomentoCentral({ accion: "iniciar", momento: ahora - 3600e3, ahora, abierta: null, ultimaFin: "2026-10-16T17:00:00Z" })).toBeNull();
+    expect(errorMomentoCentral({ accion: "iniciar", momento: ahora + 3600e3, ahora, abierta: null, ultimaFin: null })).toMatch(/futuro/);
+    expect(errorMomentoCentral({ accion: "iniciar", momento: ahora, ahora, abierta, ultimaFin: null })).toMatch(/Ya tiene una jornada abierta/);
+    expect(errorMomentoCentral({ accion: "iniciar", momento: ahora - 49 * 3600e3, ahora, abierta: null, ultimaFin: null })).toMatch(/48 h/);
+    expect(errorMomentoCentral({ accion: "iniciar", momento: Date.parse("2026-10-16T16:00:00Z"), ahora, abierta: null, ultimaFin: "2026-10-16T17:00:00Z" })).toMatch(/anterior terminó/);
+  });
+  it("terminar: con jornada abierta, no antes de su inicio ni de la pausa en curso", () => {
+    expect(errorMomentoCentral({ accion: "finalizar", momento: Date.parse("2026-10-17T16:00:00Z"), ahora, abierta, ultimaFin: null })).toBeNull();
+    expect(errorMomentoCentral({ accion: "finalizar", momento: ahora, ahora, abierta: null, ultimaFin: null })).toMatch(/ninguna jornada abierta/);
+    expect(errorMomentoCentral({ accion: "finalizar", momento: Date.parse("2026-10-17T05:00:00Z"), ahora, abierta, ultimaFin: null })).toMatch(/empezó/);
+    expect(errorMomentoCentral({ accion: "finalizar", momento: Date.parse("2026-10-17T10:00:00Z"), ahora, abierta, ultimaFin: null })).toMatch(/pausa/);
+  });
+  it("el registro marca el día si la central empezó o terminó alguna jornada", () => {
+    const f = registroPorDia([{ id: "1", conductor_id: "c", inicio: "2026-10-12T06:00:00Z", fin: "2026-10-12T15:00:00Z", pausas: [], fin_por: "op" }], new Date("2026-10-13T00:00:00Z"));
+    expect(f[0].porCentral).toBe(true);
   });
 });

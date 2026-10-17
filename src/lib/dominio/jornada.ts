@@ -4,7 +4,11 @@ import { madridAUtc, sumarDias } from "./dias";
 import { textoCsv } from "./csv";
 
 export interface Pausa { inicio: string; fin: string | null }
-export interface Jornada { id: string; conductor_id: string; inicio: string; fin: string | null; pausas: Pausa[] }
+export interface Jornada {
+  id: string; conductor_id: string; inicio: string; fin: string | null; pausas: Pausa[];
+  /** Quién la empezó / terminó si no fue el propio conductor (la central). */
+  inicio_por?: string | null; fin_por?: string | null;
+}
 export type EstadoJornada = "fuera" | "trabajando" | "en_pausa";
 export type AccionJornada = "iniciar" | "pausa" | "reanudar" | "finalizar";
 export const ACCIONES_JORNADA: readonly AccionJornada[] = ["iniciar", "pausa", "reanudar", "finalizar"];
@@ -21,6 +25,32 @@ export function accionesPermitidas(e: EstadoJornada): AccionJornada[] {
   return ["reanudar", "finalizar"];
 }
 export const accionValida = (e: EstadoJornada, a: AccionJornada) => accionesPermitidas(e).includes(a);
+
+/** Hasta cuánto atrás puede la central empezar una jornada (p. ej. «empezó a las 7 y no la abrió»). */
+export const MAX_ATRAS_CENTRAL_H = 48;
+
+/**
+ * ¿Puede la central empezar o terminar la jornada en `momento` (ms)? Nunca en el futuro; empezar, solo si no tiene una
+ * abierta, como mucho 48 h atrás y sin solaparse con la anterior (`ultimaFin`); terminar, no antes de su inicio ni de la
+ * pausa en curso. Devuelve el texto del error o null si vale.
+ */
+export function errorMomentoCentral(p: { accion: "iniciar" | "finalizar"; momento: number; ahora: number; abierta: Jornada | null; ultimaFin: string | null }): string | null {
+  const hm = (iso: string | number) => new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    .format(new Date(iso)).replace(",", "");
+  if (!Number.isFinite(p.momento)) return "Fecha u hora no válida";
+  if (p.momento > p.ahora + 60_000) return "No puede ser en el futuro";
+  if (p.accion === "iniciar") {
+    if (p.abierta && !p.abierta.fin) return `Ya tiene una jornada abierta desde el ${hm(p.abierta.inicio)}`;
+    if (p.momento < p.ahora - MAX_ATRAS_CENTRAL_H * 3600e3) return `Como mucho ${MAX_ATRAS_CENTRAL_H} h atrás`;
+    if (p.ultimaFin && p.momento < Date.parse(p.ultimaFin)) return `Su jornada anterior terminó el ${hm(p.ultimaFin)}: tiene que ser después`;
+    return null;
+  }
+  if (!p.abierta || p.abierta.fin) return "No tiene ninguna jornada abierta";
+  if (p.momento < Date.parse(p.abierta.inicio)) return `La jornada empezó el ${hm(p.abierta.inicio)}: tiene que ser después`;
+  const enPausa = p.abierta.pausas.find((x) => !x.fin);
+  if (enPausa && p.momento < Date.parse(enPausa.inicio)) return `Está en pausa desde el ${hm(enPausa.inicio)}: tiene que ser después`;
+  return null;
+}
 
 const solape = (a0: number, a1: number, b0: number, b1: number) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
 
@@ -77,6 +107,8 @@ export function formatoDuracion(ms: number): string {
 export interface FilaRegistro {
   conductor_id: string; dia: string; entrada: string; salida: string | null;
   pausas: number; msPausa: number; msTrabajado: number;
+  /** Alguna jornada del día la empezó o la terminó la central (no el conductor). */
+  porCentral: boolean;
 }
 
 /** Una fila por conductor y día (día de inicio de la jornada en Madrid), ordenadas por día y conductor. */
@@ -88,7 +120,8 @@ export function registroPorDia(jornadas: Jornada[], ahora: Date): FilaRegistro[]
     const k = `${j.conductor_id}|${dia}`;
     const j0 = Date.parse(j.inicio), j1 = j.fin ? Date.parse(j.fin) : t;
     const mp = msPausa(j, j0, j1, t);
-    const f = mapa.get(k) ?? { conductor_id: j.conductor_id, dia, entrada: j.inicio, salida: j.fin, pausas: 0, msPausa: 0, msTrabajado: 0 };
+    const f = mapa.get(k) ?? { conductor_id: j.conductor_id, dia, entrada: j.inicio, salida: j.fin, pausas: 0, msPausa: 0, msTrabajado: 0, porCentral: false };
+    if (j.inicio_por || j.fin_por) f.porCentral = true;
     if (j.inicio < f.entrada) f.entrada = j.inicio;
     if (f.salida !== null) f.salida = j.fin === null ? null : (j.fin > f.salida ? j.fin : f.salida);
     f.pausas += j.pausas.length;
@@ -104,8 +137,8 @@ const horasDec = (ms: number) => (ms / 3600e3).toFixed(2).replace(".", ",");
 
 /** CSV (separador «;», compatible con Excel en español) del registro horario. */
 export function csvRegistro(filas: FilaRegistro[], nombre: (id: string) => string): string {
-  const cab = ["Conductor", "Fecha", "Entrada", "Salida", "Nº pausas", "Pausas (h)", "Horas trabajadas"];
+  const cab = ["Conductor", "Fecha", "Entrada", "Salida", "Nº pausas", "Pausas (h)", "Horas trabajadas", "Registrada por la central"];
   const lineas = filas.map((f) => [nombre(f.conductor_id), f.dia, horaMadrid(f.entrada), f.salida ? horaMadrid(f.salida) : "en curso",
-    String(f.pausas), horasDec(f.msPausa), horasDec(f.msTrabajado)].map(textoCsv).join(";"));
+    String(f.pausas), horasDec(f.msPausa), horasDec(f.msTrabajado), f.porCentral ? "Sí" : "No"].map(textoCsv).join(";"));
   return "﻿" + [cab.join(";"), ...lineas].join("\r\n") + "\r\n";
 }

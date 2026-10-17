@@ -25,6 +25,6 @@ test("CSV de informes: coma decimal y fórmulas neutralizadas", () => {
   expect(aCsv(["Vehículo", "L/100 km"], [["=cmd", 6.25], ["0001-TDL", null]])).toBe("﻿Vehículo;L/100 km\r\n'=cmd;6,25\r\n0001-TDL;\r\n");
 });
 test("CSV de jornadas: nombre con fórmula neutralizado", () => {
-  const csv = csvRegistro([{ conductor_id: "c1", dia: "2026-10-12", entrada: "2026-10-12T06:00:00Z", salida: "2026-10-12T15:00:00Z", pausas: 0, msPausa: 0, msTrabajado: 9 * 3600e3 }], () => "=Demo");
-  expect(csv).toContain("'=Demo;2026-10-12;08:00;17:00;0;0,00;9,00");
+  const csv = csvRegistro([{ conductor_id: "c1", dia: "2026-10-12", entrada: "2026-10-12T06:00:00Z", salida: "2026-10-12T15:00:00Z", pausas: 0, msPausa: 0, msTrabajado: 9 * 3600e3, porCentral: true }], () => "=Demo");
+  expect(csv).toContain("'=Demo;2026-10-12;08:00;17:00;0;0,00;9,00;Sí");
 });

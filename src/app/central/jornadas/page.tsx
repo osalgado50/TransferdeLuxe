@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirRol } from "@/lib/supabase/sesion";
 import { jornadasEnRango, modulosCentral, rangoDias } from "@/lib/central/modulosConductor";
-import { formatoDuracion, registroPorDia } from "@/lib/dominio/jornada";
+import { estadoJornada, formatoDuracion, registroPorDia, type Jornada } from "@/lib/dominio/jornada";
+import JornadasAhora, { type FilaJornadaAhora } from "@/components/central/JornadasAhora";
+import { clienteServidor } from "@/lib/supabase/servidor";
+import { FILTRO_CONDUCEN } from "@/lib/conductores";
 import { detallePorDia, HORAS_JORNADA_LARGA, salidaConDia } from "@/lib/dominio/jornadaLarga";
 
 export const metadata = { title: "Jornadas · TransferdeLuxe" };
@@ -14,7 +17,20 @@ export default async function Jornadas({ searchParams }: { searchParams: Promise
   await exigirRol("operador");
   if (!(await modulosCentral()).jornada) notFound();
   const { desde, hasta } = rangoDias(await searchParams);
-  const { jornadas, nombre } = await jornadasEnRango(desde, hasta);
+  const sb = await clienteServidor();
+  // Estado de ahora de cada conductor (para «Empezar / Terminar jornada» desde la central), en paralelo con el registro.
+  const [{ jornadas, nombre }, { data: gente }, { data: abiertas }] = await Promise.all([
+    jornadasEnRango(desde, hasta),
+    sb.from("perfiles").select("id,nombre,rol").or(FILTRO_CONDUCEN).neq("rol", "baja").order("nombre"),
+    sb.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)").is("fin", null),
+  ]);
+  const abiertaDe = new Map(((abiertas ?? []) as Jornada[]).map((j) => [j.conductor_id, j]));
+  const ahoraFilas: FilaJornadaAhora[] = (gente ?? []).map((g) => {
+    const j = abiertaDe.get(g.id as string) ?? null;
+    const estado = estadoJornada(j);
+    const pausa = j?.pausas.find((x) => !x.fin);
+    return { id: g.id as string, nombre: g.nombre as string, estado, desde: estado === "en_pausa" ? pausa!.inicio : j?.inicio ?? null };
+  });
   const ahora = new Date();
   const filas = registroPorDia(jornadas, ahora);
   // Nº de jornadas del día y aviso de jornada abierta / demasiado larga (> 14 h): ¿se olvidó de cerrarla?
@@ -27,6 +43,7 @@ export default async function Jornadas({ searchParams }: { searchParams: Promise
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Jornadas (registro horario)</h1>
       <p className="text-sm text-slate-400">Registro diario de jornada de los conductores (art. 34.9 del Estatuto de los Trabajadores). Independiente del estado «En servicio» del GPS.</p>
+      <JornadasAhora filas={ahoraFilas} />
       <form className="flex flex-wrap items-end gap-2">
         <label className="text-sm">Desde <input type="date" name="desde" defaultValue={desde} className={campo} /></label>
         <label className="text-sm">Hasta <input type="date" name="hasta" defaultValue={hasta} className={campo} /></label>
@@ -58,6 +75,7 @@ export default async function Jornadas({ searchParams }: { searchParams: Promise
                   <td className="p-2">{f.dia.split("-").reverse().join("/")}</td>
                   <td className="p-2">
                     {nombre(f.conductor_id)}
+                    {f.porCentral && <span title="La central empezó o terminó alguna jornada de este día" className="ml-2 rounded-full bg-sky-900 px-2 py-0.5 text-xs text-sky-200">✎ central</span>}
                     {d?.aviso && <span data-aviso-jornada className="mt-1 block w-fit rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-slate-950">⏳ {d.aviso}</span>}
                   </td>
                   <td className="p-2">{hora(f.entrada)}</td>

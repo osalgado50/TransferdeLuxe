@@ -28,7 +28,7 @@ export function rangoDias(q: { desde?: string; hasta?: string }) {
 export async function jornadasEnRango(desde: string, hasta: string) {
   const sb = await clienteServidor();
   const [j, p] = await Promise.all([
-    sb.from("jornadas").select("id,conductor_id,inicio,fin,pausas(inicio,fin)")
+    sb.from("jornadas").select("id,conductor_id,inicio,fin,inicio_por,fin_por,pausas(inicio,fin)")
       .gte("inicio", madridAUtc(desde, "00:00")).lt("inicio", madridAUtc(sumarDias(hasta, 1), "00:00")).order("inicio"),
     sb.from("perfiles").select("id,nombre").or(FILTRO_CONDUCEN),
   ]);

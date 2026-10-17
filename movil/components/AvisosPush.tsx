@@ -7,7 +7,7 @@ import { registrarPush, yaAnunciadoLocal, type DatosPush } from "~/lib/push";
 import { refrescarTodo } from "~/lib/tiempoReal";
 
 /** Avisos que cambian los servicios del conductor sin que Realtime se lo traiga (o antes de que llegue). */
-const RECARGAN = new Set(["servicio_retirado", "servicio_modificado", "servicio_relevo", "servicio_nuevo", "recogida_reajustada"]);
+const RECARGAN = new Set(["servicio_retirado", "servicio_modificado", "servicio_relevo", "servicio_nuevo", "recogida_reajustada", "jornada_central"]);
 
 /**
  * Registra el dispositivo para avisos y abre «Hoy» al tocar un aviso de servicio nuevo (allí sale el modal).
@@ -53,7 +53,7 @@ export function AvisosPush({ yo, central }: { yo: string; central?: boolean }) {
     if (central) router.navigate(d?.tipo === "servicio_nuevo" ? "/central/mis" : "/central");
     else if (d?.tipo === "servicio_nuevo" || d?.tipo === "servicio_retirado") { refrescarTodo(); router.navigate("/"); }
     else if ((d?.tipo === "servicio_modificado" || d?.tipo === "servicio_relevo") && d.servicioId) { refrescarTodo(); router.navigate(`/servicio/${d.servicioId}`); }
-    else if (d?.tipo === "turno") router.navigate("/jornada"); // recordatorio de inicio de turno
+    else if (d?.tipo === "turno" || d?.tipo === "jornada_central") { refrescarTodo(); router.navigate("/jornada"); } // turno o jornada abierta/cerrada por la central
     void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
   }, [ultima, central]);
   return null;

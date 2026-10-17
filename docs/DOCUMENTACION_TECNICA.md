@@ -835,6 +835,20 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   cualquier estado; recalcula la duración si cambia el trayecto, deja en el historial qué cambió y avisa al conductor.
   La app (modo central) también permite reasignar en curso. Tests de las reglas y de la detección de cambios.
 
+- **Revisión final de funcionamiento y límites (17/10/2026)**. Pruebas de carga y memoria (build de producción en local y
+  sonda suave a producción), base de datos y dos revisiones de código en paralelo → `docs/INFORME_REVISION_FINAL.md`.
+  Arreglos aplicados con el visto bueno del responsable: límites de peticiones que se saltaban inventando la IP, guardas
+  para no quitar un servicio en marcha sin querer, relevo con el cliente a bordo, aviso al conductor que pierde un
+  servicio (app y web), mapa a pantalla completa del iPhone, devueltos que desaparecían, reabrir un cierre de la central,
+  marca de demo al editar, recorridos, cola común de Nominatim, sesión verificada en local (`getClaims`) y consultas en
+  paralelo (página del conductor de 394 a 221 ms).
+
+- **Empezar y terminar jornadas desde la central (17/10/2026)**. Petición: poder abrir y cerrar la jornada de los
+  conductores. En Jornadas hay un panel «Ahora» con el estado de cada conductor y «Empezar / Terminar jornada» a la hora
+  que se indique (por defecto ahora; nunca en el futuro, como mucho 48 h atrás, sin solaparse con la anterior ni cerrar
+  antes del inicio o de la pausa en curso). Para el registro horario queda quién lo hizo (migración 0042: `inicio_por`,
+  `fin_por`), con la marca «✎ central» en la tabla y una columna en el CSV; el conductor recibe un aviso.
+
 - **Historial de prompts sin la marca real (17/10/2026)**. El registro automático y las transcripciones pasan por
   `scripts/anonimizar.py`, común al hook y al exportador: marca, web e identificadores de la empresa real, nombres,
   teléfonos, correos y direcciones privadas se sustituyen por etiquetas ([marca real], [teléfono omitido]…). Los
@@ -1141,6 +1155,13 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   (`@ejemplo.test`) inventados, direcciones particulares sustituidas por lugares públicos con sus coordenadas, borradas
   las posiciones GPS reales, sus trazados y las coordenadas de las incidencias reales, y las fotos de tickets cambiadas
   por las de ejemplo (también ficticias). Un barrido de todos los campos de texto confirmó que no queda nada.
+
+- **¿Qué IP es la del cliente detrás de Hostinger? (17/10/2026)**: con una `X-Real-IP` inventada en cada petición se
+  saltaban todos los límites. La primera corrección (usar la última entrada de `X-Forwarded-For`) se comprobó mal
+  (la prueba de control seguía usando la cabecera vieja). Solución: una ruta de diagnóstico temporal protegida con el
+  secreto de los cron que devolvía las cabeceras con hash (sin exponer la IP), que demostró que el proxy añade la IP real
+  al final de `X-Forwarded-For` y deja pasar `X-Real-IP` tal cual; tras desplegar, 120 peticiones pasan y el resto da
+  429 aunque se falsifique la IP. La ruta se borró a continuación.
 
 - **El anonimizador no puede contener lo que tapa (17/10/2026)**: la primera versión del filtro del historial de prompts
   llevaba en el código los nombres, la dirección y la marca reales, es decir, los publicaba en el repositorio. Solución:
