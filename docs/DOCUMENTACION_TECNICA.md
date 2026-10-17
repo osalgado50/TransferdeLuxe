@@ -818,6 +818,18 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   mapa, y su historial sigue con su nombre; se puede reactivar desde la misma página. Antes, sus servicios por hacer
   vuelven a la central con aviso; si tiene uno en curso, hay que esperar a que lo termine.
 
+- **Privacidad sin perder el formulario y mapa sin indicaciones (17/10/2026)**. Peticiones: al abrir la política de
+  privacidad desde la reserva no había botón para volver y, al ir atrás, el formulario salía vacío; y quitar del mapa
+  del conductor los carteles «Gira a la derecha…». La política se abre ahora en una ventana encima del formulario
+  (`<dialog>` con «Volver al formulario» y su texto cargado solo al abrirla), así que no se sale de la página; las
+  páginas legales tienen además «← Volver». En la app se retiró el cartel de giro (el acercamiento automático en los
+  cruces se mantiene) y se publicó por actualización en el aire.
+
+- **Historial de prompts sin la marca real (17/10/2026)**. El registro automático y las transcripciones pasan por
+  `scripts/anonimizar.py`, común al hook y al exportador: marca, web e identificadores de la empresa real, nombres,
+  teléfonos, correos y direcciones privadas se sustituyen por etiquetas ([marca real], [teléfono omitido]…). Los
+  literales que busca están en un fichero local ignorado por git, para que el propio script no los publique.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
@@ -1119,6 +1131,12 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   (`@ejemplo.test`) inventados, direcciones particulares sustituidas por lugares públicos con sus coordenadas, borradas
   las posiciones GPS reales, sus trazados y las coordenadas de las incidencias reales, y las fotos de tickets cambiadas
   por las de ejemplo (también ficticias). Un barrido de todos los campos de texto confirmó que no queda nada.
+
+- **El anonimizador no puede contener lo que tapa (17/10/2026)**: la primera versión del filtro del historial de prompts
+  llevaba en el código los nombres, la dirección y la marca reales, es decir, los publicaba en el repositorio. Solución:
+  esos patrones se leen de un fichero local ignorado por git; en el código solo quedan los genéricos (correos y
+  teléfonos). Además, el formulario público perdía lo rellenado al abrir la política de privacidad: ahora se abre en
+  una ventana encima y no se navega.
 
 ## 7. Capturas
 Tomadas el 17/10/2026 de la aplicación en producción con los datos de demostración (marca ficticia, sin datos reales),
