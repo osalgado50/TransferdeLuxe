@@ -22,10 +22,10 @@ export async function eliminarConductor(id: string): Promise<ResultadoConductor>
   try {
     const { data: p } = await sb.from("perfiles").select("id,nombre").eq("id", id).eq("rol", "conductor").maybeSingle();
     if (!p) return { ok: false, mensaje: "Ese conductor ya no existe" };
-    const { count: enCurso } = await sb.from("servicios").select("id", { count: "exact", head: true }).eq("conductor_id", id).in("estado", ["en_camino", "recogido"]);
+    const { count: enCurso } = await sb.from("servicios").select("id", { count: "exact", head: true }).eq("conductor_id", id).eq("es_prueba", false).in("estado", ["en_camino", "recogido"]);
     if (enCurso) return { ok: false, mensaje: `${p.nombre} tiene un servicio en curso: espera a que lo termine.` };
     // Sus servicios por hacer vuelven a la central (con aviso para reasignarlos).
-    const { data: pendientes } = await sb.from("servicios").select("id,estado").eq("conductor_id", id).in("estado", ["asignado", "aceptado"]);
+    const { data: pendientes } = await sb.from("servicios").select("id,estado").eq("conductor_id", id).eq("es_prueba", false).in("estado", ["asignado", "aceptado"]);
     for (const s of pendientes ?? []) {
       await ejecutarAccionOperador(yo.id, { idAccion: crypto.randomUUID(), servicioId: s.id as string, accion: "desasignar", motivo: "Conductor dado de baja", estadoEsperado: s.estado as "asignado" | "aceptado" });
     }

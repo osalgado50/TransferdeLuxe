@@ -58,6 +58,12 @@ async function retirarDemo(sb: Sb, hasta: string): Promise<string[]> {
   const ids = (data ?? []).map((r) => r.id as string);
   if (ids.length) {
     const ahora = new Date().toISOString();
+    // Ocultos pero abiertos se quedarían «en curso» para siempre (p. ej. si el GPS real del móvil frenó la simulación):
+    // se cierran, en curso como completados y el resto como cancelados.
+    await Promise.all([
+      sb.from("servicios").update({ estado: "completado" }).in("id", ids).in("estado", ["en_camino", "recogido"]),
+      sb.from("servicios").update({ estado: "cancelado" }).in("id", ids).in("estado", ["pendiente", "asignado", "aceptado"]),
+    ]);
     await Promise.all([
       sb.from("alertas_horario").update({ resuelta_en: ahora }).in("servicio_id", ids).is("resuelta_en", null),
       sb.from("incidencias").update({ resuelta: true, resuelta_en: ahora }).in("servicio_id", ids).eq("resuelta", false),
