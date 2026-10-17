@@ -13,6 +13,7 @@ import * as Location from "expo-location";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useRegistroMapaCompleto } from "~/lib/mapaCompleto";
 import { llamarApi } from "~/lib/api";
 import { notificarLocal } from "~/lib/push";
 import { color } from "~/lib/tema";
@@ -213,7 +214,8 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
 
   // El mismo mapa en la tarjeta o a pantalla completa (al tocarlo): se monta en un sitio u otro y vuelve a seguir al coche.
   const abrirCompleta = () => { ultimoEase.current = 0; setCompleta(true); };
-  const cerrarCompleta = () => { ultimoEase.current = 0; setCompleta(false); };
+  const cerrarCompleta = useCallback(() => { ultimoEase.current = 0; setCompleta(false); }, []);
+  useRegistroMapaCompleto(completa, cerrarCompleta);
   const zoomManual = (d: number) => { setSeguir(false); camara.current?.zoomTo(Math.max(3, Math.min(19, zoomMapa + d)), { duration: 250 }); };
   const mapa = (
     <MapaLibre style={StyleSheet.absoluteFill} mapStyle={ESTILO} attribution logo={false}
@@ -279,8 +281,10 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
         <SafeAreaProvider>
           <SafeAreaView style={estilos.completa} edges={["top", "bottom"]}>
             <View style={{ flex: 1 }}>
-              {mapa}
-              {capas}
+              {/* Solo mientras está abierta: en iOS el Modal mantiene montado su contenido hasta terminar de cerrarse, y
+                  este segundo mapa (que comparte la cámara) dejaba al de la tarjeta sin cámara al desmontarse. */}
+              {completa && mapa}
+              {completa && capas}
               <View style={estilos.zoom}>
                 <Pressable onPress={() => zoomManual(1)} accessibilityRole="button" accessibilityLabel="Acercar" style={estilos.zoomBoton}><Text style={estilos.zoomTexto}>+</Text></Pressable>
                 <Pressable onPress={() => zoomManual(-1)} accessibilityRole="button" accessibilityLabel="Alejar" style={estilos.zoomBoton}><Text style={estilos.zoomTexto}>−</Text></Pressable>

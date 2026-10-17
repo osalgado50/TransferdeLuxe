@@ -1,4 +1,4 @@
-import { MOTIVO_CIERRE_CENTRAL, PREFIJO_DESASIGNADO, PREFIJO_DEVUELTO, transicion, type Accion } from "@/lib/dominio/estados";
+import { EN_MARCHA, estadoAntesDeCierreCentral, motivoCierreCentral, PREFIJO_DESASIGNADO, PREFIJO_DEVUELTO, transicion, type Accion } from "@/lib/dominio/estados";
 import { comprobarDeshacer, type EventoPaso } from "@/lib/dominio/deshacer";
 import type { EstadoServicio, Rol, Servicio } from "@/lib/dominio/tipos";
 
@@ -32,6 +32,14 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   if (p.estadoEsperado && s.estado !== p.estadoEsperado) {
     return { ok: false, error: `El servicio ha cambiado mientras tanto (ahora está «${s.estado.replace("_", " ")}»): revísalo antes de repetir la acción` };
   }
+  // Servicio en marcha: la central solo actúa si lo veía así (lo dice `estadoEsperado`). Un diálogo, un arrastre o una
+  // alerta abiertos antes de que el conductor saliera no deben quitarle el servicio sin querer.
+  if (p.actor.central && p.accion !== "deshacer" && EN_MARCHA.includes(s.estado) && p.estadoEsperado !== s.estado) {
+    return { ok: false, error: `El conductor ya está en marcha («${s.estado.replace("_", " ")}»): ábrelo y decide desde su ficha` };
+  }
+  if (p.accion === "reasignar" && EN_MARCHA.includes(s.estado) && p.conductorId === s.conductor_id) {
+    return { ok: false, error: "Ese conductor ya lleva este servicio: elige a otro" };
+  }
   // Idempotencia primero: un reintento llega cuando el estado ya avanzó y la transición fallaría.
   if (await repo.yaProcesada(p.idAccion)) return { ok: true, estado: s.estado, duplicada: true };
 
@@ -51,9 +59,16 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
     if (!c.ok) return c;
     motivo = c.motivo;
   }
+  let nuevo = t.nuevo;
+  // Deshacer un «Cerrar como completado» de la central: vuelve al estado que tenía (no a «pasajeros a bordo»).
+  if (p.accion === "deshacer" && p.actor.central && s.estado === "completado" && repo.eventosServicio) {
+    const cierre = (await repo.eventosServicio(s.id)).find((e) => e.tipo === "completado");
+    const previo = estadoAntesDeCierreCentral(cierre?.motivo);
+    if (previo) { nuevo = previo; motivo = "Deshecho por la central: cierre"; }
+  }
   if (!(await repo.registrarAccion(p.idAccion))) return { ok: true, estado: s.estado, duplicada: true };
 
-  const cambios: Partial<Servicio> = { estado: t.nuevo };
+  const cambios: Partial<Servicio> = { estado: nuevo };
   if (p.accion === "asignar" || p.accion === "reasignar") {
     Object.assign(cambios, { conductor_id: p.conductorId, vehiculo_id: p.vehiculoId ?? null, asignado_en: new Date().toISOString(), incidencia_vista: true });
   }
@@ -63,7 +78,7 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
   }
   // Aceptado, cancelado o subcontratado: la alerta que tuviera («Sin respuesta», rechazado, devuelto…) ya no aplica.
   if (p.accion === "aceptar" || p.accion === "cancelar" || p.accion === "subcontratar" || p.accion === "completar") cambios.incidencia_vista = true;
-  if (p.accion === "completar") motivo = (p.motivo?.trim() ? `${MOTIVO_CIERRE_CENTRAL}: ${p.motivo.trim()}` : MOTIVO_CIERRE_CENTRAL).slice(0, 300);
+  if (p.accion === "completar") motivo = motivoCierreCentral(s.estado, p.motivo?.trim() || undefined).slice(0, 300);
   if (p.accion === "rechazar") {
     Object.assign(cambios, { conductor_id: null, vehiculo_id: null, asignado_en: null, ultima_incidencia: `rechazado: ${p.motivo}`, incidencia_vista: false });
   }
@@ -92,7 +107,7 @@ export async function ejecutarAccion(repo: RepoServicios, p: PeticionAccion): Pr
     try { await repo.liberarAccion(p.idAccion); } catch { /* best effort */ }
     throw e;
   }
-  return { ok: true, estado: t.nuevo };
+  return { ok: true, estado: nuevo };
 }
 
 export function repoSupabase(sb: import("@supabase/supabase-js").SupabaseClient): RepoServicios {
@@ -118,7 +133,7 @@ export function repoSupabase(sb: import("@supabase/supabase-js").SupabaseClient)
       return data === true;
     },
     async eventosServicio(id) {
-      const { data, error } = await sb.from("eventos_servicio").select("id,tipo,actor_id,creado_en").eq("servicio_id", id)
+      const { data, error } = await sb.from("eventos_servicio").select("id,tipo,actor_id,creado_en,motivo").eq("servicio_id", id)
         .order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(50);
       if (error) throw new Error(error.message);
       return (data ?? []) as EventoPaso[];

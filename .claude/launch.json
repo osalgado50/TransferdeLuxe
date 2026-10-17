@@ -36,6 +36,21 @@
         "3001"
       ],
       "port": 3001
+    },
+    {
+      "name": "prod-local",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VIGILANTE_PUSH=off",
+        "NODE_OPTIONS=--expose-gc",
+        "npm",
+        "run",
+        "start",
+        "--",
+        "-p",
+        "3005"
+      ],
+      "port": 3005
     }
   ]
 }

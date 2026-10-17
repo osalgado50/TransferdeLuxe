@@ -117,6 +117,8 @@ export function crearBuscador({ fetch: f = fetch, ahora = Date.now, dormir = (ms
   }
 
   return {
+    /** Turno de Nominatim para otras consultas (la dirección de «Usar mi ubicación»): la misma cola de 1 petición/s. */
+    turnoNominatim: () => turno("nominatim"),
     /** Sugerencias externas; [] si todos fallan o no hay turno (la ruta sigue con los resultados locales). */
     async buscar(q: string): Promise<LugarSugerido[]> {
       if (google) {

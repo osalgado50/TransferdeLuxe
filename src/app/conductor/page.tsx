@@ -7,6 +7,7 @@ import ListaHoy, { type ServicioHoy } from "@/components/conductor/ListaHoy";
 import ModulosConductor from "@/components/conductor/ModulosConductor";
 import DevolverRapido from "@/components/conductor/DevolverRapido";
 import { devolviblesEnBloque } from "@/lib/dominio/estados";
+import RefrescoPeriodico from "@/components/conductor/RefrescoPeriodico";
 
 export default async function Hoy() {
   const yo = await exigirConductor();
@@ -14,24 +15,26 @@ export default async function Hoy() {
   const desde = madridAUtc(dia, "00:00");
   const hasta = madridAUtc(new Date(Date.parse(`${dia}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10), "00:00");
   const sb = await clienteServidor();
-  const { data, error } = await sb.from("servicios")
-    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas").eq("es_prueba", false)
-    .eq("conductor_id", yo.id).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta)
-    .neq("estado", "cancelado").order("fecha_hora_recogida");
   const dia8 = new Date(Date.parse(`${dia}T12:00:00Z`) + 8 * 86400e3).toISOString().slice(0, 10);
   const hasta7 = madridAUtc(dia8, "00:00");
-  const { data: prox, error: errorProx } = await sb.from("servicios")
-    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas").eq("es_prueba", false)
-    .eq("conductor_id", yo.id).gte("fecha_hora_recogida", hasta).lt("fecha_hora_recogida", hasta7)
-    .not("estado", "in", "(cancelado,completado)").order("fecha_hora_recogida");
-  // Sin terminar de días anteriores (hasta 2 semanas): antes no se veían y podían dejar la app enganchada.
-  const { data: antes } = await sb.from("servicios")
-    .select("id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas").eq("es_prueba", false)
-    .eq("conductor_id", yo.id).gte("fecha_hora_recogida", new Date(Date.parse(desde) - 14 * 86400e3).toISOString()).lt("fecha_hora_recogida", desde)
-    .in("estado", ["asignado", "aceptado", "en_camino", "recogido"]).order("fecha_hora_recogida");
+  const CAMPOS = "id,estado,conductor_id,fecha_hora_recogida,origen_texto,destino_texto,pasajeros,maletas";
+  // Hoy, los próximos 7 días y lo sin terminar de días anteriores (hasta 2 semanas), en paralelo.
+  const [{ data, error }, { data: prox, error: errorProx }, { data: antes }] = await Promise.all([
+    sb.from("servicios").select(CAMPOS).eq("es_prueba", false)
+      .eq("conductor_id", yo.id).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta)
+      .neq("estado", "cancelado").order("fecha_hora_recogida"),
+    sb.from("servicios").select(CAMPOS).eq("es_prueba", false)
+      .eq("conductor_id", yo.id).gte("fecha_hora_recogida", hasta).lt("fecha_hora_recogida", hasta7)
+      .not("estado", "in", "(cancelado,completado)").order("fecha_hora_recogida"),
+    sb.from("servicios").select(CAMPOS).eq("es_prueba", false)
+      .eq("conductor_id", yo.id).gte("fecha_hora_recogida", new Date(Date.parse(desde) - 14 * 86400e3).toISOString()).lt("fecha_hora_recogida", desde)
+      .in("estado", ["asignado", "aceptado", "en_camino", "recogido"]).order("fecha_hora_recogida"),
+  ]);
   const enBloque = devolviblesEnBloque([antes ?? [], data ?? [], prox ?? []]).map((s) => ({ id: s.id, estado: s.estado }));
   return (
     <div className="space-y-4">
+      {/* Si la central le quita un servicio, Realtime no se lo trae (deja de ser suyo): se refresca cada 30 s. */}
+      <RefrescoPeriodico segundos={30} />
       <ModulosConductor yo={yo} />
       {(antes ?? []).length > 0 && (
         <section className="space-y-2">

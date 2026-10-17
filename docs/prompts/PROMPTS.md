@@ -1589,3 +1589,16 @@ Si actualiza. Puedes grabar tu la voz en off en castellano. Pero intenta no usar
 
 ---
 
+## 2026-10-17 21:04 · Claude Code · sesión `b3c0e64f`
+
+Vamos a hacer una revisión final de funcionamiento. Te he subido el
+Nivel de esfuerzo para que detectes fallos y mejoras de rendimiento. Estresa las aplicaciones para detectar límites. Si por el camino detectas mejoras u optimizaciones me lo comentas
+
+---
+
+## 2026-10-17 22:17 · Claude Code · sesión `b3c0e64f`
+
+Oye puedes crear una opción de finalizar y empezar las jornadas de los conductores?
+
+---
+

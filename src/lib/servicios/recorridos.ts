@@ -11,7 +11,7 @@ const trozos = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.len
 export async function guardarRecorrido(sb: Admin, servicioId: string): Promise<boolean> {
   const [{ data: s, error: es }, { data: ev, error: ee }] = await Promise.all([
     sb.from("servicios").select("id,estado,conductor_id").eq("id", servicioId).maybeSingle(),
-    sb.from("eventos_servicio").select("tipo,creado_en,actor_id").eq("servicio_id", servicioId)
+    sb.from("eventos_servicio").select("tipo,creado_en,actor_id,motivo").eq("servicio_id", servicioId)
       .in("tipo", ["aceptado", "en_camino", "recogido", "completado"]).order("creado_en"),
   ]);
   if (es || ee) throw new Error(`recorrido ${servicioId}: ${(es ?? ee)!.message}`);

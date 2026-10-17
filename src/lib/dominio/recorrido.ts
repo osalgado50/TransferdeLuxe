@@ -1,11 +1,12 @@
 // Recorrido real de un servicio (lógica pura, sin dependencias): de las posiciones GPS del conductor entre «en camino»
 // (o «aceptado») y «completado» se descartan los puntos malos, se simplifica la línea y se calculan km y duración.
 // Lo usa el vigilante del servidor para guardarlo en la tabla `recorridos` (las posiciones se purgan a los 30 días).
+import { MOTIVO_CIERRE_CENTRAL } from "./estados";
 import { distanciaKm } from "./geo";
 
 /** Posición tal como viene de la tabla `posiciones`. */
 export interface PosicionGps { lat: number; lng: number; precision_m?: number | null; registrado_en: string }
-export interface EventoRecorrido { tipo: string; creado_en: string }
+export interface EventoRecorrido { tipo: string; creado_en: string; motivo?: string | null }
 /** [lng, lat], como GeoJSON (MapLibre lo usa tal cual; Leaflet lo invierte). */
 export type PuntoLngLat = [number, number];
 
@@ -39,7 +40,9 @@ export function ventanaRecorrido(eventos: EventoRecorrido[]): VentanaRecorrido |
   if (!fin) return null;
   const antes = ord.filter((e) => ms(e.creado_en) <= ms(fin.creado_en));
   // Sin «en camino» ni «aceptado» (la central lo completó a mano): ventana vacía, para no reintentarlo sin fin.
-  const ini = antes.filter((e) => e.tipo === "en_camino").at(-1) ?? antes.filter((e) => e.tipo === "aceptado").at(-1) ?? fin;
+  // Si lo cerró la central sin que el conductor saliera, tampoco desde «aceptado»: ese GPS es de otros servicios (km inflados).
+  const cerradoCentral = (fin.motivo ?? "").startsWith(MOTIVO_CIERRE_CENTRAL);
+  const ini = antes.filter((e) => e.tipo === "en_camino").at(-1) ?? (cerradoCentral ? undefined : antes.filter((e) => e.tipo === "aceptado").at(-1)) ?? fin;
   const rec = antes.filter((e) => e.tipo === "recogido" && ms(e.creado_en) >= ms(ini.creado_en)).at(-1);
   return { inicio: ini.creado_en, recogido: rec?.creado_en ?? null, fin: fin.creado_en };
 }

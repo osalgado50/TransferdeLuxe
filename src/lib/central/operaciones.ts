@@ -40,6 +40,15 @@ export async function ejecutarAccionOperador(operadorId: string, p: PeticionOper
     : null;
   const r = await ejecutarAccion(repoSupabase(clienteAdmin()), { ...p, ...(motivo ? { motivo } : {}), actor: { id: operadorId, rol: "operador", central: true } });
   const toca = r.ok && !r.duplicada && (p.accion === "asignar" || p.accion === "reasignar");
+  // Relevo con el cliente a bordo: el nuevo conductor no tiene que aceptar ni ir a la recogida, solo llevarlo al destino.
+  const relevo = toca && r.ok && r.estado === "recogido";
+  const avisarNuevo = relevo
+    ? async () => {
+      const { data: s } = await clienteAdmin().from("servicios").select("destino_texto,cliente_nombre").eq("id", p.servicioId).maybeSingle();
+      await notificarAConductor(p.conductorId!, "Relevo: cliente a bordo",
+        `La central te pasa el servicio de ${s?.cliente_nombre ?? "un cliente"} ya recogido. Destino: ${s?.destino_texto ?? "—"}`, { tipo: "servicio_relevo", servicioId: p.servicioId });
+    }
+    : () => notificarServicioNuevo(p.servicioId);
   // El conductor que lo pierde se entera al momento (si no, con la ficha abierta podía salir hacia la recogida).
   const pierde = antes?.conductor_id && !(p.accion === "reasignar" && p.conductorId === antes.conductor_id) ? (antes.conductor_id as string) : null;
   if (r.ok && !r.duplicada && pierde && antes) {
@@ -48,9 +57,9 @@ export async function ejecutarAccionOperador(operadorId: string, p: PeticionOper
       : p.accion === "completar" ? "ha dado por terminado" : "te ha quitado";
     const titulo = p.accion === "cancelar" ? "Servicio cancelado" : p.accion === "completar" ? "Servicio cerrado" : "Servicio retirado";
     const avisoRetirado = () => notificarAConductor(pierde, titulo, `La central ${porque} el servicio de las ${hora} (${antes.origen_texto})`, { tipo: "servicio_retirado", servicioId: p.servicioId });
-    return { r, avisar: async () => { await avisoRetirado(); if (toca) await notificarServicioNuevo(p.servicioId); } };
+    return { r, avisar: async () => { await avisoRetirado(); if (toca) await avisarNuevo(); } };
   }
-  return { r, avisar: toca ? () => notificarServicioNuevo(p.servicioId) : async () => {} };
+  return { r, avisar: toca ? avisarNuevo : async () => {} };
 }
 
 /** «ausente: vacaciones» si el conductor tiene una ausencia el día/franja del servicio; undefined si no (o si falla). */
@@ -117,7 +126,9 @@ export async function sugerenciasServicio(servicioId: string) {
   const sb = clienteAdmin();
   const { data: s } = await sb.from("servicios").select("*").eq("id", servicioId).maybeSingle();
   if (!s) return null;
-  return sugerenciasPara(sb, s);
+  // Para reasignar o hacer un relevo no se ofrece al conductor que ya lo lleva.
+  const sug = await sugerenciasPara(sb, s);
+  return s.conductor_id ? sug.filter((g) => g.conductorId !== s.conductor_id) : sug;
 }
 
 type ServicioSugerible = Parameters<typeof aPlan>[0] & { id: string; fecha_hora_recogida: string; pasajeros: number; maletas: number;

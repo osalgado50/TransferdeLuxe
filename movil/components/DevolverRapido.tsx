@@ -17,26 +17,35 @@ const confirmar = (titulo: string, texto: string) => new Promise<boolean>((ok) =
     { cancelable: true, onDismiss: () => ok(false) });
 });
 
-/** Encola la devolución (o el rechazo) de cada servicio y la intenta enviar ya. Devuelve cuántos se encolaron. */
-async function encolar(conductorId: string, servicios: Devolvible[], motivo: string): Promise<number> {
+/**
+ * Encola la devolución (o el rechazo) de cada servicio y la intenta enviar ya. Devuelve los ids encolados y una promesa
+ * con los ya resueltos (enviados o rechazados por el servidor; sin red siguen en la cola y no se cuentan).
+ */
+async function encolar(conductorId: string, servicios: Devolvible[], motivo: string): Promise<{ ids: string[]; resueltos: Promise<string[]> }> {
   const c = await colaDe(conductorId);
   const pendientes = new Set(c.cola.pendientes().map((p) => p.servicioId));
-  let n = 0;
+  const ids: string[] = [];
   for (const s of servicios) {
     const accion = accionDevolver(s.estado);
-    if (!accion || pendientes.has(s.id)) continue; // ya hay algo en camino para ese servicio
+    if (!accion || pendientes.has(s.id)) continue; // ya hay algo en camino para ese servicio (no se oculta)
     c.rechazos.delete(s.id);
     c.cola.encolar({ idAccion: nuevoIdAccion(), servicioId: s.id, accion, motivo });
-    n++;
+    ids.push(s.id);
   }
-  void drenar(conductorId, true).catch(() => {}); // gesto del usuario: intenta ya (sin red, la cola reintenta)
-  return n;
+  // Gesto del usuario: intenta ya (sin red, la cola reintenta).
+  const resueltos = drenar(conductorId, true).catch(() => {}).then(() => {
+    const quedan = new Set(c.cola.pendientes().map((p) => p.servicioId));
+    return ids.filter((id) => !quedan.has(id));
+  });
+  return { ids, resueltos };
 }
 
-export function DevolverRapido({ conductorId, servicios, enBloque, etiqueta, alDevolver }: {
+export function DevolverRapido({ conductorId, servicios, enBloque, etiqueta, alDevolver, alResolver }: {
   conductorId: string; servicios: Devolvible[];
   /** true: botón «Devolver todos a la central (N)»; false: la ✕ de una tarjeta. */
   enBloque?: boolean; etiqueta?: string; alDevolver?: (ids: string[]) => void;
+  /** Ya enviados (o rechazados): la lista deja de ocultarlos y manda lo que diga el servidor. */
+  alResolver?: (ids: string[]) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [otro, setOtro] = useState(false);
@@ -52,9 +61,10 @@ export function DevolverRapido({ conductorId, servicios, enBloque, etiqueta, alD
     if (!(await confirmar(titulo, `Motivo: ${m}\n\nVuelve${enBloque ? "n" : ""} a la central para que los asigne a otro conductor.`))) return;
     setEnviando(true);
     try {
-      await encolar(conductorId, validos, m);
+      const { ids, resueltos } = await encolar(conductorId, validos, m);
       setAbierto(false); setOtro(false); setTexto("");
-      alDevolver?.(validos.map((s) => s.id));
+      alDevolver?.(ids);
+      void resueltos.then((r) => { if (r.length) alResolver?.(r); });
     } finally { setEnviando(false); }
   };
 

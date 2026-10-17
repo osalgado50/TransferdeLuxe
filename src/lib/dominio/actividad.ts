@@ -243,7 +243,7 @@ export function construirActividad(e: EntradaActividad, limite = LIMITE_ACTIVIDA
       }
       case "deshecho": {
         // Botón «Deshacer» del conductor (≤ 10 min tras su último paso) o de la central desde la ficha.
-        const paso = deshecho?.nombre ? `la ${deshecho.nombre}` : "el último paso";
+        const paso = deshecho?.nombre ? `${deshecho.nombre === "cierre" ? "el" : "la"} ${deshecho.nombre}` : "el último paso";
         const deServ = s ? `del servicio de ${cuando(s, ev.creado_en)}` : "de un servicio";
         texto = deshecho?.central
           ? `↩ La central ha deshecho ${paso} ${deServ}${cid ? ` (${N})` : ""}`

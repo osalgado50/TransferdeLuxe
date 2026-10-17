@@ -39,10 +39,12 @@ export const leerSugerencias = async (servicioId: string) =>
   (await json<{ sugerencias: SugerenciaCentral[] }>(await llamarApi(`/api/central/sugerencia?servicio=${encodeURIComponent(servicioId)}`))).sugerencias;
 
 /** Asigna o reasigna. Devuelve null si fue bien o el mensaje de error (409 incluido). Nunca lanza. */
-export async function asignarServicio(tipo: "asignar" | "reasignar", servicioId: string, conductorId: string, vehiculoId?: string | null): Promise<string | null> {
+export async function asignarServicio(tipo: "asignar" | "reasignar", servicioId: string, conductorId: string, vehiculoId?: string | null,
+  estadoEsperado?: string): Promise<string | null> {
   try {
+    // `estadoEsperado`: el que ve el operador; con el servicio en marcha el servidor lo exige (no se le quita sin querer).
     const r = await llamarApi(`/api/central/${tipo}`, {
-      method: "POST", body: { idAccion: nuevoId(), servicioId, conductorId, ...(vehiculoId ? { vehiculoId } : {}) },
+      method: "POST", body: { idAccion: nuevoId(), servicioId, conductorId, ...(vehiculoId ? { vehiculoId } : {}), ...(estadoEsperado ? { estadoEsperado } : {}) },
     });
     const d = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
     return r.ok && d?.ok !== false ? null : (d?.error ?? `No se pudo ${tipo} (error ${r.status})`);
@@ -138,7 +140,8 @@ function useResumenCentral() {
     t.current = setTimeout(() => void recargar(), 800);
   }, [recargar]);
   const freno = useRef(crearFreno(FRENO_POSICIONES_MS));
-  const posicion = useCallback(() => freno.current.pedir(() => void recargar()), [recargar]);
+  // En segundo plano no se recarga por cada posición (batería); al volver a primer plano se recarga todo.
+  const posicion = useCallback(() => { if (AppState.currentState === "active") freno.current.pedir(() => void recargar()); }, [recargar]);
   useEffect(() => () => { if (t.current) clearTimeout(t.current); freno.current.cancelar(); }, []);
   useCambiosTabla("servicios", programar, programar);
   useCambiosTabla("posicion_actual", posicion, programar);

@@ -3,6 +3,7 @@ import { claveAsignacion as clave, formatoCuenta, segundosRestantes, siguienteNu
 import type { Servicio } from "@dominio/tipos";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
+import { useEsperaMapaCompleto } from "~/lib/mapaCompleto";
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, Vibration, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { BloqueDireccion } from "./BloqueDireccion";
@@ -41,6 +42,8 @@ export function ServicioNuevo({ yo }: { yo: string }) {
   const s = siguienteNuevo(datos ?? [], yo, ocultos, ahora);
   const restante = s ? segundosRestantes(s.asignado_en!, s.plazo_respuesta_min, ahora) : 0;
   const abierta = !!s;
+  // Con el mapa a pantalla completa abierto, primero se cierra (iOS no presenta una ventana sobre otra).
+  const esperaMapa = useEsperaMapaCompleto(abierta);
 
   useEffect(() => {
     if (!abierta) return;
@@ -100,6 +103,7 @@ export function ServicioNuevo({ yo }: { yo: string }) {
     finally { setEnviando(false); }
   }
 
+  if (s && esperaMapa) return null;
   if (!s) {
     return aviso ? (
       <SafeAreaView edges={["top"]} style={estilos.banner} accessibilityRole="alert">

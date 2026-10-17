@@ -3,6 +3,14 @@ import { AppState } from "react-native";
 import { alRecuperar } from "./red";
 import { supabase } from "./supabase";
 
+const oyentesRefresco = new Set<() => void>();
+/**
+ * Pide a todas las pantallas abiertas que recarguen. Para lo que Realtime no trae: cuando la central le quita un servicio
+ * al conductor (reasignar, quitar, subcontratar), la fila deja de ser suya y la seguridad de la base de datos no le manda
+ * el cambio; llega el push «servicio retirado» y con esto la pantalla se entera al momento.
+ */
+export function refrescarTodo() { oyentesRefresco.forEach((f) => f()); }
+
 /** Avisa de cualquier cambio en `servicios` (RLS: solo llegan los míos). Reconexión → `alReconectar`. */
 export function useCambiosServicios(alCambio: (fila: Record<string, unknown> | null) => void, alReconectar: () => void) {
   useCambiosTabla("servicios", alCambio, alReconectar);
@@ -80,7 +88,8 @@ export function useConsulta<T>(cargar: () => Promise<T>, deps: unknown[]) {
   useEffect(() => {
     const s = AppState.addEventListener("change", (x) => { if (x === "active") void recargar(); });
     const r = alRecuperar((d) => { if (d === "supabase") programar(); });
-    return () => { s.remove(); r(); };
+    oyentesRefresco.add(programar);
+    return () => { s.remove(); r(); oyentesRefresco.delete(programar); };
   }, [recargar, programar]);
   return { ...e, recargar };
 }

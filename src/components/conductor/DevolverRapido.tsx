@@ -15,6 +15,11 @@ type Devolvible = { id: string; estado: string };
 let devueltos = new Set<string>();
 const oyentes = new Set<() => void>();
 const marcar = (ids: string[]) => { devueltos = new Set([...devueltos, ...ids]); oyentes.forEach((f) => f()); };
+// Si el servidor rechaza la devolución (p. ej. ya lo había cargado o la central lo cambió), vuelve a verse: sigue siendo suyo.
+const desmarcar = (ids: string[]) => {
+  if (!ids.some((id) => devueltos.has(id))) return;
+  devueltos = new Set([...devueltos].filter((id) => !ids.includes(id))); oyentes.forEach((f) => f());
+};
 const VACIO = new Set<string>();
 export function useDevueltos(): ReadonlySet<string> {
   return useSyncExternalStore((f) => { oyentes.add(f); return () => { oyentes.delete(f); }; }, () => devueltos, () => VACIO);
@@ -37,15 +42,18 @@ export default function DevolverRapido({ conductorId, servicios, enBloque, etiqu
     if (!m || !confirm(`¿Devolver ${que} a la central?\nMotivo: ${m}\n\nLa central los asignará a otro conductor.`)) return;
     const { cola, rechazos } = colaDe(conductorId);
     const pendientes = new Set(cola.pendientes().map((p) => p.servicioId));
+    const encolados: string[] = [];
     for (const s of validos) {
       const accion = accionDevolver(s.estado);
+      // Con otra acción pendiente (p. ej. una CARGA sin cobertura) no se devuelve ni se oculta.
       if (!accion || pendientes.has(s.id)) continue;
       rechazos.delete(s.id);
       cola.encolar({ idAccion: crypto.randomUUID(), servicioId: s.id, accion, motivo: m });
+      encolados.push(s.id);
     }
-    marcar(validos.map((s) => s.id));
+    marcar(encolados);
     setAbierto(false); setOtro(false); setTexto("");
-    void drenar(conductorId, true).catch(() => {}).finally(() => router.refresh());
+    void drenar(conductorId, true).catch(() => {}).finally(() => { desmarcar(encolados.filter((id) => rechazos.has(id))); router.refresh(); });
   };
 
   return (

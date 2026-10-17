@@ -13,10 +13,13 @@ interface Regla { desde: EstadoServicio[]; hacia: EstadoServicio; quien: Rol; ev
 // responde y no hay forma de contactarle, se lo quita, lo pasa a otro, lo cancela, lo subcontrata o lo cierra.
 const CON_CONDUCTOR: EstadoServicio[] = ["asignado", "aceptado", "en_camino", "recogido"];
 const ABIERTOS: EstadoServicio[] = ["pendiente", ...CON_CONDUCTOR];
+/** En marcha: el conductor ya ha salido o lleva al cliente. */
+export const EN_MARCHA: readonly EstadoServicio[] = ["en_camino", "recogido"];
 
 const REGLAS: Record<Exclude<Accion, "deshacer">, Regla> = {
   asignar:      { desde: ["pendiente"], hacia: "asignado", quien: "operador", evento: "asignado" },
-  // A otro conductor desde cualquier punto: el nuevo lo recibe como «asignado» y tiene que aceptarlo.
+  // A otro conductor desde cualquier punto: el nuevo lo recibe como «asignado» y tiene que aceptarlo. Con el cliente a
+  // bordo es un relevo: sigue «recogido» con el nuevo conductor (ver `transicion`), sin volver a la recogida.
   reasignar:    { desde: CON_CONDUCTOR, hacia: "asignado", quien: "operador", evento: "reasignado" },
   cancelar:     { desde: ABIERTOS, hacia: "cancelado", quien: "operador", evento: "cancelado" },
   // También con conductor (p. ej. plazo vencido sin respuesta): se le quita y lo hace otra empresa.
@@ -31,7 +34,8 @@ const REGLAS: Record<Exclude<Accion, "deshacer">, Regla> = {
   // «No puedo hacer este servicio»: el conductor asignado lo devuelve a la central (antes de recoger al cliente).
   devolver:     { desde: ["aceptado", "en_camino"], hacia: "pendiente", quien: "conductor", evento: "devuelto" },
   // La central se lo quita al conductor (p. ej. vacaciones) y vuelve a «Sin asignar» con aviso para reasignarlo.
-  desasignar:   { desde: CON_CONDUCTOR, hacia: "pendiente", quien: "operador", evento: "desasignado" },
+  // Hasta «en camino»: con el cliente a bordo, quitarle el conductor dejaría el servicio huérfano (se usa el relevo).
+  desasignar:   { desde: ["asignado", "aceptado", "en_camino"], hacia: "pendiente", quien: "operador", evento: "desasignado" },
 };
 
 export function transicion(estado: EstadoServicio, accion: Accion, actor: Actor): ResultadoTransicion {
@@ -49,6 +53,7 @@ export function transicion(estado: EstadoServicio, accion: Accion, actor: Actor)
   if (!permitido) return { ok: false, error: "No tienes permiso para esta acción" };
   if (regla.quien === "conductor" && !actor.esAsignado) return { ok: false, error: "Este servicio ya no está asignado a ti" };
   if (!regla.desde.includes(estado)) return { ok: false, error: `No se puede «${accion}» un servicio en estado «${estado}»` };
+  if (accion === "reasignar" && estado === "recogido") return { ok: true, nuevo: "recogido", evento: regla.evento }; // relevo
   return { ok: true, nuevo: regla.hacia, evento: regla.evento };
 }
 
@@ -81,4 +86,10 @@ export const PREFIJO_DEVUELTO = "devuelto";
 /** Prefijo de `ultima_incidencia` de un servicio que la central ha quitado al conductor: «desasignado: Ausencia: vacaciones». */
 /** Motivo del evento «completado» cuando lo cierra la central (no el conductor con la DESCARGA). */
 export const MOTIVO_CIERRE_CENTRAL = "Cerrado por la central";
+/** Motivo del cierre por la central con el estado que tenía (para que «Deshacer» vuelva a él y no a «pasajeros a bordo»). */
+export const motivoCierreCentral = (desde: EstadoServicio, extra?: string) => `${MOTIVO_CIERRE_CENTRAL} (desde ${desde})${extra ? `: ${extra}` : ""}`;
+export function estadoAntesDeCierreCentral(motivo: string | null | undefined): EstadoServicio | null {
+  const m = /^Cerrado por la central \(desde (asignado|aceptado|en_camino|recogido)\)/.exec(motivo ?? "");
+  return m ? (m[1] as EstadoServicio) : null;
+}
 export const PREFIJO_DESASIGNADO = "desasignado";

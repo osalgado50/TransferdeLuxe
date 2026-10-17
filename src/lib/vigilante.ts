@@ -211,7 +211,8 @@ export async function pasadaHorarios(sb: ReturnType<typeof clienteAdmin>, ahora 
     const nombre = new Map(((pers ?? []) as { id: string; nombre: string }[]).map((p) => [p.id, p.nombre]));
     const abierta = new Set(((abiertas ?? []) as { conductor_id: string }[]).map((j) => j.conductor_id));
     const filas = ((servs ?? []) as FilaHorario[]).filter((x) => !x.es_prueba);
-    const prueba = new Set(filas.filter((x) => (x.notas ?? "").startsWith(PREFIJO_PRUEBA)).map((x) => x.id));
+    // Pruebas automáticas y datos de demo: sin push al móvil de la central (como en el resto de avisos).
+    const prueba = new Set(filas.filter((x) => esDePrueba(x)).map((x) => x.id));
     const porId = new Map(filas.map((x) => [x.id, x]));
     const candidatas: (AlertaHorario & { conductorId: string })[] = [];
     const enCurso = new Map<string, ServicioEnCurso[]>();
@@ -244,7 +245,7 @@ export async function pasadaHorarios(sb: ReturnType<typeof clienteAdmin>, ahora 
       if (!data?.length) continue;
       nuevas.push(a);
       console.log(`[vigilante] horario ${a.tipo} · ${a.clave}`);
-      if (a.servicioId && prueba.has(a.servicioId)) continue; // prueba automática: sin push
+      if (a.servicioId && prueba.has(a.servicioId)) continue; // prueba automática o demo: sin push
       const s = a.servicioId ? porId.get(a.servicioId) : undefined;
       const cuerpo = s ? `${lugarCorto(s.origen_texto)} → ${lugarCorto(s.destino_texto)} · Revisa la asignación` : "Llama al conductor";
       pend.push({ titulo: a.texto, cuerpo, data: { tipo: "horario", ...(a.servicioId ? { servicioId: a.servicioId } : {}) } });
@@ -326,7 +327,10 @@ async function pasadaJornadasLargas(sb: ReturnType<typeof clienteAdmin>, ahora: 
  * Nunca rompe la pasada de avisos.
  */
 async function pasadaRecorridos(sb: ReturnType<typeof clienteAdmin>): Promise<void> {
-  const g = globalThis as { __recorridosRetro?: boolean };
+  const g = globalThis as { __recorridosRetro?: boolean; __recorridosEn?: number };
+  // Como mucho una vez por minuto (el vigilante da una vuelta cada ~20 s y los recorridos se recalculan cada 2 min).
+  if (Date.now() - (g.__recorridosEn ?? 0) < 60_000) return;
+  g.__recorridosEn = Date.now();
   try {
     const retro = !g.__recorridosRetro;
     const r = await actualizarRecorridos(sb, { horas: retro ? 30 * 24 : 48 });

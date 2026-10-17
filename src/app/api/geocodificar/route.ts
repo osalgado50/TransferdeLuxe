@@ -30,15 +30,15 @@ async function frecuentesDe(q: string): Promise<LugarSugerido[]> {
 }
 
 const reversas = new Map<string, LugarSugerido>();
-let ultimaReversa = 0;
 /** Dirección de unas coordenadas; si el servicio no responde, «Mi ubicación» con las coordenadas (sigue valiendo para recoger). */
 async function direccionDe(lat: number, lng: number): Promise<LugarSugerido> {
   const k = `${lat.toFixed(4)},${lng.toFixed(4)}`;
   const enCache = reversas.get(k);
   if (enCache) return { ...enCache, lat, lng };
   const respaldo: LugarSugerido = { etiqueta: `Mi ubicación (${lat.toFixed(5)}, ${lng.toFixed(5)})`, lat, lng, frecuente: false };
-  if (Date.now() - ultimaReversa < 1000) await new Promise((r) => setTimeout(r, 1000));
-  ultimaReversa = Date.now();
+  // Misma cola de 1 petición/s que el buscador (antes, las peticiones simultáneas salían juntas y podían hacer que
+  // Nominatim nos bloqueara, también para el buscador). Si la cola va larga, «Mi ubicación» con las coordenadas.
+  if (!(await buscador.turnoNominatim())) return respaldo;
   try {
     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${lat}&lon=${lng}`,
       { headers: { "User-Agent": USER_AGENT, "Accept-Language": "es,ca,en" }, signal: AbortSignal.timeout(8000), cache: "no-store" });
@@ -69,6 +69,8 @@ export async function GET(req: Request) {
   if (params.has("lat") && params.has("lng")) {
     const lat = Number(params.get("lat")), lng = Number(params.get("lng"));
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return NextResponse.json({ error: "Coordenadas no válidas" }, { status: 400 });
+    // Una persona pide su ubicación una o dos veces: más de 6/min por IP no pasan a Nominatim (sirven las coordenadas).
+    if (!permitir(`geo-reversa:${ip}`, 6, 60_000)) return NextResponse.json({ etiqueta: `Mi ubicación (${lat.toFixed(5)}, ${lng.toFixed(5)})`, lat, lng, frecuente: false });
     return NextResponse.json(await direccionDe(lat, lng));
   }
 

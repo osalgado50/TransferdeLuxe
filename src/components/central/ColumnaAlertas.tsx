@@ -7,7 +7,7 @@ import { accionCentral, marcarIncidenciaVista } from "@/app/central/actions";
 import { etiquetaEvento, llegandoReciente } from "@/lib/dominio/navegacion";
 import DialogoAsignar from "@/components/central/DialogoAsignar";
 import AlertasModulos from "@/components/central/AlertasModulos";
-import type { Servicio } from "@/lib/dominio/tipos";
+import type { EstadoServicio, Servicio } from "@/lib/dominio/tipos";
 
 /** Dirección corta para la columna: «Calle, barrio · Localidad». */
 const corta = (t: string) => { const d = direccionCorta(t); return d.localidad ? `${d.principal} · ${d.localidad}` : d.principal; };
@@ -59,9 +59,9 @@ export default function ColumnaAlertas({ servicios, eventos, conductores, vehicu
   }), [servicios, eventos, ahora]);
   const [error, setError] = useState<string | null>(null);
 
-  const subcontratar = (id: string) => ini(async () => {
+  const subcontratar = (id: string, estado: EstadoServicio) => ini(async () => {
     setError(null);
-    const r = await accionCentral({ idAccion: crypto.randomUUID(), servicioId: id, accion: "subcontratar" });
+    const r = await accionCentral({ idAccion: crypto.randomUUID(), servicioId: id, accion: "subcontratar", estadoEsperado: estado });
     if (!r.ok) setError(r.error ?? "No se pudo subcontratar");
   });
   const visto = (id: string) => ini(async () => { await marcarIncidenciaVista(id); });
@@ -90,8 +90,8 @@ export default function ColumnaAlertas({ servicios, eventos, conductores, vehicu
               {new Date(s.fecha_hora_recogida).toLocaleString("es-ES", { timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short" })} · {s.cliente_nombre} · {corta(s.origen_texto)} → {corta(s.destino_texto)}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {s.estado !== "completado" && s.estado !== "cancelado" && s.estado !== "subcontratado" && <DialogoAsignar servicioId={s.id} reasignar={!!s.conductor_id} />}
-              {s.estado !== "subcontratado" && <button type="button" disabled={pend} onClick={() => subcontratar(s.id)} className="rounded-lg border border-orange-500 px-3 py-2 text-sm text-orange-300">Subcontratar</button>}
+              {s.estado !== "completado" && s.estado !== "cancelado" && s.estado !== "subcontratado" && <DialogoAsignar servicioId={s.id} estado={s.estado as EstadoServicio} reasignar={!!s.conductor_id} />}
+              {s.estado !== "subcontratado" && <button type="button" disabled={pend} onClick={() => subcontratar(s.id, s.estado as EstadoServicio)} className="rounded-lg border border-orange-500 px-3 py-2 text-sm text-orange-300">Subcontratar</button>}
               <button type="button" disabled={pend} onClick={() => visto(s.id)} className="rounded-lg border border-slate-600 px-3 py-2 text-sm">Visto</button>
             </div>
           </article>

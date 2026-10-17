@@ -8,6 +8,8 @@ import { ejecutarAccionOperador } from "@/lib/central/operaciones";
 const cuerpo = z.object({
   idAccion: z.string().uuid(), servicioId: z.string().uuid(), conductorId: z.string().uuid(),
   vehiculoId: z.string().uuid().nullish(),
+  // Estado que veía el operador en la app: con el servicio en marcha, el servidor lo exige (apps antiguas: se rechaza).
+  estadoEsperado: z.enum(["pendiente", "asignado", "aceptado", "en_camino", "recogido"]).optional(),
 });
 
 /** POST /api/central/asignar y /reasignar (app nativa en modo central). 200 ok, 409 rechazo de negocio. */

@@ -141,3 +141,12 @@ describe("tramos, recálculo y proyección", () => {
     expect(kmDe([SALOU, REUS])).toBeCloseTo(8.2, 0);
   });
 });
+
+import { ventanaRecorrido as ventanaCierre } from "@/lib/dominio/recorrido";
+it("cerrado por la central sin salir: ventana vacía (el GPS desde «aceptado» es de otros servicios)", () => {
+  const v = ventanaCierre([
+    { tipo: "aceptado", creado_en: "2026-10-16T08:00:00Z" },
+    { tipo: "completado", creado_en: "2026-10-17T10:00:00Z", motivo: "Cerrado por la central (desde aceptado)" },
+  ]);
+  expect(v).toEqual({ inicio: "2026-10-17T10:00:00Z", recogido: null, fin: "2026-10-17T10:00:00Z" });
+});

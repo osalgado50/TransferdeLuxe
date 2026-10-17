@@ -24,7 +24,7 @@ export const DESHACER: Partial<Record<EstadoServicio, InfoDeshacer>> = {
 const TIPOS_ACCION = new Set(["creado", "asignado", "reasignado", "aceptado", "rechazado", "expirado", "en_camino", "recogido",
   "completado", "cancelado", "subcontratado", "devuelto", "desasignado", EVENTO_DESHECHO]);
 
-export interface EventoPaso { id?: number; tipo: string; actor_id: string | null; creado_en: string }
+export interface EventoPaso { id?: number; tipo: string; actor_id: string | null; creado_en: string; motivo?: string | null }
 
 /** Último evento de acción del servicio (por instante y, a igualdad, por id). */
 export function ultimoEventoAccion<E extends EventoPaso>(eventos: readonly E[]): E | null {
@@ -88,7 +88,7 @@ export function preguntaDeshacer(estado: EstadoServicio): string | null {
 
 /** Del motivo del evento «deshecho»: qué paso se deshizo y si fue la central. */
 export function leerDeshecho(motivo: string | null | undefined): { nombre: string | null; central: boolean } {
-  const m = /^Deshecho por (la central|el conductor):\s*(salida|carga|descarga)\s*$/i.exec(motivo?.trim() ?? "");
+  const m = /^Deshecho por (la central|el conductor):\s*(salida|carga|descarga|cierre)\s*$/i.exec(motivo?.trim() ?? "");
   return { nombre: m ? m[2].toLowerCase() : null, central: !!m && m[1].toLowerCase() === "la central" };
 }
 

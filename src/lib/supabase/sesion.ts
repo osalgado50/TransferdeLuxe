@@ -6,13 +6,17 @@ import { puedeConducir, type Perfil, type Rol } from "@/lib/dominio/tipos";
 
 /**
  * Perfil del usuario de la sesión. `cache` de React: el layout y la página lo piden en el mismo render y antes eran dos
- * `getUser` + dos selects de perfiles por cada vista (~100 ms de más en todas las páginas).
+ * comprobaciones de sesión + dos selects de perfiles por cada vista (~100 ms de más en todas las páginas).
  */
 export const perfilActual = cache(async (): Promise<Perfil | null> => {
   const sb = await clienteServidor();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return null;
-  const { data } = await sb.from("perfiles").select("*").eq("id", user.id).single();
+  // getClaims verifica el JWT en local (ES256 con la clave pública del proyecto, en caché global): sin el viaje a Supabase
+  // Auth de getUser (80–150 ms medidos) en cada página y acción. El perfil sigue leyéndose de la base de datos, así que
+  // un conductor dado de baja (rol «baja») queda fuera igual; la base de datos vuelve a validar el JWT en cada consulta.
+  const { data: c } = await sb.auth.getClaims();
+  const id = c?.claims?.sub;
+  if (!id) return null;
+  const { data } = await sb.from("perfiles").select("*").eq("id", id).single();
   return data as Perfil | null;
 });
 export async function exigirRol(rol: Rol): Promise<Perfil> {

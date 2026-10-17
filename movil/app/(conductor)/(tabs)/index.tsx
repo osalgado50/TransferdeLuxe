@@ -47,6 +47,8 @@ export default function Hoy() {
   const [devueltos, setDevueltos] = useState<Set<string>>(new Set());
   const fuera = (l: ServicioLista[] | undefined) => (l ?? []).filter((s) => !devueltos.has(s.id));
   const alDevolver = (ids: string[]) => { setDevueltos((d) => new Set([...d, ...ids])); setTimeout(() => void recargar(), 1500); };
+  // Enviados o rechazados: deja de ocultarlos y recarga (si el servidor la rechazó, el servicio sigue siendo suyo y vuelve).
+  const alResolver = (ids: string[]) => { void recargar().then(() => setDevueltos((d) => new Set([...d].filter((id) => !ids.includes(id))))); };
   const hoy = fuera(datos?.hoy);
   const prox = fuera(datos?.prox);
   const antes = fuera(datos?.antes);
@@ -59,7 +61,7 @@ export default function Hoy() {
         <>
           <Text style={[estilos.titulo, { color: "#fcd34d" }]} accessibilityRole="header">De días anteriores, sin terminar</Text>
           <Text style={estilos.ayuda}>Termínalos o devuélvelos a la central con la ✕.</Text>
-          {antes.map((s) => <TarjetaServicio key={s.id} s={s} conDia yo={yo} alDevolver={alDevolver} />)}
+          {antes.map((s) => <TarjetaServicio key={s.id} s={s} conDia yo={yo} alDevolver={alDevolver} alResolver={alResolver} />)}
         </>
       )}
       {/* Lo primero, las órdenes de trabajo de hoy; el checklist debajo (si toca); privacidad al final. Jornada e incidencias: pestaña «Jornada». */}
@@ -67,14 +69,14 @@ export default function Hoy() {
       {error && <Aviso tipo="error" texto={`Error al cargar: ${error}. Desliza hacia abajo para reintentar.`} />}
       {cargando ? <Aviso texto="Cargando…" />
         : hoy.length === 0 ? <Text style={estilos.vacio}>No tienes servicios para hoy.</Text>
-        : hoy.map((s) => <TarjetaServicio key={s.id} s={s} destacada={s.id === siguiente} yo={yo} alDevolver={alDevolver} />)}
+        : hoy.map((s) => <TarjetaServicio key={s.id} s={s} destacada={s.id === siguiente} yo={yo} alDevolver={alDevolver} alResolver={alResolver} />)}
       <View style={{ marginTop: 12 }}><ModulosConductor /></View>
       <Text style={[estilos.titulo, { marginTop: 16 }]} accessibilityRole="header">Próximos días</Text>
       {!cargando && (prox.length === 0
         ? <Text style={estilos.vacio}>No tienes servicios en los próximos 7 días.</Text>
-        : prox.map((s) => <TarjetaServicio key={s.id} s={s} conDia yo={yo} alDevolver={alDevolver} />))}
+        : prox.map((s) => <TarjetaServicio key={s.id} s={s} conDia yo={yo} alDevolver={alDevolver} alResolver={alResolver} />))}
       {/* Cuando se acumulan: todos de vuelta a la central para que los redistribuya (con el cliente a bordo, no). */}
-      {!cargando && <View style={{ marginTop: 12 }}><DevolverRapido conductorId={yo} servicios={enBloque} enBloque alDevolver={alDevolver} /></View>}
+      {!cargando && <View style={{ marginTop: 12 }}><DevolverRapido conductorId={yo} servicios={enBloque} enBloque alDevolver={alDevolver} alResolver={alResolver} /></View>}
       <Text accessibilityRole="link" onPress={() => void Linking.openURL("https://app.transfersvipluxe.com/privacidad")} style={estilos.privacidad}>
         Política de privacidad
       </Text>

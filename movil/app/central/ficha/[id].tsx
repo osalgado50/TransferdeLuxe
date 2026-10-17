@@ -101,7 +101,7 @@ export default function Ficha() {
     if (!accion) return;
     const hacer = async () => {
       setEnviando(g.conductorId); setError(null);
-      const e = await asignarServicio(accion, s.id, g.conductorId, g.vehiculoId);
+      const e = await asignarServicio(accion, s.id, g.conductorId, g.vehiculoId, s.estado);
       setEnviando(null);
       if (e) { setError(e); return; }
       setSugs(null); setHecho(`${accion === "asignar" ? "Asignado" : "Reasignado"} a ${g.nombre}`);
@@ -111,6 +111,8 @@ export default function Ficha() {
     Alert.alert(accion === "asignar" ? "Asignar servicio" : "Reasignar servicio",
       g.ausencia ? `${g.nombre}: ${preguntaAsignarAusente(g.ausencia)}`
         : g.fueraHorario ? `${g.nombre}: ${preguntaAsignarFueraHorario(g.fueraHorario)}`
+        : s.estado === "recogido" ? `El cliente ya va a bordo. ¿Hacer el relevo con ${g.nombre}? Lo recibe recogido y solo tiene que llevarlo al destino.`
+        : s.estado === "en_camino" ? `El conductor ya ha salido. ¿Pasar el servicio a ${g.nombre}? Tendrá que aceptarlo e ir a la recogida.`
         : `¿${accion === "asignar" ? "Asignar" : "Reasignar"} a ${g.nombre}?`,
       [{ text: "Cancelar", style: "cancel" }, { text: "Sí", onPress: () => void hacer() }]);
   };

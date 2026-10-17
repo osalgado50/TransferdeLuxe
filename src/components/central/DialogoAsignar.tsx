@@ -1,20 +1,24 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { EstadoServicio } from "@/lib/dominio/tipos";
 import { accionCentral, obtenerSugerencias } from "@/app/central/actions";
 import { preguntaAsignarAusente } from "@/lib/dominio/ausencias";
 import { preguntaAsignarFueraHorario } from "@/lib/dominio/horarios";
 
 type Sug = Awaited<ReturnType<typeof obtenerSugerencias>>[number];
 
-export default function DialogoAsignar({ servicioId, reasignar = false, onHecho }: { servicioId: string; reasignar?: boolean; onHecho?: () => void }) {
+/** `estado`: el que ve el operador. Si el conductor avanza mientras elige, el servidor no lo hace (no se le quita en marcha). */
+export default function DialogoAsignar({ servicioId, estado, reasignar = false, onHecho }: { servicioId: string; estado: EstadoServicio; reasignar?: boolean; onHecho?: () => void }) {
+  // Con el cliente a bordo, reasignar es un relevo: el nuevo conductor lo recibe ya recogido.
+  const relevo = estado === "recogido";
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [lista, setLista] = useState<Sug[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [pend, ini] = useTransition();
-  const etiqueta = reasignar ? "Reasignar" : "Asignar";
+  const etiqueta = relevo ? "Relevo" : reasignar ? "Reasignar" : "Asignar";
 
   const abrir = () => {
     setAbierto(true); setLista(null); setError(null); setConfirmando(null);
@@ -23,7 +27,7 @@ export default function DialogoAsignar({ servicioId, reasignar = false, onHecho 
   const asignar = (s: Sug) => {
     setError(null);
     ini(async () => {
-      const r = await accionCentral({ idAccion: crypto.randomUUID(), servicioId, accion: reasignar ? "reasignar" : "asignar", conductorId: s.conductorId, vehiculoId: s.vehiculoId ?? undefined });
+      const r = await accionCentral({ idAccion: crypto.randomUUID(), servicioId, accion: reasignar ? "reasignar" : "asignar", conductorId: s.conductorId, vehiculoId: s.vehiculoId ?? undefined, estadoEsperado: estado });
       if (!r.ok) { setError(r.error ?? "No se pudo completar la acción"); return; }
       setAbierto(false); onHecho?.(); router.refresh();
     });
@@ -46,6 +50,8 @@ export default function DialogoAsignar({ servicioId, reasignar = false, onHecho 
               <h2 className="text-lg font-semibold">{etiqueta} conductor</h2>
               <button type="button" onClick={() => setAbierto(false)} className="text-sm text-neutral-400">Cerrar</button>
             </div>
+            {relevo && <p className="mb-3 rounded-lg bg-amber-400/10 px-3 py-2 text-sm text-amber-200">El cliente ya va a bordo: el nuevo conductor recibe el servicio recogido y solo tiene que llevarlo al destino.</p>}
+            {estado === "en_camino" && <p className="mb-3 rounded-lg bg-sky-400/10 px-3 py-2 text-sm text-sky-200">El conductor actual ya ha salido: se le avisa y el nuevo tendrá que aceptarlo e ir a la recogida.</p>}
             {lista === null && <p className="text-sm text-neutral-400">Calculando sugerencias…</p>}
             {lista?.length === 0 && !error && <p className="text-sm text-neutral-400">No hay conductores disponibles.</p>}
             <ul className="space-y-3">

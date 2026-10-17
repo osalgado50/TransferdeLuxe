@@ -33,11 +33,15 @@ describe("transicion", () => {
     for (const e of ["completado", "cancelado", "subcontratado"] as const) expect(transicion(e, "cancelar", operador).ok).toBe(false);
   });
   test("reasignar, quitar o cerrar desde cualquier estado con conductor (no responde y no hay forma de contactarle)", () => {
-    for (const e of ["asignado", "aceptado", "en_camino", "recogido"] as const) {
+    for (const e of ["asignado", "aceptado", "en_camino"] as const) {
       expect(transicion(e, "reasignar", operador)).toMatchObject({ ok: true, nuevo: "asignado", evento: "reasignado" });
       expect(transicion(e, "desasignar", operador)).toMatchObject({ ok: true, nuevo: "pendiente", evento: "desasignado" });
-      expect(transicion(e, "completar", operador)).toMatchObject({ ok: true, nuevo: "completado", evento: "completado" });
     }
+    for (const e of ["asignado", "aceptado", "en_camino", "recogido"] as const)
+      expect(transicion(e, "completar", operador)).toMatchObject({ ok: true, nuevo: "completado", evento: "completado" });
+    // Con el cliente a bordo: relevo (sigue recogido con el nuevo conductor) y no se le puede quitar sin más.
+    expect(transicion("recogido", "reasignar", operador)).toMatchObject({ ok: true, nuevo: "recogido", evento: "reasignado" });
+    expect(transicion("recogido", "desasignar", operador).ok).toBe(false);
     expect(transicion("pendiente", "reasignar", operador).ok).toBe(false);
     expect(transicion("pendiente", "completar", operador).ok).toBe(false);
     expect(transicion("completado", "reasignar", operador).ok).toBe(false);

@@ -9,7 +9,8 @@ import { avisoCapacidad } from "@/lib/dominio/capacidad";
 import { duracionServicio } from "@/lib/dominio/duracion";
 import { horaMadrid, utcALocalMadrid } from "@/lib/dominio/vuelos";
 import { notificarConductor } from "@/lib/push";
-import { cambiosEdicion, type DatosEdicion } from "@/lib/dominio/edicionServicio";
+import { aplicarEdicion, cambiosEdicion, formularioDesde, leerFormularioOriginal, type DatosEdicion } from "@/lib/dominio/edicionServicio";
+import { NOTA_DEMO } from "@/lib/demo/datosDemo";
 
 export type EstadoEdicion = { ok?: boolean; mensaje?: string; errores?: Record<string, string[]> };
 
@@ -27,7 +28,7 @@ const esquemaEdicion = esquemaReserva.innerType().pick({
 });
 
 const CAMPOS = "id,estado,conductor_id,fecha_hora_recogida,origen_texto,origen_lat,origen_lng,destino_texto,destino_lat,destino_lng," +
-  "pasajeros,maletas,tipo_vehiculo_pedido,numero_vuelo,cliente_nombre,cliente_apellidos,cliente_email,cliente_telefono,notas,duracion_estimada_min";
+  "pasajeros,maletas,tipo_vehiculo_pedido,numero_vuelo,cliente_nombre,cliente_apellidos,cliente_email,cliente_telefono,notas,duracion_estimada_min,servicio_vuelta_id";
 
 /**
  * La central cambia cualquier dato de un servicio en cualquier estado (hora, direcciones, pasajeros, cliente…). Queda en
@@ -42,19 +43,22 @@ export async function editarServicio(_: EstadoEdicion, fd: FormData): Promise<Es
     const sb = clienteAdmin();
     const { data: s } = await sb.from("servicios").select(CAMPOS).eq("id", r.servicioId).maybeSingle();
     if (!s) return { mensaje: "Servicio no encontrado" };
-    const antes = s as unknown as DatosEdicion & { id: string; estado: string; conductor_id: string | null; duracion_estimada_min: number };
-    // Si no se ha vuelto a elegir la dirección, el texto es el mismo y se conservan sus coordenadas.
-    const coords = (texto: string, lat: number | null, lng: number | null, tAntes: string, latA: number | null, lngA: number | null) =>
-      lat == null && lng == null && texto === tAntes ? { lat: latA, lng: lngA } : { lat, lng };
-    const o = coords(r.origen_texto, r.origen_lat, r.origen_lng, antes.origen_texto, antes.origen_lat, antes.origen_lng);
-    const d = coords(r.destino_texto, r.destino_lat, r.destino_lng, antes.destino_texto, antes.destino_lat, antes.destino_lng);
-    const nuevo: DatosEdicion = {
-      fecha_hora_recogida: new Date(madridAUtc(r.fecha, r.hora)).toISOString(),
-      origen_texto: r.origen_texto, origen_lat: o.lat, origen_lng: o.lng, destino_texto: r.destino_texto, destino_lat: d.lat, destino_lng: d.lng,
-      pasajeros: r.pasajeros, maletas: r.maletas, tipo_vehiculo_pedido: r.tipo_vehiculo_pedido, numero_vuelo: r.numero_vuelo,
-      cliente_nombre: r.cliente_nombre, cliente_apellidos: r.cliente_apellidos, cliente_email: r.cliente_email, cliente_telefono: r.cliente_telefono,
-      notas: r.notas,
-    };
+    const antes = s as unknown as DatosEdicion & { id: string; estado: string; conductor_id: string | null; duracion_estimada_min: number; servicio_vuelta_id: string | null };
+    // Solo lo que el operador ha cambiado respecto a lo que veía al abrir el formulario: un formulario abierto hace rato no
+    // pisa lo que cambió después (p. ej. la recogida reajustada por el vuelo) ni mueve la hora ambigua del cambio de hora.
+    const original = leerFormularioOriginal(fd.get("original")) ?? formularioDesde(antes, utcALocalMadrid(antes.fecha_hora_recogida));
+    const nuevo = aplicarEdicion(antes, original, r, madridAUtc);
+    // La marca de la demo va en las notas: si se cambiara, el servicio dejaría de moverse y renovarse con la demo.
+    if (antes.notas === NOTA_DEMO) nuevo.notas = NOTA_DEMO;
+    if (antes.servicio_vuelta_id && nuevo.fecha_hora_recogida !== antes.fecha_hora_recogida) {
+      const { data: par } = await sb.from("servicios").select("fecha_hora_recogida").eq("id", antes.servicio_vuelta_id).maybeSingle();
+      if (par) {
+        const esIda = Date.parse(antes.fecha_hora_recogida) < Date.parse(par.fecha_hora_recogida);
+        const t = Date.parse(nuevo.fecha_hora_recogida), otra = Date.parse(par.fecha_hora_recogida);
+        const cuando = `${utcALocalMadrid(par.fecha_hora_recogida).slice(8, 10)}/${utcALocalMadrid(par.fecha_hora_recogida).slice(5, 7)} ${horaMadrid(par.fecha_hora_recogida)}`;
+        if (esIda ? t >= otra : t <= otra) return { errores: { fecha: [esIda ? `La ida tiene que ser antes de la vuelta (${cuando})` : `La vuelta tiene que ser después de la ida (${cuando})`] }, mensaje: "Revisa la fecha" };
+      }
+    }
     const c = cambiosEdicion(antes, nuevo);
     if (!c.resumen.length) return { ok: true, mensaje: "No has cambiado nada" };
     const duracion = c.trayecto

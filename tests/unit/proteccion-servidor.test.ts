@@ -36,7 +36,7 @@ import { arrancarVigilante } from "@/lib/vigilante";
 const jwt = (exp: number, extra = "") => `h.${Buffer.from(JSON.stringify({ exp, sub: `u1${extra}` })).toString("base64url")}.firma`;
 let ipN = 0;
 const req = (token: string | null, ip = `10.0.0.${++ipN % 250}`) =>
-  new Request("http://x/api/conductor/accion", { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), "x-real-ip": ip } });
+  new Request("http://x/api/conductor/accion", { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), "x-forwarded-for": ip } });
 
 beforeEach(() => {
   vaciarCacheBearer(); reiniciarSalud();

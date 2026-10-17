@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import CampoDireccion from "@/components/comun/CampoDireccion";
 import { NOMBRE_TIPO } from "@/lib/dominio/capacidad";
 import type { TipoVehiculo } from "@/lib/dominio/tipos";
-import type { DatosEdicion } from "@/lib/dominio/edicionServicio";
+import { formularioDesde, type DatosEdicion } from "@/lib/dominio/edicionServicio";
 import { editarServicio, type EstadoEdicion } from "@/app/central/servicios/editar-actions";
 
 const cls = "mt-1 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white";
@@ -14,7 +14,7 @@ const etq = "block text-sm font-medium text-slate-200";
  * «✏️ Editar servicio» en la ficha: la central cambia la hora, las direcciones, los pasajeros, el vehículo, el vuelo, el
  * cliente o las notas, en cualquier estado. Se guarda en el historial y, si tiene conductor, se le avisa.
  */
-export default function EditarServicio({ servicioId, s, fechaLocal }: { servicioId: string; s: DatosEdicion; fechaLocal: string }) {
+export default function EditarServicio({ servicioId, s, fechaLocal, esDemo = false }: { servicioId: string; s: DatosEdicion; fechaLocal: string; esDemo?: boolean }) {
   const [estado, enviar, pend] = useActionState<EstadoEdicion, FormData>(editarServicio, {});
   const [abierto, setAbierto] = useState(false);
   const router = useRouter();
@@ -39,6 +39,8 @@ export default function EditarServicio({ servicioId, s, fechaLocal }: { servicio
       </summary>
       <form action={enviar} className="grid gap-4 border-t border-slate-800 p-4 sm:grid-cols-2">
         <input type="hidden" name="servicioId" value={servicioId} />
+        {/* Cómo estaba al abrirlo: el servidor solo aplica lo que se cambie aquí (no pisa cambios hechos mientras tanto). */}
+        <input type="hidden" name="original" value={JSON.stringify(formularioDesde(s, fechaLocal))} />
         <label className={etq}>Fecha<input type="date" name="fecha" required defaultValue={fechaLocal.slice(0, 10)} className={cls} />{err("fecha")}</label>
         <label className={etq}>Hora de recogida<input type="time" name="hora" required defaultValue={fechaLocal.slice(11, 16)} className={cls} />{err("hora")}</label>
         <div className="sm:col-span-2"><CampoDireccion name="origen" etiqueta="Recogida" requerido rellenar={inicio.origen} error={estado.errores?.origen_texto?.[0]} claseInput={cls} /></div>
@@ -54,7 +56,10 @@ export default function EditarServicio({ servicioId, s, fechaLocal }: { servicio
         <label className={etq}>Apellidos<input name="cliente_apellidos" defaultValue={s.cliente_apellidos ?? ""} className={cls} /></label>
         <label className={etq}>Teléfono<input type="tel" name="cliente_telefono" required defaultValue={s.cliente_telefono} className={cls} />{err("cliente_telefono")}</label>
         <label className={etq}>Correo<input type="email" name="cliente_email" required defaultValue={s.cliente_email} className={cls} />{err("cliente_email")}</label>
-        <label className={`${etq} sm:col-span-2`}>Notas<textarea name="notas" rows={2} defaultValue={s.notas ?? ""} className={`${cls} py-2`} /></label>
+        <label className={`${etq} sm:col-span-2`}>Notas
+          {/* En la demo las notas son su marca: si cambiaran, el servicio dejaría de moverse y renovarse con ella. */}
+          <textarea name="notas" rows={2} defaultValue={s.notas ?? ""} readOnly={esDemo} className={`${cls} py-2 ${esDemo ? "opacity-60" : ""}`} />
+          {esDemo && <span className="mt-1 block text-xs font-normal text-slate-400">Servicio de demostración: las notas no se cambian.</span>}</label>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <button type="submit" disabled={pend} className="min-h-11 rounded-lg bg-marca px-5 font-semibold text-white hover:bg-marca-claro disabled:opacity-50">
             {pend ? "Guardando…" : "Guardar cambios"}</button>

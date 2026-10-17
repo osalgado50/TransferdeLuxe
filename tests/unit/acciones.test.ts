@@ -145,3 +145,33 @@ test("aceptar, cancelar y subcontratar limpian la alerta («Sin respuesta», rec
   await ejecutarAccion(repo, { idAccion: "x4", servicioId: "s2", accion: "cancelar", actor: op, motivo: "Cliente" });
   expect(db.s2.incidencia_vista).toBe(true);
 });
+
+const central = { id: "op", rol: "operador" as const, central: true };
+test("servicio en marcha: la central solo actúa si lo veía así (un arrastre o un diálogo antiguos no se lo quitan)", async () => {
+  db.s1 = { ...db.s1, estado: "en_camino", conductor_id: "c1" };
+  const r = await ejecutarAccion(repo, { idAccion: "g1", servicioId: "s1", accion: "reasignar", actor: central, conductorId: "c2" });
+  expect(r).toMatchObject({ ok: false });
+  expect(db.s1).toMatchObject({ estado: "en_camino", conductor_id: "c1" });
+  for (const accion of ["subcontratar", "cancelar", "desasignar", "completar"] as const)
+    expect((await ejecutarAccion(repo, { idAccion: `g-${accion}`, servicioId: "s1", accion, actor: central })).ok).toBe(false);
+  // Viéndolo en camino, sí.
+  expect(await ejecutarAccion(repo, { idAccion: "g2", servicioId: "s1", accion: "reasignar", actor: central, conductorId: "c2", estadoEsperado: "en_camino" }))
+    .toEqual({ ok: true, estado: "asignado" });
+});
+
+test("relevo con el cliente a bordo: sigue recogido con el nuevo conductor; al mismo conductor no", async () => {
+  db.s1 = { ...db.s1, estado: "recogido", conductor_id: "c1" };
+  expect((await ejecutarAccion(repo, { idAccion: "r0", servicioId: "s1", accion: "reasignar", actor: central, conductorId: "c1", estadoEsperado: "recogido" })).ok).toBe(false);
+  expect(await ejecutarAccion(repo, { idAccion: "r1", servicioId: "s1", accion: "reasignar", actor: central, conductorId: "c2", estadoEsperado: "recogido" }))
+    .toEqual({ ok: true, estado: "recogido" });
+  expect(db.s1.conductor_id).toBe("c2");
+});
+
+test("deshacer un «Cerrar como completado» de la central vuelve al estado que tenía, no a «pasajeros a bordo»", async () => {
+  const conEventos: RepoServicios = { ...repo, async eventosServicio() { return [...eventos].reverse().map((e, i) => ({ id: i, tipo: e.tipo, actor_id: "op", creado_en: new Date().toISOString(), motivo: e.motivo ?? null })); } };
+  db.s1 = { ...db.s1, estado: "aceptado", conductor_id: "c1" };
+  expect(await ejecutarAccion(conEventos, { idAccion: "k1", servicioId: "s1", accion: "completar", actor: central })).toEqual({ ok: true, estado: "completado" });
+  expect(eventos.at(-1)?.motivo).toBe("Cerrado por la central (desde aceptado)");
+  expect(await ejecutarAccion(conEventos, { idAccion: "k2", servicioId: "s1", accion: "deshacer", actor: central })).toEqual({ ok: true, estado: "aceptado" });
+  expect(eventos.at(-1)?.motivo).toBe("Deshecho por la central: cierre");
+});

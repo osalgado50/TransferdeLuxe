@@ -9,10 +9,10 @@ import { diaHora, fmt, hora } from "~/lib/formato";
 import type { ServicioLista } from "~/lib/servicios";
 import { color } from "~/lib/tema";
 
-export function TarjetaServicio({ s, destacada, conDia, yo, alDevolver }: {
+export function TarjetaServicio({ s, destacada, conDia, yo, alDevolver, alResolver }: {
   s: ServicioLista; destacada?: boolean; conDia?: boolean;
   /** Con el conductor: la ✕ para devolver el servicio a la central (si su estado lo permite). */
-  yo?: string; alDevolver?: (ids: string[]) => void;
+  yo?: string; alDevolver?: (ids: string[]) => void; alResolver?: (ids: string[]) => void;
 }) {
   return (
     <Tarjeta destacada={destacada} apagada={s.estado === "completado"}>
@@ -20,7 +20,7 @@ export function TarjetaServicio({ s, destacada, conDia, yo, alDevolver }: {
         <Text style={conDia ? estilos.dia : estilos.hora}>{fmt(conDia ? diaHora : hora, s.fecha_hora_recogida)}</Text>
         <View style={estilos.derecha}>
           <EstadoBadge estado={s.estado} />
-          {yo && <DevolverRapido conductorId={yo} servicios={[s]} alDevolver={alDevolver}
+          {yo && <DevolverRapido conductorId={yo} servicios={[s]} alDevolver={alDevolver} alResolver={alResolver}
             etiqueta={`Devolver a la central el servicio de las ${fmt(hora, s.fecha_hora_recogida)}`} />}
         </View>
       </View>

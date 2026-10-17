@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import AvisoCliente from "@/components/comun/AvisoCliente";
@@ -18,6 +19,7 @@ import { leerModulos } from "@/lib/dominio/modulos";
 import { objetivoActual } from "@/lib/dominio/navegacion";
 import { ultimoEventoAccion, type EventoPaso } from "@/lib/dominio/deshacer";
 import type { EstadoServicio, Punto } from "@/lib/dominio/tipos";
+import RefrescoPeriodico from "@/components/conductor/RefrescoPeriodico";
 
 const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
@@ -32,7 +34,21 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
     const { data: dev } = /^[0-9a-f-]{36}$/i.test(id)
       ? await admin.from("eventos_servicio").select("actor_id,creado_en").eq("servicio_id", id).eq("tipo", "devuelto").order("creado_en", { ascending: false }).limit(1).maybeSingle()
       : { data: null };
-    if (!dev || dev.actor_id !== yo.id || Date.now() - Date.parse(dev.creado_en) > 6 * 3600_000) notFound();
+    if (!dev || dev.actor_id !== yo.id || Date.now() - Date.parse(dev.creado_en) > 6 * 3600_000) {
+      // ¿Lo llevaba él y la central se lo ha quitado (pasado a otro, quitado o subcontratado)? Se le dice claramente en vez
+      // de un 404 (la página se refresca sola mientras está abierta). Solo si tuvo el servicio: un id ajeno sigue siendo 404.
+      const { data: suyo } = /^[0-9a-f-]{36}$/i.test(id)
+        ? await admin.from("eventos_servicio").select("id").eq("servicio_id", id).eq("actor_id", yo.id).limit(1).maybeSingle()
+        : { data: null };
+      if (!suyo) notFound();
+      return (
+        <div className="space-y-4 rounded-xl border border-amber-400/40 bg-amber-400/10 p-5">
+          <h1 className="text-xl font-semibold text-amber-200">Este servicio ya no está asignado a ti</h1>
+          <p className="text-slate-200">La central lo ha pasado a otro conductor o lo ha retirado. No hace falta que hagas nada más con él.</p>
+          <Link href="/conductor" className="inline-flex min-h-12 items-center rounded-xl bg-marca px-5 font-semibold text-white">Volver a Hoy</Link>
+        </div>
+      );
+    }
     const { data: d } = await admin.from("servicios").select("estado,fecha_hora_recogida,cliente_nombre,cliente_telefono").eq("id", id).maybeSingle();
     if (!d) notFound();
     return <ServicioDevueltoPanel servicioId={id} estado={d.estado} telefono={d.cliente_telefono} cliente={d.cliente_nombre} recogida={d.fecha_hora_recogida} conductorNombre={yo.nombre} />;
@@ -41,14 +57,17 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
   const dia = diaMadrid(new Date());
   const desde = madridAUtc(dia, "00:00");
   const hasta = madridAUtc(new Date(Date.parse(`${dia}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10), "00:00");
-  const { data: hoy } = await sb.from("servicios").select("id,estado,fecha_hora_recogida")
-    .eq("conductor_id", yo.id).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta)
-    .neq("estado", "cancelado").neq("estado", "completado").neq("id", id).order("fecha_hora_recogida");
+  // En paralelo (antes, una tras otra: ~100 ms de red cada una). El último paso según el servidor alimenta la cuenta
+  // atrás de «↩ Deshacer» (10 min) también tras recargar la página.
+  const [{ data: hoy }, { data: aj }, { data: evs }] = await Promise.all([
+    sb.from("servicios").select("id,estado,fecha_hora_recogida")
+      .eq("conductor_id", yo.id).gte("fecha_hora_recogida", desde).lt("fecha_hora_recogida", hasta)
+      .neq("estado", "cancelado").neq("estado", "completado").neq("id", id).order("fecha_hora_recogida"),
+    sb.from("ajustes").select("modulos").eq("id", 1).maybeSingle(),
+    sb.from("eventos_servicio").select("id,tipo,actor_id,creado_en").eq("servicio_id", id)
+      .order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(30),
+  ]);
   const siguienteId = hoy?.[0]?.id ?? null;
-  const { data: aj } = await sb.from("ajustes").select("modulos").eq("id", 1).maybeSingle();
-  // Último paso según el servidor: cuenta atrás de «↩ Deshacer» (10 min) también tras recargar la página.
-  const { data: evs } = await sb.from("eventos_servicio").select("id,tipo,actor_id,creado_en").eq("servicio_id", id)
-    .order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(30);
   const ultimoPaso = ultimoEventoAccion((evs ?? []) as EventoPaso[]);
   const incidencias = leerModulos(aj?.modulos).incidencias;
   const vuelos = leerModulos(aj?.modulos).vuelos;
@@ -63,6 +82,8 @@ export default async function ServicioEnCurso({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-4">
+      {/* Abierto: se entera si la central lo pasa a otro, lo cambia o lo cancela (Realtime no se lo trae si deja de ser suyo). */}
+      {s.estado !== "completado" && s.estado !== "cancelado" && <RefrescoPeriodico segundos={20} />}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-marca-claro">{hora.format(new Date(s.fecha_hora_recogida))}</h1>
         <EstadoBadge estado={s.estado as EstadoServicio} />

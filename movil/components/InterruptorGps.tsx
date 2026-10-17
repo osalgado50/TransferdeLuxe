@@ -70,15 +70,21 @@ export function InterruptorGps({ conductorId }: { conductorId: string }) {
     return () => { s.remove(); quitar(); };
   }, [sincronizar]);
 
+  // Solo con la app en primer plano: con el GPS en segundo plano el proceso sigue vivo y el temporizador gastaba batería.
+  const [visible, setVisible] = useState(AppState.currentState === "active");
   useEffect(() => {
-    if (estado === "fuera") return;
+    const s = AppState.addEventListener("change", (e) => setVisible(e === "active"));
+    return () => s.remove();
+  }, []);
+  useEffect(() => {
+    if (estado === "fuera" || !visible) return;
     // El contador «hace Xs» avanza cada segundo, pero el disco (AsyncStorage) solo se lee cada 5 s: la tarea envía cada ≥ 12 s.
     let n = 0;
     const leer = () => void leerUltimoEnvio(conductorId).then(setUltimo, () => undefined);
     leer();
     const t = setInterval(() => { setAhora(Date.now()); if (++n % 5 === 0) leer(); }, 1000);
     return () => clearInterval(t);
-  }, [estado, conductorId]);
+  }, [estado, conductorId, visible]);
 
   const marcar = (v: boolean) => { ocupadoRef.current = v; setOcupado(v); };
   const encender = async () => {

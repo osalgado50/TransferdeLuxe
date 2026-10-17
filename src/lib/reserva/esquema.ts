@@ -13,16 +13,17 @@ const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha obligatoria");
 const hora = z.string().regex(/^\d{2}:\d{2}$/, "Hora obligatoria");
 
 export const esquemaReserva = z.object({
-  origen_texto: z.string().trim().min(3), origen_lat: coord, origen_lng: coord,
-  destino_texto: z.string().trim().min(3), destino_lat: coord, destino_lng: coord,
+  // Topes de longitud en el servidor (el formulario público también se puede enviar a mano).
+  origen_texto: z.string().trim().min(3).max(300), origen_lat: coord, origen_lng: coord,
+  destino_texto: z.string().trim().min(3).max(300), destino_lat: coord, destino_lng: coord,
   fecha, hora,
   pasajeros: z.coerce.number().int().min(1).max(19),
   maletas: z.coerce.number().int().min(0).max(19),
   tipo_vehiculo_pedido: z.enum(["sedan", "minivan", "minivan_premium", "microbus", "minibus"]),
   numero_vuelo: vuelo,
-  cliente_nombre: z.string().trim().min(1), cliente_apellidos: z.string().trim().default(""),
-  cliente_email: z.string().trim().email(), cliente_telefono: z.string().trim().min(6),
-  notas: opcional,
+  cliente_nombre: z.string().trim().min(1).max(120), cliente_apellidos: z.string().trim().max(120).default(""),
+  cliente_email: z.string().trim().email().max(200), cliente_telefono: z.string().trim().min(6).max(30),
+  notas: opcional.refine((v) => v == null || v.length <= 500, "Máximo 500 caracteres"),
   acepta_privacidad: z.literal("on", { errorMap: () => ({ message: "Debes aceptar la política de privacidad" }) }),
   web: z.string().max(0).optional(), // campo trampa: invisible, debe venir vacío
   con_vuelta: z.literal("on").optional(),

@@ -189,7 +189,7 @@ export default function TableroRuta({ servicios, conductores, vehiculos = [], co
     iniciar(async () => {
       const r = await accionCentral({
         idAccion: crypto.randomUUID(), servicioId: s.id, accion: previo ? "reasignar" : "asignar",
-        conductorId: destino, vehiculoId: vehiculoTurno(c) ?? undefined,
+        conductorId: destino, vehiculoId: vehiculoTurno(c) ?? undefined, estadoEsperado: s.estado,
       });
       if (r.ok) setAviso({ t: `Servicio asignado a ${c.nombre}`, error: false });
       else { setAsignacion((a) => ({ ...a, [s.id]: previo })); setAviso({ t: r.error, error: true }); }

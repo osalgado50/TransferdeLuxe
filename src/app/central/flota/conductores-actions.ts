@@ -26,8 +26,10 @@ export async function eliminarConductor(id: string): Promise<ResultadoConductor>
     if (enCurso) return { ok: false, mensaje: `${p.nombre} tiene un servicio en curso: espera a que lo termine.` };
     // Sus servicios por hacer vuelven a la central (con aviso para reasignarlos).
     const { data: pendientes } = await sb.from("servicios").select("id,estado").eq("conductor_id", id).eq("es_prueba", false).in("estado", ["asignado", "aceptado"]);
+    let noDevueltos = 0;
     for (const s of pendientes ?? []) {
-      await ejecutarAccionOperador(yo.id, { idAccion: crypto.randomUUID(), servicioId: s.id as string, accion: "desasignar", motivo: "Conductor dado de baja", estadoEsperado: s.estado as "asignado" | "aceptado" });
+      const { r } = await ejecutarAccionOperador(yo.id, { idAccion: crypto.randomUUID(), servicioId: s.id as string, accion: "desasignar", motivo: "Conductor dado de baja", estadoEsperado: s.estado as "asignado" | "aceptado" });
+      if (!r.ok) noDevueltos++;
     }
     // ¿Tiene historial? Si no, se puede borrar sin perder nada.
     const cuenta = async (tabla: string, col: string) => (await sb.from(tabla).select(col, { count: "exact", head: true }).eq(col, id)).count ?? 0;
@@ -35,8 +37,12 @@ export async function eliminarConductor(id: string): Promise<ResultadoConductor>
       cuenta("servicios", "conductor_id"), cuenta("eventos_servicio", "actor_id"), cuenta("tickets_combustible", "conductor_id"),
       cuenta("jornadas", "conductor_id"), cuenta("incidencias", "conductor_id"), cuenta("checklist_revisiones", "conductor_id"),
       cuenta("cierres_jornada", "conductor_id"), cuenta("recorridos", "conductor_id"),
+      // También lo archivado («🗄 Archivar»): si se borrara la cuenta, «↩ Deshacer» no podría restaurar sus filas.
+      sb.from("archivo_filas").select("lote", { count: "exact", head: true }).or(`fila->>conductor_id.eq.${id},fila->>actor_id.eq.${id}`).then((r) => r.count ?? 0),
     ])).reduce((a, b) => a + b, 0);
-    const devueltos = pendientes?.length ? ` Sus ${pendientes.length} servicio(s) por hacer han vuelto a la central.` : "";
+    const vueltos = (pendientes?.length ?? 0) - noDevueltos;
+    const devueltos = (vueltos ? ` Sus ${vueltos} servicio(s) por hacer han vuelto a la central.` : "")
+      + (noDevueltos ? ` ${noDevueltos} no se han podido devolver (han cambiado mientras tanto): revísalos en Servicios.` : "");
     if (historial === 0) {
       const { error } = await sb.auth.admin.deleteUser(id); // en cascada: perfil, posiciones, horarios…
       if (error) throw new Error(error.message);
@@ -45,7 +51,9 @@ export async function eliminarConductor(id: string): Promise<ResultadoConductor>
     }
     const { error } = await sb.from("perfiles").update({ rol: "baja", baja_en: new Date().toISOString(), vehiculo_habitual_id: null }).eq("id", id);
     if (error) throw new Error(error.message);
-    await sb.auth.admin.updateUserById(id, { ban_duration: BANEO });
+    // El rol «baja» ya le cierra la app; el bloqueo de la cuenta es una segunda barrera (si falla, se registra).
+    const { error: eBan } = await sb.auth.admin.updateUserById(id, { ban_duration: BANEO });
+    if (eBan) console.error("[flota] bloquear cuenta:", eBan.message);
     revalidatePath("/central", "layout");
     return { ok: true, mensaje: `${p.nombre} dado de baja: ya no puede entrar ni recibir servicios. Su historial se conserva (servicios, jornadas, tickets) y puedes reactivarlo abajo.${devueltos}` };
   } catch (e) {
