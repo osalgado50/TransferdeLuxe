@@ -29,13 +29,6 @@ const ESTILO: StyleSpecification = {
 };
 const VERDE = "#22c55e", ROJO = "#ef4444", AZUL = "#3b82f6";
 const lngLat = (p: Punto): [number, number] => [p.lng, p.lat];
-/** «Gira a la derecha», «Rotonda o cambio de sentido»… según cuánto gira la ruta en el próximo cruce. */
-function textoGiro(angulo: number): string {
-  const a = Math.abs(angulo);
-  if (a >= 150) return "↩ Cambio de sentido";
-  if (a >= 110) return angulo > 0 ? "↱ Gira fuerte a la derecha" : "↰ Gira fuerte a la izquierda";
-  return angulo > 0 ? "↱ Gira a la derecha" : "↰ Gira a la izquierda";
-}
 const linea = (coords: [number, number][]) => ({ type: "Feature" as const, properties: {}, geometry: { type: "LineString" as const, coordinates: coords } });
 
 export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFase, alCambiarEta, alCambiarDistancia }: {
@@ -260,11 +253,6 @@ export function MapaServicio({ servicioId, objetivo, origenServicio, alCambiarFa
         <Text style={estilos.bannerTexto}>{textoBannerRuta(objetivo.tipo, quedaM, quedaS)}</Text>
         {ruta?.fuente === "recta" && <Text style={estilos.bannerAviso}>Ruta aproximada (sin servicio de rutas)</Text>}
       </View>
-      {nav?.giro && seguir && nav.giro.distanciaM <= 400 && (
-        <View style={estilos.giro} pointerEvents="none" accessibilityRole="text">
-          <Text style={estilos.giroTexto}>{textoGiro(nav.giro.angulo)} en {Math.max(10, Math.round(nav.giro.distanciaM / 10) * 10)} m</Text>
-        </View>
-      )}
       {pos && !seguir && (
         <Pressable onPress={() => setSeguir(true)} accessibilityRole="button" accessibilityLabel="Centrar en mi posición" style={estilos.centrar}>
           <Text style={estilos.centrarTexto}>Centrar</Text>
@@ -323,8 +311,6 @@ const estilos = StyleSheet.create({
   flecha: { width: 34, height: 34, borderRadius: 17, backgroundColor: AZUL, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
   // Triángulo alargado (sin SVG en la app): la punta se distingue de la base de un vistazo.
   flechaPunta: { width: 0, height: 0, marginTop: -4, borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 18, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#fff" },
-  giro: { position: "absolute", left: 12, bottom: 12, backgroundColor: "rgba(2,6,23,0.88)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
-  giroTexto: { color: "#fff", fontSize: 17, fontWeight: "800" },
   ampliar: { position: "absolute", right: 10, top: 52, backgroundColor: "rgba(2,6,23,0.75)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
   ampliarTexto: { color: "#e2e8f0", fontSize: 13, fontWeight: "700" },
   enCompleta: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: color.tarjeta },

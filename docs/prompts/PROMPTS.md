@@ -1565,3 +1565,9 @@ Si estoy rellenando un formulario y le doy al botón de política de privacidad,
 
 ---
 
+## 2026-10-17 19:54 · Claude Code · sesión `b3c0e64f`
+
+Las indicaciones de gira a la derecha y, y este estilo, quítalas, no, no las muestres.
+
+---
+

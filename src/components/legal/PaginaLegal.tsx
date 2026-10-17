@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import LogoMarca from "@/components/comun/LogoMarca";
 import { IDIOMAS, type Idioma } from "@/lib/i18n/portada";
+import BotonVolver from "./BotonVolver";
 import PieLegal from "./PieLegal";
 
 /**
@@ -67,7 +68,8 @@ export default function PaginaLegal({ titulo, idioma = "es", ruta, children }: {
   return (
     <main lang={idioma} className="min-h-screen bg-slate-950 px-4 py-8">
       <div className="mx-auto max-w-3xl space-y-6">
-        <nav aria-label={e.idioma} className="flex justify-end">
+        <nav aria-label={e.idioma} className="flex items-center justify-between gap-3">
+          <BotonVolver idioma={idioma} />
           <div className="flex rounded-full border border-white/15 p-1">
             {IDIOMAS.map((l) => (
               <Link key={l.codigo} href={`${ruta}?lang=${l.codigo}`} hrefLang={l.codigo} title={l.nombre} aria-current={l.codigo === idioma ? "true" : undefined}

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { startTransition, useActionState, useMemo, useRef, useState, type FormEvent } from "react";
 import CampoDireccion from "@/components/comun/CampoDireccion";
+import EnlacePrivacidad from "@/components/legal/EnlacePrivacidad";
 import { tipoMinimo } from "@/lib/dominio/capacidad";
 import { DESTINOS_FRECUENTES, TEXTOS, type Idioma } from "@/lib/i18n/portada";
 import { reservar, type EstadoReserva } from "@/app/reservar/actions";
@@ -154,7 +155,7 @@ export default function ReservaRapida({ idioma }: { idioma: Idioma }) {
 
       <label className="flex items-start gap-3 text-lg text-slate-200">
         <input type="checkbox" name="acepta_privacidad" required className="mt-1 size-6 accent-amber-300" />
-        <span>{t.form.privacidad} <Link href={`/privacidad?lang=${idioma}`} className="font-semibold text-amber-200 underline">{t.form.politica}</Link></span>
+        <span>{t.form.privacidad} <EnlacePrivacidad idioma={idioma} className="font-semibold text-amber-200 underline">{t.form.politica}</EnlacePrivacidad></span>
       </label>
       <Err k="acepta_privacidad" />
 
