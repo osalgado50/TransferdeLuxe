@@ -1084,11 +1084,29 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   por las de ejemplo (también ficticias). Un barrido de todos los campos de texto confirmó que no queda nada.
 
 ## 7. Capturas
-Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
-Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.
-Hoja de cierre de jornada: `docs/capturas/cierre-1-danos-pwa.jpg` (diagrama con 2 zonas marcadas),
-`docs/capturas/cierre-2-tecnico-pwa.jpg` (estado técnico) y `docs/capturas/cierre-3-mantenimiento.jpg` (último cierre en
-Mantenimiento).
+Tomadas el 17/10/2026 de la aplicación en producción con los datos de demostración (marca ficticia, sin datos reales),
+con Playwright: la central a 1440×900 y la portada y el conductor a tamaño de móvil (393×852). En
+`docs/capturas/`:
+
+| Captura | Qué enseña |
+|---|---|
+| `01-central-panel-en-vivo.jpg` | Panel en vivo: guía para el jurado, botones de demo/archivar, turnos de hoy y contadores |
+| `02-central-mapa-y-actividad.jpg` | Mapa con los coches de demo circulando y avisos (fuera de horario, retrasos) |
+| `03-central-servicios.jpg` | Agenda de servicios del día con filtros y estados |
+| `04-central-hoja-de-ruta.jpg` | Hoja de ruta de mañana por conductor |
+| `05-central-asignar-automaticamente.jpg` | Propuesta de asignación automática (turnos, márgenes, km en vacío) antes de confirmar |
+| `06-central-horarios.jpg` | Horarios por semana: turnos partidos, nocturnos y planificación |
+| `07-central-combustible.jpg` | Tickets de combustible leídos por OCR, gasto por mes y consumo por vehículo |
+| `08-central-informes.jpg` | Informes del mes |
+| `09-central-flota-y-ajustes.jpg` | Vehículos y conductores, con la ✕ para eliminar o dar de baja |
+| `10-central-historial-de-viajes.jpg` | Historial de viajes con el recorrido GPS |
+| `11-portada-reservas.jpg` | Portada pública de reservas (castellano, catalán, inglés) |
+| `12-portada-formulario-reserva.jpg` | Reserva rápida: ubicación por GPS, dictado por voz, contadores grandes |
+| `13-aviso-legal-plantilla.jpg` | Aviso legal como plantilla con titular ficticio |
+| `14-acceso.jpg` | Acceso con las cuentas de demostración |
+| `15-conductor-hoy.jpg` | App del conductor (versión web): servicios de hoy con la ✕ para devolverlos |
+| `16-conductor-servicio.jpg` | Ficha del servicio en curso con navegación por carretera |
+| `17-seguimiento-cliente.jpg` | Página de seguimiento que recibe el cliente por WhatsApp/SMS |
 
 ### App nativa N2 — Backend para la app (10/10/2026)
 - Endpoints `POST /api/conductor/{accion,llegando,fuera-de-servicio,push-token}` con `Authorization: Bearer` (validado con `auth.getUser`), zod y límite por usuario; `/api/ruta` acepta también Bearer.
