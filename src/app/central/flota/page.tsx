@@ -6,6 +6,7 @@ import GestionFavoritos from "@/components/central/GestionFavoritos";
 import AyudaSonidos from "@/components/central/AyudaSonidos";
 import type { Favorito } from "@/lib/dominio/favoritos";
 import { guardarVehiculo, guardarConductor, guardarOperador, guardarAjustes, guardarModulos, guardarBase } from "./actions";
+import { BotonEliminarConductor, BotonReactivarConductor } from "@/components/central/BotonesConductor";
 import CampoBase from "@/components/central/CampoBase";
 import { MODULOS, leerModulos } from "@/lib/dominio/modulos";
 import { CampoContrasena } from "@/components/comun/CampoContrasena";
@@ -23,13 +24,14 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
   await exigirRol("operador");
   const f = await searchParams;
   const sb = clienteAdmin();
-  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }, { data: favoritos, error: errFavoritos }, { data: operadores }] = await Promise.all([
+  const [{ data: vehiculos }, { data: conductores }, { data: ajustes }, { data: usuarios }, { data: favoritos, error: errFavoritos }, { data: operadores }, { data: bajas }] = await Promise.all([
     sb.from("vehiculos").select("*").order("matricula"),
     sb.from("perfiles").select("*").eq("rol", "conductor").order("nombre"),
     sb.from("ajustes").select("*").eq("id", 1).single(),
     sb.auth.admin.listUsers({ perPage: 1000 }),
     sb.from("favoritos").select("*").order("tipo").order("nombre"),
     sb.from("perfiles").select("*").eq("rol", "operador").order("nombre"),
+    sb.from("perfiles").select("id,nombre,baja_en").eq("rol", "baja").order("nombre"),
   ]);
   const emails = new Map((usuarios?.users ?? []).map((u) => [u.id, u.email ?? ""]));
   const demo = process.env.NEXT_PUBLIC_MODO_DEMO === "true";
@@ -91,7 +93,7 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
               <option value="">Sin vehículo</option>
               {(vehiculos ?? []).map((v) => <option key={v.id} value={v.id}>{v.matricula} · {v.modelo}{v.estado === "taller" ? " (taller)" : ""}</option>)}
             </select>
-            <button className={boton}>Guardar</button>
+            <span className="flex items-center gap-2"><button className={boton}>Guardar</button><BotonEliminarConductor id={c.id} nombre={c.nombre} /></span>
           </form>
         ))}
         <form action={guardarConductor} className="grid grid-cols-1 gap-2 border-t border-slate-700 pt-2 sm:flex sm:flex-wrap sm:items-end">
@@ -107,6 +109,14 @@ export default async function Flota({ searchParams }: { searchParams: Promise<Re
           <button className={boton}>Añadir conductor</button>
         </form>
         {demo && <p className="text-xs text-slate-500">Modo demo: el conductor nuevo usa la contraseña de demo y su email debe terminar en @transferdeluxe.test.</p>}
+              {(bajas ?? []).length > 0 && (
+          <div className="space-y-2 border-t border-slate-700 pt-3">
+            <p className="text-sm text-slate-400">Dados de baja (no pueden entrar ni recibir servicios; su historial se conserva):</p>
+            <div className="flex flex-wrap gap-2">
+              {(bajas ?? []).map((b) => <BotonReactivarConductor key={b.id} id={b.id} nombre={b.nombre} />)}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="space-y-2">

@@ -774,6 +774,13 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   el servidor, 1 petición/s y caché); si no responde, se usa «Mi ubicación (coordenadas)», que también sirve para
   recoger. Avisos si no hay permiso o no se encuentra; textos en los tres idiomas; parser con test.
 
+- **Eliminar conductores (17/10/2026)**. Petición: una ✕ roja junto a «Guardar» para eliminar un conductor. Borrar la
+  cuenta arrastraría en cascada el registro de jornada (obligatorio 4 años), incidencias, checklists y ausencias, y la
+  base de datos no lo permite si tiene servicios o tickets. Por eso: sin historial, se borra del todo; con historial,
+  se da de baja (migración 0041: rol «baja» y fecha), su cuenta queda bloqueada, desaparece de listas, asignaciones y
+  mapa, y su historial sigue con su nombre; se puede reactivar desde la misma página. Antes, sus servicios por hacer
+  vuelven a la central con aviso; si tiene uno en curso, hay que esperar a que lo termine.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
