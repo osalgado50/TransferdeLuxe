@@ -1070,6 +1070,11 @@ Navegador (central)    Móvil del conductor (PWA)    Navegador (cliente)
   responsable, un coche de demo cuyo último destino no es un lugar conocido (coordenadas dudosas, p. ej. servicios ya
   cargados con la coordenada vieja) va a la base de la empresa (Flota y ajustes) o a su aparcamiento.
 
+- **Vulnerabilidades de postcss (17/10/2026)**: el escáner de Hostinger avisó de 4 CVE (2 altas, 2 moderadas) en
+  `postcss@8.4.31`. No era una dependencia directa: `next@15.5.27` la fija a esa versión exacta (también la última
+  15.5.28). Se forzó la versión corregida solo para Next con `overrides` de npm (`postcss ^8.5.30`, la misma rama 8.5 que
+  ya usaba Tailwind); `npm audit` queda en 0 vulnerabilidades y la web compila igual.
+
 ## 7. Capturas
 Ver `docs/capturas/` (login, panel en vivo, servicios, hoja de ruta, ficha y asignación con sugerencia).
 Navegación del conductor llegando al destino: `docs/capturas/conductor-navegacion-llegando.jpg`.
