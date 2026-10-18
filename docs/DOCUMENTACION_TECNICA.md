@@ -892,7 +892,9 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   invitación) y una prueba completa de 5 minutos. Comprobado: el APK se descarga sin iniciar sesión (157 MB), su huella
   coincide con la última actualización OTA del canal `preview`, el modo demo está activo en las dos variantes y el
   enlace caduca el 30/10/2026, después de la evaluación. La prueba real del responsable se ocultó (`es_prueba`) y se
-  borraron sus posiciones GPS reales.
+  borraron sus posiciones GPS reales. Probada por el responsable en un Android real (instalación y acceso con `conductor3`): se
+  añadió un aviso destacado de que hay que forzar la instalación («Instalar de todas formas»), porque Play Protect no
+  reconoce al desarrollador de un APK que no viene de Google Play.
 
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la

@@ -25,14 +25,20 @@ en la cuenta que quieras y luego **«Entrar»** (la contraseña de prueba se rel
 
 ## 1. Android: instalar la app
 
+> **Es normal que Android avise.** La app es una versión de prueba que no está en Google Play, así que Android no puede
+> comprobar quién la firma y te pedirá confirmar. Cuando lo haga, elige siempre **«Descargar de todas formas»** o
+> **«Instalar de todas formas»**. La app no pide datos personales: solo se entra con las cuentas de demo.
+
 1. En el móvil Android, abre en Chrome **https://app.transfersvipluxe.com/android**. Se descarga `TDL Conductor` (APK,
    unos 150 MB; mejor con wifi). Enlace directo, por si el corto no abre:
    https://expo.dev/artifacts/eas/sLajvHRbo399obLDSDlTB5zOJ-zBxFYt0m8varQodak.apk
+   Si Chrome avisa de que el archivo puede ser dañino: **Descargar de todas formas**.
 2. Al terminar, toca **Abrir** en el aviso de descarga (o búscalo en *Archivos → Descargas*).
 3. Si Android avisa de que Chrome no puede instalar aplicaciones de origen desconocido: **Ajustes → Permitir de esta
    fuente** y vuelve atrás.
-4. Toca **Instalar**. Si Google Play Protect dice que la app no está verificada (es una versión de prueba, no está en la
-   tienda): **Más detalles → Instalar de todas formas**.
+4. Toca **Instalar**. Aparecerá un aviso de **Google Play Protect** diciendo que no se reconoce al desarrollador o que la
+   app no está verificada. **Fuerza la instalación**: toca **Más detalles → Instalar de todas formas** (según el móvil,
+   «Instalar igualmente»). Si pregunta si quieres enviar la app para que la analicen, puedes decir que no.
 5. Abre **TDL Conductor**, ciérrala del todo y vuelve a abrirla: así descarga la última actualización.
 6. Entra con una cuenta de conductor (recuadro «Cuentas de demo» → **Usar** → **Entrar**) y acepta los permisos:
    - **Notificaciones**: para que te lleguen los servicios nuevos.

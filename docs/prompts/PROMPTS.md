@@ -1752,3 +1752,25 @@ Vale, he hecho la prueba real, funciona perfecto, he hecho todos los pasos y seg
 
 ---
 
+## 2026-10-18 21:33 · Claude Code · sesión `b3c0e64f`
+
+desplegado en hostinger.
+
+1. En el móvil Android, abre en Chrome https://[dominio de la app]/android. Se descarga `TDL Conductor` (APK, unos 150 MB; mejor con wifi). Enlace directo, por si el corto no abre: https://expo.dev/artifacts/eas/sLajvHRbo399obLDSDlTB5zOJ-zBxFYt0m8varQodak.apk
+
+la segunda url descarga un apk, la primera 404
+
+---
+
+## 2026-10-18 23:24 · Claude Code · sesión `b3c0e64f`
+
+ya funciona en incógnito
+
+---
+
+## 2026-10-18 23:31 · Claude Code · sesión `b3c0e64f`
+
+descargada la, la aplicación y he entrado como conductor 3. Deberías de poner en las instrucciones que cuando lo descargas en, en un móvil, hay un momento en que te pide que fuerces la instalación porque no detecta la autenticidad del códice o algo así. Y Y deberías indicar que hay que instalar de todas formas.
+
+---
+
