@@ -64,21 +64,26 @@ iPhone por cable: Archivo → Nueva grabación de película → en la flecha jun
 | Toma | Dónde | Qué hacer, en orden |
 |---|---|---|
 | 1 | Ordenador · incógnito | Abrir la portada, bajar despacio hasta el formulario y volver arriba. |
-| 2 | iPhone · Safari | Portada en castellano → cambiar a catalán y volver → «Usar mi ubicación» en la recogida → dictar «Aeropuerto de Reus» en el destino → 2 pasajeros, 2 maletas → nombre de prueba, teléfono 600 000 123, correo `prueba@ejemplo.test` → «Reservar ahora». Datos inventados. |
+| 2 | iPhone · Safari | Portada en castellano → cambiar a catalán y volver → «Usar mi ubicación» en la recogida → dictar «Aeropuerto de Reus» en el destino → 2 pasajeros, 2 maletas → nombre de prueba, teléfono 600 000 123, correo `prueba@ejemplo.test` → «Reservar ahora». Datos inventados. Si a esa hora no hay coche libre, mejor aún: se ve «Tenemos coche libre a estas horas» → pulsar «Reservar a las…». |
 | 3 | Ordenador · `/central` | Panel en vivo con los coches moviéndose; pasar el ratón por un coche y por la columna de actividad. Debe verse la reserva de la toma 2 recién entrada. |
 | 4 | Ordenador | Hoja de ruta de mañana → ⚡ Asignar automáticamente → enseñar la propuesta → cambiar un conductor en una línea → Confirmar. |
-| 5 | **Las dos a la vez** | Iniciar las dos grabaciones, dar una palmada delante del Mac (sirve para sincronizar al montar). En la central, asignar un servicio a tu conductor de prueba; en el iPhone, aceptarlo; luego EN CAMINO → abrir el mapa a pantalla completa → CARGA → DESCARGA. Que se vea el panel cambiando en cada paso. |
+| 5 | **Las dos a la vez** | En el iPhone, la app con **Marc** (`conductor1@transferdeluxe.test`, turno 13:30–22:00): si no tiene la jornada abierta, Jornada → Iniciar. Iniciar las dos grabaciones y dar una palmada delante del Mac (para sincronizar al montar). En la central, asignar a Marc un servicio pendiente de hoy; en el iPhone, aceptarlo; luego EN CAMINO → abrir el mapa a pantalla completa → CARGA → DESCARGA. Que se vea el panel cambiando en cada paso. (Con tu móvil mandando GPS, la simulación deja de mover a Marc: lo llevas tú). |
 | 6 | Ordenador | Ficha de un servicio en camino de la demo → ✏️ Editar servicio → cambiar la hora → Guardar (se ve en el historial) → «Reasignar» y elegir otro conductor. |
 | 7 | iPhone | En un servicio en camino, «Avisar al cliente» → se abre WhatsApp con el mensaje (no enviarlo) → abrir el enlace de seguimiento en Safari. |
 | 8 | iPhone + ordenador | Pestaña Ticket → «Probar con un ticket de ejemplo» (o foto a un ticket) → campos rellenos → Guardar. En la central, Combustible con el ticket nuevo. |
-| 9 | Ordenador | Horarios (vista de mes) → Informes → Flota y ajustes, unos segundos en cada uno. |
+| 9 | Ordenador | Jornadas (panel «Ahora»: quién está trabajando, en pausa o fuera; registro con las pausas) → Horarios (vista de mes, turnos de mañana, tarde y noche) → Informes → Flota y ajustes, unos segundos en cada uno. |
 | 10 | Ordenador | El repositorio en GitHub (lista de commits) → `docs/prompts/` → la documentación. |
 
 **Montaje**: cada toma sobre su audio (`01…10`), recortando las esperas. Si una toma es más corta que su audio, congelar
 el último fotograma o ralentizar un poco. Exportar en 1080p y comprobar que dura menos de 5:00.
 
+## Cuándo grabar
+Entre las **14:00 y las 21:30**: Marc está de turno (para la toma 5) y hay movimiento en el mapa. La empresa de demo
+funciona sola (reservas que entran, central automática, conductores que fichan y se desfichan): no hace falta cargar
+nada. Al terminar, si la reserva de la toma 2 sigue pendiente, asígnala o cancélala desde la central.
+
 ## Comprobaciones antes de grabar
-- [ ] En el panel en vivo hay datos de demo de hoy (si no, «✨ Cargar datos de demo»).
+- [ ] En el panel en vivo hay servicios de hoy (la demo funciona sola; si alguien archivó, «✨ Cargar datos de demo»).
 - [ ] Sesión de `central@transferdeluxe.test` en el ordenador y de un conductor de demo en el móvil (o en incógnito).
 - [ ] Si el móvil manda GPS real como conductor, la simulación deja quieto ese coche: para que se muevan solos, graba con
       otro conductor o sin la app abierta. Al terminar, cierra la sesión del conductor en el móvil (no debe quedar tu
