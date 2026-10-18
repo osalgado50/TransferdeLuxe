@@ -869,6 +869,13 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   teléfonos, correos y direcciones privadas se sustituyen por etiquetas ([marca real], [teléfono omitido]…). Los
   literales que busca están en un fichero local ignorado por git, para que el propio script no los publique.
 
+- **Grabación de las tomas del vídeo (18/10/2026)**. La IA graba las tomas en el simulador de Xcode: el móvil del
+  cliente y la app nativa del conductor en un iPhone 17 Pro (build de EAS con el perfil `simulador`, sin compilar en
+  local) y la central en un iPad Pro en horizontal, los dos grabando a la vez (`simctl io recordVideo`) para la pantalla
+  dividida de la toma 5. La posición del conductor se simula con `simctl location` (de camino al aeropuerto y de allí
+  a Tarragona), la hora de la barra de estado se fija y el ticket de la toma 8 es el de ejemplo. Las tomas en bruto
+  quedan en `docs/video/tomas/` (fuera de git por tamaño).
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
@@ -1183,6 +1190,13 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   esos patrones se leen de un fichero local ignorado por git; en el código solo quedan los genéricos (correos y
   teléfonos). Además, el formulario público perdía lo rellenado al abrir la política de privacidad: ahora se abre en
   una ventana encima y no se navega.
+
+- **Grabar sin QuickTime (18/10/2026)**: con tres pantallas, el iPhone solo por Wi-Fi y una superposición de otra app,
+  QuickTime no daba una fuente usable. Solución: el simulador de Xcode, que graba la pantalla del dispositivo sin
+  depender del escritorio. Dos tropiezos: el teclado del simulador con distribución española escribía `"` en lugar de
+  `@` (se fijó la distribución física del simulador a US, sin tocar el Mac) y el texto tecleado justo al enfocar un
+  campo llegaba tarde (se espera a que aparezca el teclado). Además, la primera hora probada no ofrecía horas
+  alternativas: el conductor de tarde tenía un viaje a Barcelona y la búsqueda solo mira ±3 h; se grabó a otra hora.
 
 ## 7. Capturas
 Tomadas el 17/10/2026 de la aplicación en producción con los datos de demostración (marca ficticia, sin datos reales),

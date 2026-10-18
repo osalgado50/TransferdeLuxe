@@ -44,3 +44,6 @@ movil/dist/
 
 # Patrones locales del anonimizador (contienen los datos reales que tapan)
 scripts/anonimizar.local.tsv
+
+# Tomas en bruto del vídeo (pesan cientos de MB)
+docs/video/tomas/

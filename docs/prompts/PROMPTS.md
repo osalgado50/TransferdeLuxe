@@ -1632,3 +1632,57 @@ Sí, me parece perfecto lo que has decidido. Eh, que los conductores, pues que f
 
 ---
 
+## 2026-10-18 13:00 · Claude Code · sesión `b3c0e64f`
+
+Vale, empezamos con los vídeos
+
+---
+
+## 2026-10-18 13:01 · Claude Code · sesión `b3c0e64f`
+
+te he dejado mi iphone conectado por si lo necesitas
+
+---
+
+## 2026-10-18 13:02 · Claude Code · sesión `b3c0e64f`
+
+haz tu los puntos de la preparacion
+
+---
+
+## 2026-10-18 13:09 · Claude Code · sesión `b3c0e64f`
+
+recuerda que tengo 3 pantallas. seleccionado iphone en quicktime, no puedo seleccionar microfono ninguno. No tengo menu desarrollador en iphone
+
+---
+
+## 2026-10-18 13:13 · Claude Code · sesión `b3c0e64f`
+
+He cerrado todas las ventanas y todas las aplicaciones para que no tengas interferencias. También he cerrado Chrome, ¿vale?
+
+---
+
+## 2026-10-18 13:16 · Claude Code · sesión `b3c0e64f`
+
+Prueba ahora que te he cambiado la cámara a la pantalla del iPhone.
+
+---
+
+## 2026-10-18 13:18 · Claude Code · sesión `b3c0e64f`
+
+Oye, veo que no nos aclaramos. ¿Qué te parece si utilizas el emulador de, de iPhone de los Xcode que tenemos instalado?
+
+---
+
+## 2026-10-18 13:57 · Claude Code · sesión `b3c0e64f`
+
+ok
+
+---
+
+## 2026-10-18 14:00 · Claude Code · sesión `b3c0e64f`
+
+ok
+
+---
+
