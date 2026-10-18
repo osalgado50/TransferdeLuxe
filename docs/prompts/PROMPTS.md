@@ -1602,3 +1602,21 @@ Oye puedes crear una opción de finalizar y empezar las jornadas de los conducto
 
 ---
 
+## 2026-10-17 22:50 · Claude Code · sesión `b3c0e64f`
+
+Da de baja el usuario [responsable]
+
+---
+
+## 2026-10-17 22:51 · Claude Code · sesión `b3c0e64f`
+
+Si
+
+---
+
+## 2026-10-18 11:48 · Claude Code · sesión `b3c0e64f`
+
+Buenos días, ya nos queda poco para presentarlo. Un vistazo final de que todo está ok y empezamos a preparar los vídeos.
+
+---
+
