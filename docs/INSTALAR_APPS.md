@@ -26,7 +26,8 @@ en la cuenta que quieras y luego **«Entrar»** (la contraseña de prueba se rel
 ## 1. Android: instalar la app
 
 1. En el móvil Android, abre en Chrome **https://app.transfersvipluxe.com/android**. Se descarga `TDL Conductor` (APK,
-   unos 150 MB; mejor con wifi).
+   unos 150 MB; mejor con wifi). Enlace directo, por si el corto no abre:
+   https://expo.dev/artifacts/eas/sLajvHRbo399obLDSDlTB5zOJ-zBxFYt0m8varQodak.apk
 2. Al terminar, toca **Abrir** en el aviso de descarga (o búscalo en *Archivos → Descargas*).
 3. Si Android avisa de que Chrome no puede instalar aplicaciones de origen desconocido: **Ajustes → Permitir de esta
    fuente** y vuelve atrás.
