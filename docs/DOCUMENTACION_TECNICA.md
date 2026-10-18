@@ -882,6 +882,9 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   cada voz en off al empezar su bloque y normaliza el volumen. Resultado: 1080p, 4:43, fuera de git
   (`docs/video/TransferdeLuxe_video_demo.mp4`). La frase 2 de la voz se cambió para describir lo grabado: sin coche
   libre, la web propone otras horas.
+  Después se subtitula (`scripts/subtitular_video.py`): el texto de la voz en frases cortas, sincronizadas con las
+  pausas reales de cada audio (`silencedetect`), en blanco con borde negro en la parte inferior, y además un
+  `.srt` (`docs/video/TransferdeLuxe_video_demo.srt`) para subirlo como subtítulos a YouTube o Drive.
 
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la

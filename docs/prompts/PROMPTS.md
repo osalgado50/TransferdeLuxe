@@ -1710,3 +1710,33 @@ vuelve a grabar la toma 10 con el link correcto
 
 ---
 
+## 2026-10-18 18:07 · Claude Code · sesión `b3c0e64f`
+
+Vamos a solucionar esto del repositorio. En deployments. Me guías paso a paso. Pero antes, ya que estoy en GitHub, eh, estoy en la ventana de settings. Para dar acceso a colaboradores al email de, de automatizaciones o algo así, era el concurso. Me lo puedes recordar, por favor.
+
+---
+
+## 2026-10-18 18:07 · Claude Code · sesión `b3c0e64f`
+
+correcto¿?
+
+---
+
+## 2026-10-18 18:09 · Claude Code · sesión `b3c0e64f`
+
+hecho, ya está desconectado de Vercel
+
+---
+
+## 2026-10-18 18:19 · Claude Code · sesión `b3c0e64f`
+
+hecho, cierra la sesión de GitHub del iPad
+
+---
+
+## 2026-10-18 18:20 · Claude Code · sesión `b3c0e64f`
+
+Vale, por último, no te lo he dicho, se me acaba de ocurrir ahora, de que subtitules el vídeo. Aparte de que la Mónica vaya hablando, subtitular el vídeo en español con letra blanca y reborde en negro, ¿vale? Para que contraste. Tampoco que sea enorme ni pequeña en la parte inferior, pero que, que vaya escribiendo lo que habla Mónica porque a veces no hay volumen y, y la gente prefiere leer que escuchar.
+
+---
+

@@ -1,0 +1,164 @@
+1
+00:00:00,600 --> 00:00:03,683
+TransferdeLuxe es una empresa de traslados de la Costa Dorada,
+
+2
+00:00:03,683 --> 00:00:05,601
+inventada para este concurso.
+
+3
+00:00:05,601 --> 00:00:09,735
+Recibía las reservas por teléfono y coordinaba a sus conductores a mano.
+
+4
+00:00:09,735 --> 00:00:11,734
+He construido su web de reservas,
+
+5
+00:00:11,734 --> 00:00:16,209
+su centro de control y la aplicación de sus conductores, todo con Claude Code.
+
+6
+00:00:20,600 --> 00:00:24,691
+El cliente reserva desde el móvil, en castellano, catalán o inglés.
+
+7
+00:00:24,691 --> 00:00:29,706
+Toca la flecha y la recogida se rellena con su ubicación; el destino lo puede dictar.
+
+8
+00:00:29,706 --> 00:00:34,179
+Pasajeros y maletas, con botones grandes, y la web elige el vehículo.
+
+9
+00:00:34,179 --> 00:00:38,367
+Antes de aceptar, comprueba que haya algún conductor libre; si no lo hay,
+
+10
+00:00:38,367 --> 00:00:40,760
+le propone otras horas con coche libre.
+
+11
+00:00:56,333 --> 00:01:00,149
+La reserva entra al instante en el centro de control. En el mapa,
+
+12
+00:01:00,149 --> 00:01:04,624
+los coches circulan por carretera; a la derecha, la actividad y las alertas.
+
+13
+00:01:04,624 --> 00:01:10,323
+Para que el jurado lo vea funcionando, la demo trabaja sola: sus conductores aceptan,
+
+14
+00:01:10,323 --> 00:01:12,059
+salen, recogen y terminan.
+
+15
+00:01:14,333 --> 00:01:18,552
+Con un solo botón, la central propone un conductor para cada servicio de mañana,
+
+16
+00:01:18,552 --> 00:01:22,070
+teniendo en cuenta turnos, pausas, plazas, maletas,
+
+17
+00:01:22,070 --> 00:01:24,453
+distancias y el tiempo entre servicios.
+
+18
+00:01:24,453 --> 00:01:27,011
+Cada línea se puede cambiar antes de confirmar,
+
+19
+00:01:27,011 --> 00:01:30,871
+y lo que nadie puede hacer queda sin asignar, explicando por qué.
+
+20
+00:01:41,333 --> 00:01:46,185
+Al conductor le llega el aviso y lo acepta antes de que acabe la cuenta atrás.
+
+21
+00:01:46,185 --> 00:01:48,706
+A la izquierda, la central lo ve cambiar en el mismo segundo.
+
+22
+00:01:48,706 --> 00:01:54,325
+Avanza con un único botón: en camino, carga y descarga. El mapa gira con el coche,
+
+23
+00:01:54,325 --> 00:01:57,529
+se acerca solo en los cruces y se abre a pantalla completa.
+
+24
+00:01:57,529 --> 00:02:01,076
+Si no puede hacer un servicio, lo devuelve con un toque.
+
+25
+00:02:23,533 --> 00:02:25,060
+Y si un conductor no responde, la central manda:
+
+26
+00:02:25,060 --> 00:02:29,455
+le quita el servicio aunque ya esté en camino, se lo pasa a otro,
+
+27
+00:02:29,455 --> 00:02:34,284
+lo cancela o lo cierra. También cambia la hora, las direcciones o los pasajeros;
+
+28
+00:02:34,284 --> 00:02:37,471
+el conductor recibe un aviso y todo queda en el historial.
+
+29
+00:02:59,633 --> 00:03:04,418
+Con un toque, el conductor avisa al cliente por WhatsApp. El cliente abre el enlace,
+
+30
+00:03:04,418 --> 00:03:06,906
+sigue el coche en directo y ve a qué hora llegará.
+
+31
+00:03:22,633 --> 00:03:27,317
+El ticket de gasolina se fotografía y los datos se rellenan solos: litros, precio,
+
+32
+00:03:27,317 --> 00:03:29,619
+importe, CIF y número de factura.
+
+33
+00:03:29,619 --> 00:03:34,922
+La aplicación compara el precio con el del Ministerio y los kilómetros con los últimos del coche.
+
+34
+00:03:46,633 --> 00:03:50,815
+Horarios por turnos, también de noche, planificados por semanas y meses;
+
+35
+00:03:50,815 --> 00:03:54,991
+informes de servicios, kilómetros y consumo; registro de jornada;
+
+36
+00:03:54,991 --> 00:03:58,202
+mantenimiento con avisos; y la flota y los conductores,
+
+37
+00:03:58,202 --> 00:04:01,012
+que se pueden dar de baja sin perder su historial.
+
+38
+00:04:14,333 --> 00:04:18,395
+Todo se ha hecho conversando con Claude Code: más de trescientos treinta commits,
+
+39
+00:04:18,395 --> 00:04:20,476
+cuarenta migraciones de base de datos,
+
+40
+00:04:20,476 --> 00:04:26,465
+más de ochocientas cuarenta pruebas automáticas y una aplicación nativa que se actualiza sin pasar por las tiendas.
+
+41
+00:04:26,465 --> 00:04:30,500
+El historial de prompts acompaña la entrega. Gracias.
+
