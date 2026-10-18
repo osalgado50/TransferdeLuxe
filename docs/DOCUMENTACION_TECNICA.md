@@ -835,6 +835,21 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   cualquier estado; recalcula la duración si cambia el trayecto, deja en el historial qué cambió y avisa al conductor.
   La app (modo central) también permite reasignar en curso. Tests de las reglas y de la detección de cambios.
 
+- **Una empresa de demo que funciona sola durante la evaluación (18/10/2026)**. Petición: que quien entre durante la
+  semana vea la empresa viva, sin servicios caducados, con conductores que trabajen como personas y que, si no hay coche
+  libre al reservar, se ofrezca otra hora o el contacto con la central. Se ocultaron (sin borrar) todos los servicios de
+  prueba y de ejemplo, y se montó una plantilla que cubre las 24 h con relevos (mañana 06:00–14:30, tarde 13:30–22:00,
+  noche 21:30–06:30). `src/lib/demo/empresaDemo.ts` (lógica pura, determinista por franja de 30 min) genera las reservas
+  que van llegando con antelación variable (llegadas y salidas de Reus, Barcelona, AVE, trayectos locales; ≈ 8–10 al día,
+  más de día que de noche) y decide la jornada de cada conductor; `empresaViva.ts` lo aplica desde el vigilante: entran
+  las reservas «ya hechas», la central automática asigna lo que empieza en las próximas 4 h al conductor apto (o lo
+  subcontrata si no hay nadie libre a 75 min), y los conductores fichan y revisan el coche al empezar el turno, hacen una
+  pausa a media jornada cuando están libres y, al acabar (o al terminar el servicio que llevan), presentan la hoja de
+  cierre con los km del día y quedan «fuera de servicio». Genera además el historial de la última semana (servicios hechos
+  o subcontratados, jornadas con pausa) para Jornadas, Informes y Viajes. En la reserva sin hueco se ofrecen hasta tres
+  horas cercanas con coche libre («Reservar a las 16:30»), además de WhatsApp o llamada. Si alguien archiva, no entran
+  reservas durante 3 h y «✨ Cargar datos de demo» la vuelve a poner en marcha.
+
 - **Revisión final de funcionamiento y límites (17/10/2026)**. Pruebas de carga y memoria (build de producción en local y
   sonda suave a producción), base de datos y dos revisiones de código en paralelo → `docs/INFORME_REVISION_FINAL.md`.
   Arreglos aplicados con el visto bueno del responsable: límites de peticiones que se saltaban inventando la IP, guardas
