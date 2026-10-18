@@ -28,6 +28,8 @@ export interface TextosPortada {
     pasado: string; vuelta: string; correo: string; demasiados: string; completa: string; frecuentes: string;
     /** Menos de media hora de antelación; sin coche libre (contactar / enviar igualmente); página actualizada durante la reserva. */
     pronto: string; sinHueco: string; sinHuecoTexto: string; whatsapp: string; llamar: string; igualmente: string; otraHora: string;
+    /** Horas cercanas con coche libre. */
+    libresA: string; reservarA: string;
     mensajeWhatsApp: (d: { dia: string; hora: string; origen: string; destino: string; pax: number }) => string;
     actualizada: string; recargar: string;
   };
@@ -65,6 +67,7 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
       pronto: "Reserva con al menos media hora de antelación. Si es más urgente, llámanos.",
       sinHueco: "A esa hora tenemos todos los coches ocupados", sinHuecoTexto: "Escríbenos o llámanos y te buscamos una solución, o elige otra hora.",
       whatsapp: "Escribir por WhatsApp", llamar: "Llamar a la central", igualmente: "Enviar la solicitud igualmente", otraHora: "Elegir otra hora",
+      libresA: "Tenemos coche libre a estas horas:", reservarA: "Reservar a las",
       mensajeWhatsApp: (d) => `Hola, quiero un traslado el ${d.dia} a las ${d.hora} de ${d.origen} a ${d.destino} (${d.pax} pasajeros). ¿Tenéis disponibilidad?`,
       actualizada: "Hemos actualizado la web mientras reservabas. Recarga la página y vuelve a enviarla.", recargar: "Recargar la página",
     },
@@ -110,6 +113,7 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
       pronto: "Reserva amb almenys mitja hora d’antelació. Si és més urgent, truca’ns.",
       sinHueco: "A aquesta hora tenim tots els cotxes ocupats", sinHuecoTexto: "Escriu-nos o truca’ns i et buscarem una solució, o tria una altra hora.",
       whatsapp: "Escriure per WhatsApp", llamar: "Trucar a la central", igualmente: "Enviar la sol·licitud igualment", otraHora: "Triar una altra hora",
+      libresA: "Tenim cotxe lliure a aquestes hores:", reservarA: "Reservar a les",
       mensajeWhatsApp: (d) => `Hola, vull un trasllat el ${d.dia} a les ${d.hora} de ${d.origen} a ${d.destino} (${d.pax} passatgers). Teniu disponibilitat?`,
       actualizada: "Hem actualitzat la web mentre reservaves. Recarrega la pàgina i torna-la a enviar.", recargar: "Recarregar la pàgina",
     },
@@ -155,6 +159,7 @@ export const TEXTOS: Record<Idioma, TextosPortada> = {
       pronto: "Book at least 30 minutes in advance. If it’s more urgent, please call us.",
       sinHueco: "All our cars are booked at that time", sinHuecoTexto: "Message or call us and we’ll find a solution, or choose another time.",
       whatsapp: "Message us on WhatsApp", llamar: "Call our office", igualmente: "Send the request anyway", otraHora: "Choose another time",
+      libresA: "We have a car available at these times:", reservarA: "Book at",
       mensajeWhatsApp: (d) => `Hello, I’d like a transfer on ${d.dia} at ${d.hora} from ${d.origen} to ${d.destino} (${d.pax} passengers). Do you have availability?`,
       actualizada: "We updated the website while you were booking. Please reload the page and send it again.", recargar: "Reload the page",
     },

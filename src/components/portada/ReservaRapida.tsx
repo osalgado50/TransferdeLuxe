@@ -5,7 +5,7 @@ import CampoDireccion from "@/components/comun/CampoDireccion";
 import EnlacePrivacidad from "@/components/legal/EnlacePrivacidad";
 import { tipoMinimo } from "@/lib/dominio/capacidad";
 import { DESTINOS_FRECUENTES, TEXTOS, type Idioma } from "@/lib/i18n/portada";
-import { reservar, type EstadoReserva } from "@/app/reservar/actions";
+import { reservar, type EstadoReserva, type HoraLibre } from "@/app/reservar/actions";
 import { enlaceLlamar, enlaceWhatsApp, horaMinima, sinAntelacion } from "@/lib/reserva/disponibilidad";
 
 type Estado = EstadoReserva & { actualizada?: boolean };
@@ -57,6 +57,13 @@ export default function ReservaRapida({ idioma }: { idioma: Idioma }) {
     const fd = new FormData(e.currentTarget);
     if (sinAntelacion(String(fd.get("fecha")), String(fd.get("hora")), Date.now())) { setHoraLocal(t.form.pronto); campoHora.current?.focus(); return; }
     setHoraLocal(null); setVerHueco(true);
+    ultimo.current = fd;
+    startTransition(() => enviar(fd));
+  };
+  // Otra hora con coche libre: la misma reserva con la hora propuesta (se vuelve a comprobar en el servidor).
+  const reservarA = (h: HoraLibre) => {
+    if (!ultimo.current) return;
+    const fd = new FormData(); ultimo.current.forEach((v, k) => fd.append(k, v)); fd.set("fecha", h.fecha); fd.set("hora", h.hora);
     ultimo.current = fd;
     startTransition(() => enviar(fd));
   };
@@ -170,6 +177,17 @@ export default function ReservaRapida({ idioma }: { idioma: Idioma }) {
         <div role="alert" className="space-y-3 rounded-2xl border border-amber-300/40 bg-amber-400/10 p-4">
           <p className="text-xl font-bold text-amber-200">{t.form.sinHueco}</p>
           <p className="text-lg text-slate-200">{t.form.sinHuecoTexto}</p>
+          {!!estado.alternativas?.length && (
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-white">{t.form.libresA}</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {estado.alternativas.map((h) => (
+                  <button key={`${h.fecha}${h.hora}`} type="button" onClick={() => reservarA(h)} data-alternativa={h.hora}
+                    className="min-h-14 rounded-xl bg-amber-300 text-lg font-bold text-slate-950">{t.form.reservarA} {h.hora}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid gap-2">
             {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-lg font-bold text-white">💬 {t.form.whatsapp}</a>}
             {tel && <a href={tel} className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-white text-lg font-bold text-slate-900">📞 {t.form.llamar}</a>}

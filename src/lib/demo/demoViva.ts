@@ -1,6 +1,7 @@
 import "server-only";
 import type { clienteAdmin } from "@/lib/supabase/admin";
-import { construirDemo, debeRenovar, MOTIVO_SIMULADO, NOTA_DEMO } from "@/lib/demo/datosDemo";
+import { MOTIVO_SIMULADO, NOTA_DEMO } from "@/lib/demo/datosDemo";
+import { centralAutomatica, historialDemo, jornadasDemo, reservasNuevas } from "@/lib/demo/empresaViva";
 import { aparcadoEn, posicionDemo, salidaHacia, siguientePasoDemo, tramoDemo, type PasoDemo, type ServicioEnMapa } from "@/lib/demo/movimiento";
 
 /**
@@ -22,75 +23,6 @@ async function conductoresDemo(sb: Sb) {
   const { data, error } = await sb.from("perfiles").select("id,nombre,vehiculo_habitual_id").eq("rol", "conductor").order("nombre");
   if (error) throw new Error(error.message);
   return (data ?? []).map((p) => ({ id: p.id as string, nombre: p.nombre as string, vehiculoId: (p.vehiculo_habitual_id as string | null) ?? null }));
-}
-
-/** Inserta un escenario de demo relativo a `ahora`. Devuelve cuántos servicios. */
-export async function cargarDemo(sb: Sb, ahora = Date.now()): Promise<number> {
-  const [conductores, reales] = await Promise.all([conductoresDemo(sb), conGpsReal(sb, ahora)]);
-  const demo = construirDemo(new Date(ahora), conductores);
-  const { error } = await sb.from("servicios").insert(demo.servicios);
-  if (error) throw new Error(error.message);
-  const res = await Promise.all([
-    sb.from("eventos_servicio").insert(demo.eventos),
-    demo.incidencias.length ? sb.from("incidencias").insert(demo.incidencias) : Promise.resolve({ error: null }),
-    sb.from("posiciones").insert(demo.posiciones.filter((p) => !reales.has(p.conductor_id))),
-  ]);
-  for (const r of res) if (r.error) throw new Error(r.error.message);
-  return demo.servicios.length;
-}
-
-/** Demo ya cargada y a la vista (para no duplicarla). */
-export async function demoVisible(sb: Sb, ahora = Date.now()): Promise<number> {
-  const { count } = await sb.from("servicios").select("id", { count: "exact", head: true })
-    .eq("notas", NOTA_DEMO).eq("es_prueba", false).gte("fecha_hora_recogida", new Date(ahora - 6 * 3600e3).toISOString());
-  return count ?? 0;
-}
-
-/**
- * Retira de la vista (es_prueba = true, sin borrar nada) la demo cargada hasta `hasta`, y cierra sus avisos e
- * incidencias para que no queden alertas de servicios que ya no se ven. Devuelve los ids retirados: si otra instancia
- * del servidor se adelantó, sale vacío (el update bloquea la fila y vuelve a evaluar el filtro).
- */
-async function retirarDemo(sb: Sb, hasta: string): Promise<string[]> {
-  const { data, error } = await sb.from("servicios").update({ es_prueba: true })
-    .eq("notas", NOTA_DEMO).eq("es_prueba", false).lte("creado_en", hasta).select("id");
-  if (error) throw new Error(error.message);
-  const ids = (data ?? []).map((r) => r.id as string);
-  if (ids.length) {
-    const ahora = new Date().toISOString();
-    // Ocultos pero abiertos se quedarían «en curso» para siempre (p. ej. si el GPS real del móvil frenó la simulación):
-    // se cierran, en curso como completados y el resto como cancelados.
-    await Promise.all([
-      sb.from("servicios").update({ estado: "completado" }).in("id", ids).in("estado", ["en_camino", "recogido"]),
-      sb.from("servicios").update({ estado: "cancelado" }).in("id", ids).in("estado", ["pendiente", "asignado", "aceptado"]),
-    ]);
-    await Promise.all([
-      sb.from("alertas_horario").update({ resuelta_en: ahora }).in("servicio_id", ids).is("resuelta_en", null),
-      sb.from("incidencias").update({ resuelta: true, resuelta_en: ahora }).in("servicio_id", ids).eq("resuelta", false),
-    ]);
-  }
-  return ids;
-}
-
-/** Renueva la demo si se ha quedado vieja y nadie la está usando (ver debeRenovar). */
-async function renovarSiToca(sb: Sb, ahora: number): Promise<void> {
-  const { data: ult, error: e1 } = await sb.from("servicios").select("creado_en").eq("notas", NOTA_DEMO).eq("es_prueba", false)
-    .order("creado_en", { ascending: false }).limit(1).maybeSingle();
-  if (e1) throw new Error(e1.message);
-  if (!ult) return;
-  const carga = ult.creado_en as string;
-  // Acciones de personas (la central o un conductor) sobre la demo después de cargarla; ni los avisos automáticos ni los
-  // pasos de la simulación cuentan.
-  const { data: acc, error: e2 } = await sb.from("eventos_servicio").select("creado_en,servicios!inner(notas,es_prueba)")
-    .eq("servicios.notas", NOTA_DEMO).eq("servicios.es_prueba", false).not("actor_id", "is", null).gt("creado_en", carga)
-    .or(`motivo.is.null,motivo.neq.${MOTIVO_SIMULADO}`)
-    .order("creado_en", { ascending: false }).limit(1).maybeSingle();
-  if (e2) throw new Error(e2.message); // ante la duda, no se renueva
-  if (!debeRenovar({ ultimaCarga: Date.parse(carga), ultimaAccion: acc ? Date.parse(acc.creado_en as string) : null, ahora })) return;
-  const retirados = await retirarDemo(sb, carga);
-  if (!retirados.length) return;
-  const n = await cargarDemo(sb, ahora);
-  console.log(`[demo] renovada: ${retirados.length} servicios retirados, ${n} nuevos`);
 }
 
 const CAMPOS_MAPA = "id,estado,conductor_id,duracion_estimada_min,fecha_hora_recogida,asignado_en,origen_lat,origen_lng,destino_lat,destino_lng";
@@ -116,15 +48,15 @@ async function darPaso(sb: Sb, s: ServicioEnMapa, paso: PasoDemo): Promise<void>
  * coche circula por carretera; los aparcados se refrescan cada 3 min para que no salgan «sin señal». No se toca a un
  * conductor con GPS real (lo lleva un móvil) y no se le dan pasos a uno que una persona está manejando ahora mismo.
  */
-async function simularDemo(sb: Sb, ahora: number, aparcados: boolean): Promise<void> {
+async function simularDemo(sb: Sb, ahora: number, aparcados: boolean, deServicio: Set<string>, reales: Set<string>): Promise<void> {
   const { data: servs, error } = await sb.from("servicios").select(CAMPOS_MAPA).eq("notas", NOTA_DEMO).eq("es_prueba", false)
     .gte("fecha_hora_recogida", new Date(ahora - 12 * 3600e3).toISOString()).lt("fecha_hora_recogida", new Date(ahora + 36 * 3600e3).toISOString());
   if (error) throw new Error(error.message);
   if (!servs?.length) return; // sin demo cargada no se simula nada
   const lista = servs as ServicioEnMapa[];
   const activos = lista.filter((s) => s.estado === "en_camino" || s.estado === "recogido");
-  const [conductores, reales, { data: manos }, { data: evs }, { data: aj }] = await Promise.all([
-    conductoresDemo(sb), conGpsReal(sb, ahora),
+  const [conductores, { data: manos }, { data: evs }, { data: aj }] = await Promise.all([
+    conductoresDemo(sb),
     sb.from("eventos_servicio").select("actor_id").gte("creado_en", new Date(ahora - 30 * 60_000).toISOString())
       .not("actor_id", "is", null).or(`motivo.is.null,motivo.neq.${MOTIVO_SIMULADO}`).limit(500),
     activos.length
@@ -159,7 +91,8 @@ async function simularDemo(sb: Sb, ahora: number, aparcados: boolean): Promise<v
         if (paso) await darPaso(sb, s, paso).catch((e) => console.error("[demo] paso:", e instanceof Error ? e.message : e));
       }
     }
-    if (!tramo && !aparcados) continue;
+    // Fuera de servicio (sin jornada abierta ni servicio en marcha) el coche no manda posición: «Fuera de servicio» en el mapa.
+    if (!tramo && (!aparcados || !deServicio.has(c.id))) continue;
     filas.push({ conductor_id: c.id, ...posicionDemo(tramo, aparcadoEn(suyos, i, Infinity, base), ahora), registrado_en: ts, simulada: true });
   }
   if (!filas.length) return;
@@ -167,16 +100,27 @@ async function simularDemo(sb: Sb, ahora: number, aparcados: boolean): Promise<v
   if (e2) throw new Error(e2.message);
 }
 
-let ultimoMovimiento = 0, ultimoAparcado = 0, ultimaRevision = 0;
-/** Pasada del vigilante (cada ~20 s): pasos y coches cada 30 s, aparcados cada 3 min y renovación revisada cada 5 min. */
+let ultimoMovimiento = 0, ultimoAparcado = 0, ultimaEmpresa = 0, historialHecho = false;
+/**
+ * Pasada del vigilante (cada ~20 s). Cada 2 min, la empresa: el historial de la semana (una vez), las reservas que van
+ * entrando y la central automática con lo que se acerca. Cada 30 s, las jornadas (fichar, pausa, desfichar), los pasos
+ * de los servicios y los coches; los aparcados de servicio, cada 3 min.
+ */
 export async function pasadaDemo(sb: Sb, ahora = Date.now()): Promise<void> {
-  if (ahora - ultimaRevision >= 5 * 60_000) {
-    ultimaRevision = ahora;
-    await renovarSiToca(sb, ahora);
-  }
   if (ahora - ultimoMovimiento < 30_000) return;
   ultimoMovimiento = ahora;
+  const reales = await conGpsReal(sb, ahora);
+  if (ahora - ultimaEmpresa >= 2 * 60_000) {
+    ultimaEmpresa = ahora;
+    try {
+      if (!historialHecho) { const n = await historialDemo(sb, ahora); historialHecho = true; if (n) console.log(`[demo] historial: ${n} servicios`); }
+      const nuevas = await reservasNuevas(sb, ahora);
+      const asignadas = await centralAutomatica(sb, ahora, reales);
+      if (nuevas || asignadas) console.log(`[demo] empresa: ${nuevas} reservas nuevas, ${asignadas} asignadas o subcontratadas`);
+    } catch (e) { console.error("[demo] empresa:", e instanceof Error ? e.message : e); }
+  }
+  const deServicio = await jornadasDemo(sb, ahora, reales);
   const aparcados = ahora - ultimoAparcado >= 3 * 60_000;
   if (aparcados) ultimoAparcado = ahora;
-  await simularDemo(sb, ahora, aparcados);
+  await simularDemo(sb, ahora, aparcados, deServicio, reales);
 }

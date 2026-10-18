@@ -1620,3 +1620,15 @@ Buenos días, ya nos queda poco para presentarlo. Un vistazo final de que todo e
 
 ---
 
+## 2026-10-18 12:07 · Claude Code · sesión `b3c0e64f`
+
+Vale, he parado los servicios abiertos, pero piensa que esto lo presentamos el día 19. No quiere decir que el día 19 lo mire nadie, y posiblemente durante la semana irán mirando. Eh, servicios que tengamos para esta fecha saldrán como caducados. No sé si vale la pena limpiar todo, ya que es una demo, no tenemos necesidad de tener servicios atrasados, o eh, cambiar las fechas de los servicios actuales para que se ejecuten durante la semana y estén previsto de, de recogidas. Para que no hayan servicios caducados en la aplicación. No sé cómo lo ves. ¿Qué opinas?
+
+---
+
+## 2026-10-18 12:17 · Claude Code · sesión `b3c0e64f`
+
+Sí, me parece perfecto lo que has decidido. Eh, que los conductores, pues que funcionen como funcionaría un humano, ¿no? Que viene, ficha, trabaja, mueve a la gente y cuando ya ha pasado su turno, se desficha y presenta el informe del coche y, y más o menos la empresa tendría que tener cubierto todo, la, todo el rango horario eh, con sus conductores y recuerda que si alguien quiere reservar en un momento en que los conductores están ocupados, pues ofrecerle otro slot de tiempo o el contacto con central para que le asignen de forma manual un, un sitio libre, ¿vale? Eh, tienes libertad para eliminar todas las, demos que hemos hecho, todos los servicios que hayan activos o, o sin activar, para que esto quede limpio lo construyes como tú crees que se debería presentar una demo y si lo dejas funcionando durante la semana, pues cuando accedan pues que vean que está vivo y que hay movimiento, que es una demo intenta interpretar cómo sería en el mundo real la, la situación.
+
+---
+

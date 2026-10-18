@@ -7,7 +7,7 @@ import type { TipoVehiculo } from "@/lib/dominio/tipos";
 import type { LugarEmpresa } from "@/lib/dominio/lugaresEmpresa";
 import { leerDireccionForm, tieneCoordenadas, trayectoCompleto, type Favorito } from "@/lib/dominio/favoritos";
 import { guardarFavoritoDireccion, guardarFavoritoTrayecto, type ResultadoFavorito } from "@/app/central/favoritos/actions";
-import { reservar, type EstadoReserva } from "./actions";
+import { reservar, type EstadoReserva, type HoraLibre } from "./actions";
 import { enlaceLlamar, enlaceWhatsApp, horaMinima, sinAntelacion } from "@/lib/reserva/disponibilidad";
 
 type Accion = (prev: EstadoReserva, fd: FormData) => Promise<EstadoReserva>;
@@ -46,6 +46,14 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
       setHoraLocal("Reserva con al menos media hora de antelación. Si es más urgente, llámanos."); return;
     }
     setHoraLocal(null); setVerHueco(true);
+    ultimo.current = fd;
+    startTransition(() => enviar(fd));
+  };
+  // Otra hora con coche libre: la misma reserva (ida y vuelta movidas lo mismo), que el servidor vuelve a comprobar.
+  const reservarA = (h: HoraLibre) => {
+    if (!ultimo.current) return;
+    const fd = new FormData(); ultimo.current.forEach((v, k) => fd.append(k, v)); fd.set("fecha", h.fecha); fd.set("hora", h.hora);
+    if (h.vuelta) { fd.set("vuelta_fecha", h.vuelta.fecha); fd.set("vuelta_hora", h.vuelta.hora); }
     ultimo.current = fd;
     startTransition(() => enviar(fd));
   };
@@ -248,6 +256,17 @@ export default function FormularioReserva({ accion = reservar, modo = "publico",
           <div role="alert" className="space-y-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
             <p className="text-lg font-semibold text-amber-200">A esa hora tenemos todos los coches ocupados</p>
             <p className="text-sm text-slate-300">Escríbenos o llámanos y te buscamos una solución, o elige otra hora.</p>
+            {!!estado.alternativas?.length && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-white">Tenemos coche libre a estas horas:</p>
+                <div className="flex flex-wrap gap-2">
+                  {estado.alternativas.map((h) => (
+                    <button key={`${h.fecha}${h.hora}`} type="button" onClick={() => reservarA(h)} data-alternativa={h.hora}
+                      className="min-h-12 rounded-lg bg-marca px-4 font-semibold text-white hover:bg-marca-claro">Reservar a las {h.hora}{h.vuelta ? ` (vuelta ${h.vuelta.hora})` : ""}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="grid gap-2 sm:grid-cols-2">
               {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center justify-center rounded-lg bg-emerald-600 font-semibold text-white">💬 Escribir por WhatsApp</a>}
               {tel && <a href={tel} className="flex min-h-12 items-center justify-center rounded-lg border border-slate-500 font-semibold">📞 Llamar a la central</a>}

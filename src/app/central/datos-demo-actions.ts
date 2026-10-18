@@ -4,7 +4,7 @@ import { exigirRol } from "@/lib/supabase/sesion";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { permitir } from "@/lib/limite";
 import { enEvaluacion } from "@/lib/demo/datosDemo";
-import { cargarDemo, demoVisible } from "@/lib/demo/demoViva";
+import { arrancarDemo, demoEnMarcha } from "@/lib/demo/empresaViva";
 
 /**
  * Botones del panel en vivo para que quien evalúe la app la encuentre funcionando: cargar datos de demo, archivar todos
@@ -19,11 +19,11 @@ export async function cargarDatosDemo(): Promise<ResultadoDemo> {
   if (!permitir(`demo-cargar:${yo.id}`, 5, 10 * 60_000)) return { ok: false, mensaje: "Espera un poco antes de volver a cargar datos de demo." };
   try {
     const sb = clienteAdmin();
-    const ya = await demoVisible(sb);
-    if (ya > 0) return { ok: false, mensaje: `Ya hay ${ya} servicios de demo cargados. Archiva primero si quieres empezar de cero.` };
-    const n = await cargarDemo(sb);
+    const ya = await demoEnMarcha(sb, Date.now());
+    if (ya > 0) return { ok: false, mensaje: `La empresa de demo ya está funcionando (${ya} servicios de hoy en adelante): entran reservas solas y los conductores trabajan por turnos.` };
+    const r = await arrancarDemo(sb, Date.now());
     refrescar();
-    return { ok: true, mensaje: `Cargados ${n} servicios de demo (hoy y mañana), con su historial, una incidencia y los coches en el mapa.` };
+    return { ok: true, mensaje: `Empresa de demo en marcha: ${r.reservas} reservas de los próximos días${r.historial ? ` y ${r.historial} servicios de la última semana` : ""}. A partir de ahora entran solas.` };
   } catch (e) {
     console.error("[demo] cargar", e instanceof Error ? e.message : e);
     return { ok: false, mensaje: "No se pudieron cargar los datos de demo. Inténtalo de nuevo." };

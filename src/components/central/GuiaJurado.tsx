@@ -24,8 +24,8 @@ export default function GuiaJurado({ manana, soloDemo }: { manana: string; soloD
   };
   const enlace = "font-medium text-marca-claro underline decoration-marca-claro/40 hover:decoration-marca-claro";
   const pasos: { t: string; d: React.ReactNode }[] = [
-    { t: "Llena el panel", d: <>Si está vacío, pulsa <b>✨ Cargar datos de demo</b>: un día de trabajo con servicios en todos los estados. Se renueva sola cada pocas horas.</> },
-    { t: "Mira el mapa", d: <>Los conductores de demo trabajan solos: aceptan, salen, avisan al llegar, recogen y terminan, circulando por carretera. Pulsa un coche para ver quién es; a la derecha, la actividad y los avisos.</> },
+    { t: "Una empresa que funciona sola", d: <>Entran reservas a lo largo del día, la central asigna lo que se acerca (o lo subcontrata si no hay nadie libre) y tres conductores cubren las 24 h por turnos. Si alguien ha archivado, <b>✨ Cargar datos de demo</b> la pone en marcha otra vez.</> },
+    { t: "Mira el mapa", d: <>Los conductores de demo trabajan como personas: fichan y revisan el coche al empezar su turno, aceptan, salen, recogen, hacen su pausa y al acabar se desfichan con la hoja de cierre. Pulsa un coche para ver quién es; a la derecha, la actividad y los avisos.</> },
     { t: "Asigna automáticamente", d: <>En la <Link href={`/central/ruta?dia=${manana}`} className={enlace}>hoja de ruta de mañana</Link> pulsa <b>⚡ Asignar automáticamente</b>: propone conductor para cada servicio según turnos, distancias y huecos.</> },
     { t: "Ponte en el lugar del conductor", d: <>En una ventana de incógnito entra con una cuenta de conductor (están en la pantalla de acceso). Acepta el servicio que le asignes y míralo cambiar aquí al instante (si no lo haces en 4 min, lo acepta el conductor de demo).</> },
     { t: "Escanea un ticket", d: <>En el conductor, pestaña <b>Ticket</b>: haz una foto a un ticket de gasolinera (o pulsa «Probar con un ticket de ejemplo») y los campos se rellenan solos. Lo verás en <Link href="/central/combustible" className={enlace}>Combustible</Link>.</> },
