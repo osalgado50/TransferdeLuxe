@@ -1686,3 +1686,27 @@ ok
 
 ---
 
+## 2026-10-18 17:44 · Claude Code · sesión `b3c0e64f`
+
+abre una ventana del ipad y te accedo a github
+
+---
+
+## 2026-10-18 17:46 · Claude Code · sesión `b3c0e64f`
+
+estas dentro
+
+---
+
+## 2026-10-18 17:49 · Claude Code · sesión `b3c0e64f`
+
+si, cambia el enlace y haz el montaje
+
+---
+
+## 2026-10-18 17:50 · Claude Code · sesión `b3c0e64f`
+
+vuelve a grabar la toma 10 con el link correcto
+
+---
+

@@ -876,6 +876,13 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   a Tarragona), la hora de la barra de estado se fija y el ticket de la toma 8 es el de ejemplo. Las tomas en bruto
   quedan en `docs/video/tomas/` (fuera de git por tamaño).
 
+- **Montaje del vídeo (18/10/2026)**. La IA monta el vídeo con ffmpeg (`scripts/montaje_video.py`): de cada toma elige
+  los tramos que se ven en su bloque (acelerando las esperas), gira las del iPad, pone la toma 5 en pantalla dividida
+  (central y app del conductor grabadas a la vez), añade un rótulo por bloque con fondos generados con Pillow, coloca
+  cada voz en off al empezar su bloque y normaliza el volumen. Resultado: 1080p, 4:43, fuera de git
+  (`docs/video/TransferdeLuxe_video_demo.mp4`). La frase 2 de la voz se cambió para describir lo grabado: sin coche
+  libre, la web propone otras horas.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se

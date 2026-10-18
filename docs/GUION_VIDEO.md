@@ -29,7 +29,7 @@
    aplicación de sus conductores, todo con Claude Code.»
 2. «El cliente reserva desde el móvil, en castellano, catalán o inglés. Toca la flecha y la recogida se rellena con su
    ubicación; el destino lo puede dictar. Pasajeros y maletas, con botones grandes, y la web elige el vehículo. Antes de
-   aceptar, comprueba que haya algún conductor libre; si no lo hay, le ofrece escribir por WhatsApp o llamar.»
+   aceptar, comprueba que haya algún conductor libre; si no lo hay, le propone otras horas con coche libre.»
 3. «La reserva entra al instante en el centro de control. En el mapa, los coches circulan por carretera; a la derecha,
    la actividad y las alertas. Para que el jurado lo vea funcionando, la demo trabaja sola: sus conductores aceptan,
    salen, recogen y terminan.»

@@ -47,3 +47,4 @@ scripts/anonimizar.local.tsv
 
 # Tomas en bruto del vídeo (pesan cientos de MB)
 docs/video/tomas/
+docs/video/*.mp4
