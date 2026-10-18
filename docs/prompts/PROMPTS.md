@@ -1740,3 +1740,15 @@ Vale, por último, no te lo he dicho, se me acaba de ocurrir ahora, de que subti
 
 ---
 
+## 2026-10-18 18:24 · Claude Code · sesión `b3c0e64f`
+
+Bien, buen trabajo, buena iniciativa. Voy a hacer una prueba real de que funciona bien y cuando vuelva revisamos el vídeo y si está todo ok, pues le damos carpetazo al proyecto.
+
+---
+
+## 2026-10-18 20:54 · Claude Code · sesión `b3c0e64f`
+
+Vale, he hecho la prueba real, funciona perfecto, he hecho todos los pasos y seguramente te habrá quedado registrado el, el servicio. Eh, me gustaría que hiciéramos un pequeño documento eh, del paso a paso de cómo instalar las aplicaciones en el móvil, ¿vale? Y me, me compruebas que puedan instalar esas aplicaciones los jurados para que puedan comprobar el funcionamiento perfecto de la aplicación.
+
+---
+

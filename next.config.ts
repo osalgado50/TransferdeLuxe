@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: cabeceras }];
   },
+  // Enlace corto para instalar la app del conductor en Android (APK de EAS, distribución interna; caduca el 30/10/2026).
+  async redirects() {
+    return [{ source: "/android", destination: "https://expo.dev/artifacts/eas/sLajvHRbo399obLDSDlTB5zOJ-zBxFYt0m8varQodak.apk", permanent: false }];
+  },
 };
 
 export default nextConfig;

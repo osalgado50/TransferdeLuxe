@@ -2,6 +2,8 @@
 
 **Demo en línea:** https://app.transfersvipluxe.com — cuentas `central@transferdeluxe.test` y `conductor1..3@transferdeluxe.test` (la contraseña de prueba se muestra en la pantalla de acceso). Los datos que se añaden se conservan: no hay reinicio automático.
 
+**Probarlo en el móvil:** app del conductor para Android en https://app.transfersvipluxe.com/android y paso a paso para el jurado (Android, iPhone y prueba completa) en [docs/INSTALAR_APPS.md](docs/INSTALAR_APPS.md).
+
 Proyecto para el **Hackathon de Vibe Coding — Máster en IA de Big School (Edición 7)**,
 desarrollado al 100 % con vibe coding usando **Claude Code**.
 

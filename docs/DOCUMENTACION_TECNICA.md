@@ -886,6 +886,14 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   pausas reales de cada audio (`silencedetect`), en blanco con borde negro en la parte inferior, y además un
   `.srt` (`docs/video/TransferdeLuxe_video_demo.srt`) para subirlo como subtítulos a YouTube o Drive.
 
+- **Guía para instalar las apps (18/10/2026)**. Petición: un paso a paso para que el jurado pruebe las apps en el móvil y
+  comprobar que pueden instalarlas. `docs/INSTALAR_APPS.md`: cuentas de demo, Android (APK de EAS con enlace corto
+  `app.transfersvipluxe.com/android`, redirección en `next.config.ts`), iPhone (web del conductor; TestFlight solo por
+  invitación) y una prueba completa de 5 minutos. Comprobado: el APK se descarga sin iniciar sesión (157 MB), su huella
+  coincide con la última actualización OTA del canal `preview`, el modo demo está activo en las dos variantes y el
+  enlace caduca el 30/10/2026, después de la evaluación. La prueba real del responsable se ocultó (`es_prueba`) y se
+  borraron sus posiciones GPS reales.
+
 ## 6. Challenges y soluciones
 - **Contraseñas filtradas sin plan Pro (15/10/2026)**. El advisor de seguridad de Supabase avisa de que la
   protección de contraseñas filtradas está desactivada, pero solo existe en el plan Pro. Con el plan gratuito se
