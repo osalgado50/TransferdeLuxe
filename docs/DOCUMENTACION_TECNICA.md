@@ -426,8 +426,8 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   (documentada vacía en `.env.example`; es de pago). Tests: `geocodificacion.test.ts`, `lugaresEmpresa.test.ts`,
   `google-places.test.ts` (fetch simulado).
 - **13/10/2026 · Direcciones de calle en el autocompletado**. Medido en producción: los lugares («aeropuerto reus»)
-  salían, pero las direcciones no: «Dr. Eduard Punset 7, 3-1 de Salou. Tarragona» y «Carrer Eduard Punset Salou» sin
-  resultados (la calle es «Avinguda del Doctor Eduard Punset»), «Carrer Barcelona 10 Salou» devolvía «Carrer de Salou
+  salían, pero las direcciones no: «Dr. Pere Molas 15, 2-4 de Salou. Tarragona» y «Carrer Pere Molas Salou» sin
+  resultados (la calle es «Avinguda del Doctor Pere Molas»), «Carrer Barcelona 10 Salou» devolvía «Carrer de Salou
   10 · Barcelona» y «hotel piramide salou» nada. Se probaron las URLs reales de Photon y Nominatim (≈30 peticiones a
   cada uno, 1 por segundo) antes de programar: con una caja alrededor de la localidad los dos encuentran la calle
   aunque el tipo de vía no coincida; cuando el portal no está en OpenStreetMap devuelven la calle sin número; y
@@ -446,7 +446,7 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   mismo tipo); orden: localidad detectada > cercanía a Salou por anillos de 10/30/60 km > palabras buscadas presentes >
   dirección exacta > calle > lugar > población (sin número tecleado, el lugar antes que la calle: si no, «aeropuerto
   reus» ponía primero la carretera de acceso al aeropuerto). Si el portal tecleado no existe en el mapa, la calle sale como
-  «Avinguda del Doctor Eduard Punset, 7 · Salou (número aproximado)» con las coordenadas de la calle (campo
+  «Avinguda del Doctor Pere Molas, 15 · Salou (número aproximado)» con las coordenadas de la calle (campo
   `aproximado`), así el conductor ve el número. *UI* (`CampoDireccion`): si tras ≥ 6 letras no hay ninguna
   sugerencia, el desplegable ofrece «Usar “…” tal cual (sin punto en el mapa)»; el orden 🏢/⭐ de la central no cambia.
   Tests: `consultaDireccion.test.ts` (los casos reales y ~60 variantes) y `geocodificacion.test.ts` (paralelo, cajas,

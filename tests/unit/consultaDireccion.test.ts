@@ -8,12 +8,12 @@ const ver = (q: string) => {
 };
 
 describe("analizarConsulta: casos reales que fallaban en producción", () => {
-  it("«Dr. Eduard Punset 7, 3-1 de Salou. Tarragona»", () =>
-    expect(ver("Dr. Eduard Punset 7, 3-1 de Salou. Tarragona")).toEqual({ limpia: "Doctor Eduard Punset 7 Salou", numero: "7", localidad: "Salou", nucleo: "Doctor Eduard Punset" }));
-  it("«Carrer Eduard Punset Salou» (tipo de vía equivocado)", () =>
-    expect(ver("Carrer Eduard Punset Salou")).toEqual({ limpia: "Carrer Eduard Punset Salou", numero: null, localidad: "Salou", nucleo: "Carrer Eduard Punset" }));
-  it("«Eduard Punset 7 Salou»", () =>
-    expect(ver("Eduard Punset 7 Salou")).toEqual({ limpia: "Eduard Punset 7 Salou", numero: "7", localidad: "Salou", nucleo: "Eduard Punset" }));
+  it("«Dr. Pere Molas 15, 2-4 de Salou. Tarragona»", () =>
+    expect(ver("Dr. Pere Molas 15, 2-4 de Salou. Tarragona")).toEqual({ limpia: "Doctor Pere Molas 15 Salou", numero: "15", localidad: "Salou", nucleo: "Doctor Pere Molas" }));
+  it("«Carrer Pere Molas Salou» (tipo de vía equivocado)", () =>
+    expect(ver("Carrer Pere Molas Salou")).toEqual({ limpia: "Carrer Pere Molas Salou", numero: null, localidad: "Salou", nucleo: "Carrer Pere Molas" }));
+  it("«Pere Molas 7 Salou»", () =>
+    expect(ver("Pere Molas 7 Salou")).toEqual({ limpia: "Pere Molas 7 Salou", numero: "7", localidad: "Salou", nucleo: "Pere Molas" }));
   it("«Carrer Barcelona 10 Salou»: Barcelona es la calle, Salou la localidad", () =>
     expect(ver("Carrer Barcelona 10 Salou")).toEqual({ limpia: "Carrer Barcelona 10 Salou", numero: "10", localidad: "Salou", nucleo: "Carrer Barcelona" }));
   it("«hotel piramide salou»: sin «hotel» (Photon tarda > 5 s con él y no lo encuentra)", () => {
@@ -122,9 +122,9 @@ describe("fusionarResultados", () => {
   const salou = LOCALIDADES.find((l) => l.nombre === "Salou")!;
 
   it("calle sin el portal tecleado → número aproximado con coordenadas de la calle", () => {
-    const r = fusionarResultados([[c({ etiqueta: "Avinguda del Doctor Eduard Punset · Salou", tipo: "calle", calle: "Avinguda del Doctor Eduard Punset", localidad: "Salou", lat: 41.0836, lng: 1.1428 })]],
-      { numero: "7", localidad: salou });
-    expect(r).toEqual([{ etiqueta: "Avinguda del Doctor Eduard Punset, 7 · Salou (número aproximado)", lat: 41.0836, lng: 1.1428, frecuente: false, fuente: "photon", aproximado: true }]);
+    const r = fusionarResultados([[c({ etiqueta: "Avinguda del Doctor Pere Molas · Salou", tipo: "calle", calle: "Avinguda del Doctor Pere Molas", localidad: "Salou", lat: 41.0836, lng: 1.1428 })]],
+      { numero: "15", localidad: salou });
+    expect(r).toEqual([{ etiqueta: "Avinguda del Doctor Pere Molas, 15 · Salou (número aproximado)", lat: 41.0836, lng: 1.1428, frecuente: false, fuente: "photon", aproximado: true }]);
   });
   it("sin número tecleado la calle queda tal cual", () => {
     const r = fusionarResultados([[c({ etiqueta: "Carrer Major · Salou", tipo: "calle", calle: "Carrer Major", localidad: "Salou" })]], { numero: null, localidad: null });
@@ -187,6 +187,6 @@ it("deLaLocalidad: por municipio (La Pineda es de Vila-seca) o a menos de 3 km",
 
 it("palabrasQueFaltan ignora el tipo de vía y acepta prefijos", () => {
   expect(palabrasQueFaltan("Sol Piramides Salou", "piramide")).toBe(0);
-  expect(palabrasQueFaltan("Avinguda del Doctor Eduard Punset · Salou", "Carrer Eduard Punset")).toBe(0);
-  expect(palabrasQueFaltan("Carrer d'Eduard Toldrà · Salou", "Carrer Eduard Punset")).toBe(1);
+  expect(palabrasQueFaltan("Avinguda del Doctor Pere Molas · Salou", "Carrer Pere Molas")).toBe(0);
+  expect(palabrasQueFaltan("Carrer de Pere Toldrà · Salou", "Carrer Pere Molas")).toBe(1);
 });

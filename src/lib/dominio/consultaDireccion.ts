@@ -1,7 +1,7 @@
 // Limpieza de lo que teclea el usuario antes de preguntar a Photon/Nominatim (lógica pura, sin red):
 // abreviaturas → palabra completa, fuera piso/puerta/escalera, provincia, país y código postal, y detección de
 // la localidad conocida (para buscar solo alrededor de ella). Ejemplo real:
-// «Dr. Eduard Punset 7, 3-1 de Salou. Tarragona» → «Doctor Eduard Punset 7 Salou» (número 7, localidad Salou).
+// «Dr. Pere Molas 15, 2-4 de Salou. Tarragona» → «Doctor Pere Molas 15 Salou» (número 15, localidad Salou).
 import { ZONAS } from "./zonas";
 
 /** Minúsculas y sin acentos (la «l·l» y el apóstrofo se conservan). */
@@ -83,13 +83,13 @@ function trocear(texto: string): string[] {
 }
 
 export interface ConsultaAnalizada {
-  /** Lo que se manda primero al buscador: «Doctor Eduard Punset 7 Salou». */
+  /** Lo que se manda primero al buscador: «Doctor Pere Molas 15 Salou». */
   limpia: string;
   /** Número de portal tecleado («7», «12-14», «7B»); null si no hay. */
   numero: string | null;
   /** Localidad conocida detectada (la de la dirección, no la del nombre de la calle). */
   localidad: LocalidadConocida | null;
-  /** Variante de respaldo: sin número, tipo de vía, palabras genéricas ni localidad («Doctor Eduard Punset»). */
+  /** Variante de respaldo: sin número, tipo de vía, palabras genéricas ni localidad («Doctor Pere Molas»). */
   nucleo: string;
 }
 

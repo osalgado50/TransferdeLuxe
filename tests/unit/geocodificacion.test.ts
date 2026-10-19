@@ -35,13 +35,13 @@ describe("parsearPhoton", () => {
   it("clasifica dirección, calle, población y descarta paradas de bus", () => {
     const r = parsearPhoton({ features: [
       feature({ street: "Carrer de Sant Joan", housenumber: "10", city: "Reus", type: "house", osm_key: "place", osm_value: "house" }),
-      feature({ name: "Avinguda del Doctor Eduard Punset", city: "Salou", type: "street", osm_key: "highway" }),
+      feature({ name: "Avinguda del Doctor Pere Molas", city: "Salou", type: "street", osm_key: "highway" }),
       feature({ name: "Salou", county: "Tarragonès", type: "city", osm_key: "place" }),
       feature({ name: "Parada Hotel Demo", street: "Carrer X", city: "Salou", type: "house", osm_key: "highway", osm_value: "bus_stop" }),
     ] });
     expect(r?.map((l) => [l.tipo, l.etiqueta, l.calle ?? null])).toEqual([
       ["direccion", "Carrer de Sant Joan 10 · Reus", "Carrer de Sant Joan"],
-      ["calle", "Avinguda del Doctor Eduard Punset · Salou", "Avinguda del Doctor Eduard Punset"],
+      ["calle", "Avinguda del Doctor Pere Molas · Salou", "Avinguda del Doctor Pere Molas"],
       ["localidad", "Salou · Tarragonès", null],
     ]);
   });
@@ -66,13 +66,13 @@ describe("parsearNominatim", () => {
   });
   it("con addressdetails: «Calle nº · Localidad», tipo y sin paradas", () => {
     const r = parsearNominatim([
-      { display_name: "Avinguda del Doctor Eduard Punset, Salou, Tarragonès…", lat: "41.0836", lon: "1.1428", name: "Avinguda del Doctor Eduard Punset", addresstype: "road", address: { road: "Avinguda del Doctor Eduard Punset", town: "Salou", county: "Tarragonès" } },
+      { display_name: "Avinguda del Doctor Pere Molas, Salou, Tarragonès…", lat: "41.0836", lon: "1.1428", name: "Avinguda del Doctor Pere Molas", addresstype: "road", address: { road: "Avinguda del Doctor Pere Molas", town: "Salou", county: "Tarragonès" } },
       { display_name: "10, Carrer de Sant Joan, Reus…", lat: "41.156", lon: "1.1061", name: "", addresstype: "place", address: { road: "Carrer de Sant Joan", house_number: "10", city: "Reus" } },
       { display_name: "Hotel Demo, …", lat: "41.07", lon: "1.15", name: "Hotel Demo", addresstype: "tourism", address: { road: "Carrer de Prova", town: "Salou" } },
       { display_name: "Parada", lat: "41.07", lon: "1.15", name: "Parada", type: "bus_stop", addresstype: "highway", address: { road: "Carrer X", town: "Salou" } },
     ]);
     expect(r?.map((l) => [l.tipo, l.etiqueta])).toEqual([
-      ["calle", "Avinguda del Doctor Eduard Punset · Salou"], ["direccion", "Carrer de Sant Joan 10 · Reus"], ["poi", "Hotel Demo · Carrer de Prova · Salou"],
+      ["calle", "Avinguda del Doctor Pere Molas · Salou"], ["direccion", "Carrer de Sant Joan 10 · Reus"], ["poi", "Hotel Demo · Carrer de Prova · Salou"],
     ]);
   });
 });
@@ -101,27 +101,27 @@ describe("crearBuscador", () => {
     const r = { t: 0, ahora: () => r.t, dormir: async (ms: number) => { r.t += ms; } };
     return r;
   };
-  const calle = { name: "Avinguda del Doctor Eduard Punset", city: "Salou", type: "street", countrycode: "ES" };
-  const nomi = [{ display_name: "Avinguda del Doctor Eduard Punset, Salou", lat: "41.0836", lon: "1.1428", name: "Avinguda del Doctor Eduard Punset", addresstype: "road", address: { road: "Avinguda del Doctor Eduard Punset", town: "Salou" } }];
+  const calle = { name: "Avinguda del Doctor Pere Molas", city: "Salou", type: "street", countrycode: "ES" };
+  const nomi = [{ display_name: "Avinguda del Doctor Pere Molas, Salou", lat: "41.0836", lon: "1.1428", name: "Avinguda del Doctor Pere Molas", addresstype: "road", address: { road: "Avinguda del Doctor Pere Molas", town: "Salou" } }];
 
   it("Photon y Nominatim en paralelo, con caja alrededor de la localidad, fusionados y con caché de 24 h", async () => {
     const r = reloj();
     const f = vi.fn(async (url: string) => (url.includes("photon") ? json({ features: [feature(calle, [1.1428, 41.0836])] }) : json(nomi)));
     const b = crearBuscador({ fetch: f as unknown as typeof fetch, ahora: r.ahora, dormir: r.dormir });
-    const res = await b.buscar("Dr. Eduard Punset 7, 3-1 de Salou. Tarragona");
-    expect(res).toEqual([{ etiqueta: "Avinguda del Doctor Eduard Punset, 7 · Salou (número aproximado)", lat: 41.0836, lng: 1.1428, frecuente: false, fuente: "photon", aproximado: true }]);
+    const res = await b.buscar("Dr. Pere Molas 15, 2-4 de Salou. Tarragona");
+    expect(res).toEqual([{ etiqueta: "Avinguda del Doctor Pere Molas, 15 · Salou (número aproximado)", lat: 41.0836, lng: 1.1428, frecuente: false, fuente: "photon", aproximado: true }]);
     const urls = f.mock.calls.map((c) => String(c[0]));
     expect(urls).toHaveLength(2);
-    expect(urls[0]).toContain("photon.komoot.io/api/?q=Doctor%20Eduard%20Punset%207%20Salou&lat=41.0764&lon=1.1416");
+    expect(urls[0]).toContain("photon.komoot.io/api/?q=Doctor%20Pere%20Molas%2015%20Salou&lat=41.0764&lon=1.1416");
     expect(urls[0]).toMatch(/&bbox=1\.04\d*,41\.00\d*,1\.23\d*,41\.14\d*$/);
     expect(urls[1]).toContain("nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1");
     expect(urls[1]).toMatch(/viewbox=1\.04\d*,41\.14\d*,1\.23\d*,41\.00\d*&bounded=1/);
     expect(((f.mock.calls[0] as unknown as [string, RequestInit])[1].headers as Record<string, string>)["User-Agent"]).toMatch(/TransferdeLuxe/);
     r.t += 60_000;
-    await b.buscar("Dr. Eduard Punset 7, 3-1 de Salou. Tarragona");
+    await b.buscar("Dr. Pere Molas 15, 2-4 de Salou. Tarragona");
     expect(f).toHaveBeenCalledTimes(2); // de la caché
     r.t += 25 * 3600_000;
-    await b.buscar("Dr. Eduard Punset 7, 3-1 de Salou. Tarragona");
+    await b.buscar("Dr. Pere Molas 15, 2-4 de Salou. Tarragona");
     expect(f).toHaveBeenCalledTimes(4); // caducada
   });
   it("sin localidad: Photon sin caja y Nominatim limitado a la región", async () => {
@@ -175,10 +175,10 @@ describe("crearBuscador", () => {
       return json({ features: [feature({ name: "Lugar Demo Lento", city: "Salou", countrycode: "ES", type: "house" })] });
     });
     const b = crearBuscador({ fetch: f as unknown as typeof fetch, ...reloj(), graciaMs: 5 });
-    const res = await b.buscar("Eduard Punset Salou");
+    const res = await b.buscar("Pere Molas Salou");
     expect(res.map((l) => l.fuente)).toEqual(["nominatim"]);
     soltarPhoton();
-    await vi.waitFor(async () => expect((await b.buscar("Eduard Punset Salou")).map((l) => l.fuente)).toContain("photon"));
+    await vi.waitFor(async () => expect((await b.buscar("Pere Molas Salou")).map((l) => l.fuente)).toContain("photon"));
     expect(f).toHaveBeenCalledTimes(2); // la segunda vez, todo de la caché
   });
   it("una misma URL en curso no se pide dos veces", async () => {

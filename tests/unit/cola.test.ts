@@ -33,8 +33,7 @@ test("rechazada por el servidor: se descarta y se informa", async () => {
 
 test("encolar durante vaciar no pierde la acción nueva", async () => {
   const enviadas: string[] = [];
-  let c!: ColaAcciones;
-  c = new ColaAcciones(memoria(), async (a) => {
+  const c: ColaAcciones = new ColaAcciones(memoria(), async (a) => {
     if (a.idAccion === "1") c.encolar({ idAccion: "2", servicioId: "s", accion: "cargar" });
     await Promise.resolve(); enviadas.push(a.idAccion); return { ok: true };
   });
