@@ -886,6 +886,14 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   pausas reales de cada audio (`silencedetect`), en blanco con borde negro en la parte inferior, y además un
   `.srt` (`docs/video/TransferdeLuxe_video_demo.srt`) para subirlo como subtítulos a YouTube o Drive.
 
+- **Presentación del autor al principio del vídeo (19/10/2026)**. El responsable grabó una presentación con el móvil (vertical, en
+  casa, sin croma). La IA lo recorta con la segmentación de personas de Vision de macOS (`VNGeneratePersonSegmentationRequest`,
+  un pequeño programa en Swift que saca la máscara fotograma a fotograma), lo coloca sobre una imagen de oficina desenfocada,
+  transcribe lo que dice con whisper.cpp en local para subtitularlo igual que el resto y enlaza con un fundido al vídeo demo
+  (`scripts/intro_video.py`). Challenge: con la presentación el total pasaba de 5:00 (máximo de las bases), así que cada
+  bloque del demo tiene ahora una duración objetivo y sus tramos se aceleran por igual sin tocar la voz: 4:43 → 3:23, y el
+  vídeo final queda en 4:23 (`docs/video/TransferdeLuxe_video_final.mp4`, fuera de git).
+
 - **Guía para instalar las apps (18/10/2026)**. Petición: un paso a paso para que el jurado pruebe las apps en el móvil y
   comprobar que pueden instalarlas. `docs/INSTALAR_APPS.md`: cuentas de demo, Android (APK de EAS con enlace corto
   `app.transfersvipluxe.com/android`, redirección en `next.config.ts`), iPhone (web del conductor; TestFlight solo por

@@ -1774,3 +1774,10 @@ descargada la, la aplicación y he entrado como conductor 3. Deberías de poner 
 
 ---
 
+## 2026-10-19 10:27 · Claude Code · sesión `b3c0e64f`
+
+@"/Users/mac2019/Downloads/IMG_3488.mov"
+Te paso un vídeo que pondremos en el inicio de nuestro vídeo como presentación ¿vale? Quiero que hagas un montaje del fondo de los ordenadores y, encima, pones el muchacho que habla, que soy yo. ¿Vale? Eh, cuando termine el vídeo, haces un fundido y empiezas con el que ya tenemos preparado.
+
+---
+

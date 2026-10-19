@@ -54,6 +54,14 @@ BLOQUES = [
      "10 · Hecho con Claude Code"),
 ]
 
+# Duración objetivo de cada bloque (s): con la presentación del autor delante, el total debe quedar por debajo de 5:00.
+# Los tramos de cada bloque se aceleran por igual hasta llegar a su objetivo (la voz no cambia).
+OBJETIVO = {"01": 17, "02": 26, "03": 16, "04": 20, "05": 30, "06": 22, "07": 14, "08": 17, "09": 19, "10": 19}
+for i, bl in enumerate(BLOQUES):
+    total = sum((b - a) / v for a, b, v in bl[3])
+    k = max(1.0, total / OBJETIVO[bl[0][:2]])
+    BLOQUES[i] = (bl[0], bl[1], bl[2], [(a, b, round(v * k, 4)) for a, b, v in bl[3]], *bl[4:])
+
 def dur(tramos): return sum((b - a) / v for a, b, v in tramos)
 
 def cadena(entrada, tramos, rot, size, tag):
@@ -105,11 +113,11 @@ def final():
     centro("Hackathon de Vibe Coding · Big School · Hecho con Claude Code", fuente(36, 0), 600, GRIS)
     centro("Marca y datos ficticios, solo para la demostración", fuente(28, 0), 700, GRIS)
     p = OUT / "fondo_final.png"; im.save(p)
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", "4", "-i", str(p), "-f", "lavfi", "-t", "4",
-                    "-i", "anullsrc=r=48000:cl=stereo", "-vf", "fade=t=in:st=0:d=0.4,fade=t=out:st=3.4:d=0.6,format=yuv420p",
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", "3", "-i", str(p), "-f", "lavfi", "-t", "3",
+                    "-i", "anullsrc=r=48000:cl=stereo", "-vf", "fade=t=in:st=0:d=0.4,fade=t=out:st=2.4:d=0.6,format=yuv420p",
                     "-r", "30", "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-shortest", str(OUT / "11_final.mp4")], check=True)
 
 for b in BLOQUES:
     if not SOLO or b[0][:2] in SOLO: render(b)
 if not SOLO or "11" in SOLO: final()
-print("TOTAL previsto:", round(sum(dur(b[3]) for b in BLOQUES) + 4, 1), "s")
+print("TOTAL previsto:", round(sum(dur(b[3]) for b in BLOQUES) + 3, 1), "s")
