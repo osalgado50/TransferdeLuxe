@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 ENTRADA, BLOQUES, SALIDA = map(pathlib.Path, sys.argv[1:4])
 VOZ = pathlib.Path("docs/video/voz")
 NOMBRES = ["01_portada", "02_reserva", "03_panel", "04_asignacion", "05_conductor", "06_central_manda", "07_cliente", "08_ticket",
-           "09_gestion", "10_cierre"]
+           "08b_jornada", "09_gestion", "10_cierre"]
 RETARDO = 0.6  # la voz empieza 0,6 s después de cada bloque (montaje_video.py)
 W, H, MAX_W, MAX_CHARS = 1920, 1080, 1500, 86
 FUENTE = ImageFont.truetype("/System/Library/Fonts/Avenir Next.ttc", 46, index=2)  # Demi Bold
@@ -15,7 +15,7 @@ FUENTE = ImageFont.truetype("/System/Library/Fonts/Avenir Next.ttc", 46, index=2
 guion = pathlib.Path("docs/GUION_VIDEO.md").read_text(encoding="utf-8")
 sec = guion.split("### Texto de la voz en off")[1].split("## Plan de tomas")[0]
 textos = [re.sub(r"\s+", " ", m).strip().replace("Transfer de Luxe", "TransferdeLuxe") for m in re.findall(r"^\d+\. «(.*?)»", sec, re.S | re.M)]
-assert len(textos) == 10
+assert len(textos) == 11
 
 def duracion(p):
     return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)],

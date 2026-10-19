@@ -131,34 +131,46 @@ importe, CIF y número de factura.
 La aplicación compara el precio con el del Ministerio y los kilómetros con los últimos del coche.
 
 34
-00:02:42,600 --> 00:02:46,781
-Horarios por turnos, también de noche, planificados por semanas y meses;
+00:02:42,600 --> 00:02:47,020
+Al empezar el turno, el conductor revisa el coche con un checklist y la central lo ve.
 
 35
-00:02:46,781 --> 00:02:50,958
-informes de servicios, kilómetros y consumo; registro de jornada;
+00:02:47,020 --> 00:02:51,286
+Al terminar, rellena la hoja de cierre: si ha habido un golpe o una rascada,
 
 36
-00:02:50,958 --> 00:02:54,169
-mantenimiento con avisos; y la flota y los conductores,
+00:02:51,286 --> 00:02:55,794
+lo marca en el dibujo del vehículo y a la central le salta una alerta roja al momento.
 
 37
-00:02:54,169 --> 00:02:56,978
-que se pueden dar de baja sin perder su historial.
+00:03:08,600 --> 00:03:12,781
+Horarios por turnos, también de noche, planificados por semanas y meses;
 
 38
-00:03:01,600 --> 00:03:05,661
-Todo se ha hecho conversando con Claude Code: más de trescientos treinta commits,
+00:03:12,781 --> 00:03:16,958
+informes de servicios, kilómetros y consumo; registro de jornada;
 
 39
-00:03:05,661 --> 00:03:07,743
-cuarenta migraciones de base de datos,
+00:03:16,958 --> 00:03:20,169
+mantenimiento con avisos; y la flota y los conductores,
 
 40
-00:03:07,743 --> 00:03:13,731
-más de ochocientas cuarenta pruebas automáticas y una aplicación nativa que se actualiza sin pasar por las tiendas.
+00:03:20,169 --> 00:03:22,978
+que se pueden dar de baja sin perder su historial.
 
 41
-00:03:13,731 --> 00:03:17,766
+00:03:27,600 --> 00:03:31,661
+Todo se ha hecho conversando con Claude Code: más de trescientos treinta commits,
+
+42
+00:03:31,661 --> 00:03:33,743
+cuarenta migraciones de base de datos,
+
+43
+00:03:33,743 --> 00:03:39,731
+más de ochocientas cuarenta pruebas automáticas y una aplicación nativa que se actualiza sin pasar por las tiendas.
+
+44
+00:03:39,731 --> 00:03:43,766
 El historial de prompts acompaña la entrega. Gracias.
 

@@ -48,6 +48,8 @@ BLOQUES = [
      "7 · Cliente informado", "Seguimiento en directo", ["Aviso por WhatsApp con un toque", "El cliente ve el coche y la hora"]),
     ("08_ticket", "movil", ["08_ticket"], [(4, 7, 1), (30, 34, 1), (37, 47, 1), (55, 62, 1)],
      "8 · Tickets de combustible", "Tickets por OCR", ["Foto del ticket y datos rellenos", "Precio comparado con el Ministerio"]),
+    ("08b_jornada", "split", ["11_central", "11_movil"], [(1, 4, 1), (6, 28, 4), (28, 36, 1.5), (63, 68, 1), (96, 100, 1), (108, 120, 3),
+     (120, 133, 5), (133, 141, 1)], "8b · Revisión del coche al fichar y daños al terminar"),
     ("09_gestion", "ipad", ["09_gestion"], [(4, 12, 1), (22, 26, 1), (28, 33, 1), (35, 41, 1), (64, 68.7, 1)],
      "9 · Jornadas, horarios, informes y flota"),
     ("10_cierre", "ipad", ["10_cierre"], [(0, 5, 1), (10, 15, 1), (19, 22, 1), (25, 30, 1), (33, 40, 1)],
@@ -56,10 +58,10 @@ BLOQUES = [
 
 # Duración objetivo de cada bloque (s): con la presentación del autor delante, el total debe quedar por debajo de 5:00.
 # Los tramos de cada bloque se aceleran por igual hasta llegar a su objetivo (la voz no cambia).
-OBJETIVO = {"01": 17, "02": 26, "03": 16, "04": 20, "05": 30, "06": 22, "07": 14, "08": 17, "09": 19, "10": 19}
+OBJETIVO = {"01": 17, "02": 26, "03": 16, "04": 20, "05": 30, "06": 22, "07": 14, "08": 17, "08b": 26, "09": 19, "10": 19}
 for i, bl in enumerate(BLOQUES):
     total = sum((b - a) / v for a, b, v in bl[3])
-    k = max(1.0, total / OBJETIVO[bl[0][:2]])
+    k = max(1.0, total / OBJETIVO[bl[0].split("_")[0]])
     BLOQUES[i] = (bl[0], bl[1], bl[2], [(a, b, round(v * k, 4)) for a, b, v in bl[3]], *bl[4:])
 
 def dur(tramos): return sum((b - a) / v for a, b, v in tramos)
@@ -70,7 +72,7 @@ def cadena(entrada, tramos, rot, size, tag):
     for i, (a, b, v) in enumerate(tramos):
         s += f"[{tag}r{i}]trim=start={a}:end={b},setpts=(PTS-STARTPTS)/{v},fps=30[{tag}t{i}];"
     s += "".join(f"[{tag}t{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0"
-    s += (",transpose=2" if rot else "") + f",scale={size[0]}:{size[1]}:flags=lanczos,setsar=1[{tag}];"
+    s += (f",transpose={rot}" if rot else "") + f",scale={size[0]}:{size[1]}:flags=lanczos,setsar=1[{tag}];"
     return s
 
 def render(b):
@@ -92,7 +94,7 @@ def render(b):
     fc = ""
     for i, t in enumerate(tomas):
         rot = lay == "ipad" or (lay == "split" and i == 0)
-        fc += cadena(i + 1, tramos, rot, IPAD if rot else MOVIL, f"c{i}")
+        fc += cadena(i + 1, tramos, rot and (1 if t.startswith("11_") else 2), IPAD if rot else MOVIL, f"c{i}")
     prev = "0:v"
     for i, (x, y) in enumerate(pos):
         fc += f"[{prev}][c{i}]overlay={x}:{y}:eof_action=repeat[o{i}];"; prev = f"o{i}"

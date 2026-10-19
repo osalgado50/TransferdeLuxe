@@ -19,6 +19,7 @@
 | 6 | 2:40–3:10 | Ficha de un servicio en camino | La central lo controla todo | `06_central_manda.m4a` · 14 s |
 | 7 | 3:10–3:30 | Móvil: «Avisar al cliente» → página de seguimiento | Cliente informado | `07_cliente.m4a` · 7 s |
 | 8 | 3:30–3:55 | Móvil: Ticket → central: Combustible | Tickets por OCR | `08_ticket.m4a` · 12 s |
+| 8b | — | **Pantalla dividida**: app del conductor + central | Checklist al fichar y hoja de cierre con daños | `08b_jornada.m4a` |
 | 9 | 3:55–4:25 | Horarios · Informes · Flota y ajustes | Gestión | `09_gestion.m4a` · 14 s |
 | 10 | 4:25–4:55 | Repositorio · documentación | Vibe coding | `10_cierre.m4a` · 16 s |
 
@@ -46,10 +47,13 @@
    a qué hora llegará.»
 8. «El ticket de gasolina se fotografía y los datos se rellenan solos: litros, precio, importe, CIF y número de factura.
    La aplicación compara el precio con el del Ministerio y los kilómetros con los últimos del coche.»
-9. «Horarios por turnos, también de noche, planificados por semanas y meses; informes de servicios, kilómetros y
+9. «Al empezar el turno, el conductor revisa el coche con un checklist y la central lo ve. Al terminar, rellena la
+   hoja de cierre: si ha habido un golpe o una rascada, lo marca en el dibujo del vehículo y a la central le salta una
+   alerta roja al momento.»
+10. «Horarios por turnos, también de noche, planificados por semanas y meses; informes de servicios, kilómetros y
    consumo; registro de jornada; mantenimiento con avisos; y la flota y los conductores, que se pueden dar de baja sin
    perder su historial.»
-10. «Todo se ha hecho conversando con Claude Code: más de trescientos treinta commits, cuarenta migraciones de base de
+11. «Todo se ha hecho conversando con Claude Code: más de trescientos treinta commits, cuarenta migraciones de base de
     datos, más de ochocientas cuarenta pruebas automáticas y una aplicación nativa que se actualiza sin pasar por las
     tiendas. El historial de prompts acompaña la entrega. Gracias.»
 

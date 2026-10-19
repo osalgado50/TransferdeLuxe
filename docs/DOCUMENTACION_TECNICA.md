@@ -894,6 +894,14 @@ Navegador (central)   App TDL Conductor (Expo) / PWA   Navegador (cliente)
   bloque del demo tiene ahora una duración objetivo y sus tramos se aceleran por igual sin tocar la voz: 4:43 → 3:23, y el
   vídeo final queda en 4:23 (`docs/video/TransferdeLuxe_video_final.mp4`, fuera de git).
 
+- **Bloque 8b del vídeo: revisión del coche al fichar y daños al terminar (19/10/2026)**. Petición: enseñar el checklist del
+  vehículo al iniciar la jornada y la hoja de cierre con un golpe marcado, y cómo lo ve la central. Grabado en pantalla
+  dividida (app de Marc en el iPhone y central en el iPad, a la vez): checklist sin fallos → «Marc Demo ha pasado el
+  checklist de 0001-TDL sin fallos» en la actividad; al finalizar, puerta y aleta traseras derechas marcadas en el dibujo
+  y un comentario → en la central salta la alerta roja «Hoja de cierre» con el dibujo del vehículo. Nueva frase de la voz
+  en off y sus subtítulos. Total del vídeo final: 4:48, por debajo del máximo de 5:00. La alerta de la prueba se marcó como
+  vista después de grabar.
+
 - **Guía para instalar las apps (18/10/2026)**. Petición: un paso a paso para que el jurado pruebe las apps en el móvil y
   comprobar que pueden instalarlas. `docs/INSTALAR_APPS.md`: cuentas de demo, Android (APK de EAS con enlace corto
   `app.transfersvipluxe.com/android`, redirección en `next.config.ts`), iPhone (web del conductor; TestFlight solo por

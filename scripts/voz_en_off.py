@@ -4,8 +4,8 @@ import re, subprocess, sys, pathlib
 guion = pathlib.Path("docs/GUION_VIDEO.md").read_text(encoding="utf-8")
 sec = guion.split("### Texto de la voz en off")[1].split("## Plan de tomas")[0]
 textos = [re.sub(r"\s+", " ", m).strip() for m in re.findall(r"^\d+\. «(.*?)»", sec, re.S | re.M)]
-nombres = ["01_portada", "02_reserva", "03_panel", "04_asignacion", "05_conductor", "06_central_manda", "07_cliente", "08_ticket", "09_gestion", "10_cierre"]
-assert len(textos) == 10, len(textos)
+nombres = ["01_portada", "02_reserva", "03_panel", "04_asignacion", "05_conductor", "06_central_manda", "07_cliente", "08_ticket", "08b_jornada", "09_gestion", "10_cierre"]
+assert len(textos) == 11, len(textos)
 FONETICA = [("Claude Code", "Clod Cóud"), ("WhatsApp", "guásap"), ("commits", "cómits"), ("prompts", "prómts"), ("CIF", "cif"),
             ("Transfer de Luxe", "Tránsfer de Lux")]
 out = pathlib.Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
